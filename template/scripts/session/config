@@ -1,0 +1,13 @@
+# Non-secret session defaults. Sourced by scripts/session/*.sh.
+# NEVER put secrets here (tokens, passwords). Secrets live in the per-user env
+# file (see SDLC_CONFIG_DIR below), which is chmod 600 and never committed.
+
+# PR target branch for wrapup.sh.
+SESSION_PR_TARGET="main"
+
+# Issue-tracker key prefix used by the commit-msg hook and branch naming
+# (e.g. PROJ -> PROJ-123). Set this to your tracker's project key.
+TICKET_PREFIX="<TICKET>"
+
+# Where per-user secrets/seat live: ${SDLC_CONFIG_DIR:-$HOME/.config/ai-sdlc}/env
+# Keys read from there: SESSION_SEAT, GIT_HOST_TOKEN (optional).

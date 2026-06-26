@@ -1,0 +1,15 @@
+# Kit-level ignores. NOTE: template/.gitignore governs files inside template/.
+.DS_Store
+Thumbs.db
+
+# Local build/run artifacts
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+node_modules/
+
+# Generated/derived (sources stay tracked)
+template/docs/knowledge/.index/
+*.db
+*.sqlite

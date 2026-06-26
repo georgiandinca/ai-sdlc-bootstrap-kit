@@ -1,0 +1,35 @@
+{
+  "$comment": "MCP connectors for this project. The board's Roles x Skills x MCP matrix lives here: each seat uses a scoped set of these servers. Posture is 'scoped write' — see AGENTS.md §4.3. Uncomment and configure the servers you actually run; remove the rest. Never hard-code secrets here — use env vars or the server's own auth (oauth).",
+
+  "mcpServers": {
+    "issue-tracker": {
+      "$note": "Used by: Product, EM, QA. Example shows Atlassian-hosted MCP; swap for Linear/GitHub-Issues MCP as needed.",
+      "url": "https://mcp.atlassian.com/v1/mcp",
+      "auth": "oauth",
+      "lifecycle": "lazy",
+      "idleTimeout": 10
+    },
+
+    "docs-wiki": {
+      "$note": "Used by: all seats (write drafts). Confluence/Notion MCP. Promotion to canonical stays human-applied.",
+      "url": "<DOCS_WIKI_MCP_URL>",
+      "auth": "oauth",
+      "lifecycle": "lazy"
+    },
+
+    "knowledge": {
+      "$note": "Used by: all seats (ingest & query the KG/RAG/vector store — pillar 5). Point at your vector-DB / KG MCP server.",
+      "command": "<KNOWLEDGE_MCP_COMMAND>",
+      "args": [],
+      "$disabled": true
+    },
+
+    "context7": {
+      "$note": "Used by: Dev, Architect, EM. Up-to-date library/framework docs. Optional but recommended.",
+      "url": "https://mcp.context7.com/mcp",
+      "auth": "none",
+      "lifecycle": "lazy",
+      "$disabled": true
+    }
+  }
+}

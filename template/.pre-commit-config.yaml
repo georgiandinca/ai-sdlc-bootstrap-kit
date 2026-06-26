@@ -1,0 +1,32 @@
+# Pre-commit hooks — the fast, local half of the AI-governance gate.
+# Install once per machine:  pip install pre-commit && pre-commit install --hook-type commit-msg
+# Run on demand:             pre-commit run --all-files
+#
+# These mirror the CI gate in .github/workflows/ai-governance.yml. Local runs are
+# faster but bypassable; CI is the enforced merge gate.
+default_install_hook_types: [pre-commit, commit-msg]
+repos:
+  - repo: local
+    hooks:
+      - id: validate-skills
+        name: Validate SKILL.md against agentskills.io
+        entry: python scripts/validate-skills.py
+        language: python
+        additional_dependencies: ["pyyaml>=6"]
+        files: (^|/)SKILL\.md$
+        pass_filenames: true
+
+      - id: validate-frontmatter
+        name: Validate doc frontmatter contract (AGENTS.md §4.2)
+        entry: python scripts/validate-frontmatter.py
+        language: python
+        additional_dependencies: ["pyyaml>=6"]
+        files: ^docs/.*\.md$
+        exclude: ^docs/(drafts|received|knowledge)/
+        pass_filenames: true
+
+      - id: commit-msg-ticket
+        name: Commit message references an issue key (advisory)
+        entry: python scripts/git/commit_msg_ticket.py --mode warn
+        language: python
+        stages: [commit-msg]

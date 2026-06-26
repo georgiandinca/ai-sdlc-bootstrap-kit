@@ -1,0 +1,23 @@
+# Optional — link-check the knowledge tree so the docs stay navigable.
+# Enable/extend as the project grows (e.g. build a MkDocs/Docusaurus site and
+# publish to Pages). Kept minimal so the template clones light.
+name: Docs
+
+on:
+  pull_request:
+    paths: ["docs/**", "*.md"]
+  workflow_dispatch:
+
+jobs:
+  linkcheck:
+    name: Markdown link check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check links in Markdown
+        uses: gaurav-nelson/github-action-markdown-link-check@v1
+        with:
+          use-quiet-mode: "yes"
+          use-verbose-mode: "yes"
+          config-file: ".github/workflows/mlc-config.json"
+          check-modified-files-only: "yes"

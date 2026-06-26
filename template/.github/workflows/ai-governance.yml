@@ -1,0 +1,34 @@
+# CI — the enforced half of the AI-governance gate (board pillar 3/4:
+# "CI/CD for the AI framework — rules as scripts").
+#
+# Local pre-commit hooks give fast, bypassable feedback; this workflow is the
+# central, non-bypassable merge gate. Same scripts run in both places.
+name: AI Governance
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+
+jobs:
+  governance:
+    name: Validate skills + doc frontmatter
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install deps
+        run: pip install --quiet "pyyaml>=6"
+
+      - name: Validate Agent Skills (agentskills.io)
+        run: python3 scripts/validate-skills.py
+
+      - name: Validate doc frontmatter contract (AGENTS.md §4.2)
+        run: python3 scripts/validate-frontmatter.py
+
+      - name: Knowledge ingest smoke test (stub builds cleanly)
+        run: python3 scripts/knowledge/ingest.py --build

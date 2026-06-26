@@ -1,0 +1,41 @@
+# Per-user, never committed
+USER.md
+.private/
+
+# Local environment / secrets
+.env
+.env.*
+!.env.example
+*.local
+
+# Knowledge layer — local vector store / build artifacts (sources stay tracked)
+docs/knowledge/.index/
+docs/knowledge/*.duckdb
+docs/knowledge/*.sqlite
+
+# Dashboard local DB
+dashboard/*.db
+dashboard/*.sqlite
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Generated binary deliverables (markdown is the source of truth — see AGENTS.md §7)
+*.docx
+*.pptx
+!docs/**/templates/*.docx
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json

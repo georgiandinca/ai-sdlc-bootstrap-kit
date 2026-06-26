@@ -1,0 +1,41 @@
+---
+title: "User profile"
+created: YYYY-MM-DD
+---
+
+# User profile
+
+> This is the **example**. The real `USER.md` is created during onboarding (see `ONBOARDING.md`)
+> and is **git-ignored** — it never leaves your machine. Do not commit a real `USER.md`.
+
+## Identity
+
+- **Full name:** <full_name>
+- **Email:** <email>
+- **Seat:** <Architect | EM | Product | Developer | QA>
+
+## Communication preferences
+
+- **Tone:** <Professional & Direct | Warm & Collaborative | Formal & Precise>
+- **Detail level:** <Comprehensive | Balanced | Concise>
+- **Language:** <English | … | Bilingual>
+- **Technical depth:** <Role-adapted | Always detailed | Always high-level>
+
+## Preferences
+
+<!-- AI-managed section. The agent adds entries here as it learns what you like.
+     Keep under 20 lines; summarize or prune stale entries. Examples:
+     - Prefers Mermaid over draw.io for diagrams
+     - Works primarily on the backend service
+     - Wants ADRs formatted as decision records with rationale
+-->
+_(no preferences recorded yet)_
+
+## Onboarding status
+
+<!-- AI-managed section. Records what failed during onboarding so future sessions
+     can retry without re-asking. Remove each entry once fixed. Examples:
+     - pre-commit not on PATH — installed at /Users/x/Library/Python/3.x/bin
+     - pandoc not installed
+-->
+_(all onboarding steps completed successfully)_
