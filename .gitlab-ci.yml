@@ -6,6 +6,7 @@
 # Note that environment variables can be set in several places
 # See https://docs.gitlab.com/ci/variables/#cicd-variable-precedence
 stages:
+- governance
 - test
 - secret-detection
 sast:
@@ -17,3 +18,23 @@ variables:
   SECRET_DETECTION_ENABLED: 'true'
 secret_detection:
   stage: secret-detection
+
+# --- AI-SDLC governance gate (the kit's own pillar 4: "rules as scripts") ---
+# Runs the template's validators + knowledge-ingest smoke test. The scripts
+# resolve their own repo root, so they scope to template/ regardless of CWD.
+# Mirror of template/.github/workflows/ai-governance.yml for this GitLab repo.
+ai-governance:
+  stage: governance
+  image: python:3.12-slim
+  before_script:
+  - pip install --quiet "pyyaml>=6"
+  script:
+  - echo "Validating Agent Skills (agentskills.io)…"
+  - python3 template/scripts/validate-skills.py
+  - echo "Validating doc frontmatter contract (AGENTS.md §4.2)…"
+  - python3 template/scripts/validate-frontmatter.py
+  - echo "Knowledge ingest smoke test (stub builds cleanly)…"
+  - python3 template/scripts/knowledge/ingest.py --build
+  rules:
+  - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  - if: '$CI_COMMIT_BRANCH'
