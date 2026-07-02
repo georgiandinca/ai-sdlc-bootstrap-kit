@@ -20,7 +20,6 @@ Exit 0 if valid, 1 otherwise.
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
 REQUIRED_FIELDS = ["id", "trigger", "handler", "hook", "status", "behavior_by_comfort"]
