@@ -181,10 +181,11 @@ Offer the seat's `first_task` from `seat-profiles.json` (e.g. Architect → an A
 ## Finalize — Create `USER.md` and proceed
 
 1. Write `USER.md` at the repo root from the shape in [`USER.md.example`](./USER.md.example), filling in identity (A5), communication preferences (A6), seat (B1), and git-comfort (B2). Keep it under 100 lines. It is git-ignored.
-2. Summarize what was set up (name, seat, git-comfort, preferences) and tool installation status.
-3. **If anything failed, write it into the `Onboarding status` section of `USER.md`** with the exact retry command, so future sessions pick it up automatically.
-4. Tell the user onboarding is complete.
-5. Proceed to `AGENTS.md` §0 to load the project brief.
+2. **If you deferred any seat-optional tooling in A2** (Node.js, pandoc) and this seat needs it — e.g. a Developer/EM who will build the dashboard or generate binary deliverables — install it now.
+3. Summarize what was set up (name, seat, git-comfort, preferences) and tool installation status.
+4. **If anything failed, write it into the `Onboarding status` section of `USER.md`** with the exact retry command, so future sessions pick it up automatically.
+5. Tell the user onboarding is complete.
+6. Proceed to `AGENTS.md` §0 to load the project brief.
 
 **Switching seats later:** run `scripts/session/switch-seat.sh <seat>` — it re-runs Phase B only (seat + git-comfort + playbook), leaving identity and environment untouched.
 
