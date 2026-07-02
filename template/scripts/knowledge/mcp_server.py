@@ -74,6 +74,8 @@ def handle(msg):
         except Exception as ex:  # never crash the loop; surface as tool error
             return {"jsonrpc": "2.0", "id": mid, "result": {
                 "content": [{"type": "text", "text": f"error: {ex}"}], "isError": True}}
+    if mid is None:
+        return None  # never reply to a notification (JSON-RPC 2.0 §4)
     return {"jsonrpc": "2.0", "id": mid,
             "error": {"code": -32601, "message": f"method not found: {method}"}}
 

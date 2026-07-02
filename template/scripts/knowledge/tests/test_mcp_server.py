@@ -20,6 +20,9 @@ class McpProtocolTests(unittest.TestCase):
     def test_notification_no_reply(self):
         self.assertIsNone(srv.handle({"jsonrpc": "2.0", "method": "notifications/initialized"}))
 
+    def test_unknown_notification_no_reply(self):
+        self.assertIsNone(srv.handle({"jsonrpc": "2.0", "method": "notifications/cancelled"}))
+
     def test_unknown_method_errors(self):
         r = srv.handle({"jsonrpc": "2.0", "id": 3, "method": "no/such"})
         self.assertEqual(r["error"]["code"], -32601)
