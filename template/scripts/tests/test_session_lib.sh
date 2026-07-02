@@ -24,6 +24,11 @@ JSON
   check behavior2 "$(sdlc_moment_behavior session-start git-native)" "offer"
   git checkout -q -b main 2>/dev/null || git branch -m main
   br=$(sdlc_ensure_feature_branch Product save); check branch "$br" "session/product/save"
+  # git-comfort env fallback: USER.md has no git-comfort line, env var takes over
+  printf -- '- **Seat:** Product\n' > USER.md
+  check comfort_env "$(SESSION_GIT_COMFORT=guided sdlc_git_comfort)" "guided"
+  # git-comfort unset sentinel: no git-comfort line, env var not set
+  check comfort_unset "$(unset SESSION_GIT_COMFORT; sdlc_git_comfort)" "unset"
   exit $fails
 )
 rc=$?

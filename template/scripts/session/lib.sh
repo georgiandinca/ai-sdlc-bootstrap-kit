@@ -36,7 +36,8 @@ sdlc_moment_behavior() {
 import json, sys
 mid, comfort, path = sys.argv[1], sys.argv[2], sys.argv[3]
 try:
-    data = json.load(open(path))
+    with open(path) as f:
+        data = json.load(f)
 except Exception:
     sys.exit(0)
 for m in data.get("moments", []):
@@ -48,13 +49,12 @@ PY
 
 # If on a protected branch, switch to a personal feature branch. Echo the branch.
 sdlc_ensure_feature_branch() {
-  local seat="${1:-}" purpose="${2:-work}" branch slug
+  local seat="${1:-}" purpose="${2:-work}" branch slug pslug
   branch=$(git branch --show-current)
   if [ "$branch" = main ] || [ "$branch" = master ]; then
-    slug=$(printf '%s' "${seat:-work}" | tr '[:upper:] ' '[:lower:]-' | tr -cd 'a-z0-9-')
-    [ -z "$slug" ] && slug=work
-    branch="session/${slug}/${purpose}"
-    git switch -c "$branch" 2>/dev/null || git switch "$branch" 2>/dev/null || true
+    slug=$(printf '%s' "${seat:-work}" | tr '[:upper:] ' '[:lower:]-' | tr -cd 'a-z0-9-'); [ -z "$slug" ] && slug=work
+    pslug=$(printf '%s' "$purpose" | tr '[:upper:] ' '[:lower:]-' | tr -cd 'a-z0-9-'); [ -z "$pslug" ] && pslug=work
+    git switch -c "session/${slug}/${pslug}" 2>/dev/null || git switch "session/${slug}/${pslug}" 2>/dev/null || true
   fi
-  printf '%s\n' "$branch"
+  git branch --show-current
 }
