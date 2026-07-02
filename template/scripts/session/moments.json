@@ -14,7 +14,7 @@
       "trigger": "The operator finishes a topic or says 'I'm done with X'.",
       "handler": "scripts/session/checkpoint.sh",
       "hook": null,
-      "status": "planned",
+      "status": "active",
       "behavior_by_comfort": { "git-native": "offer", "guided": "offer", "hidden": "auto" }
     },
     {
@@ -22,16 +22,32 @@
       "trigger": "A decision or ADR is reached in conversation.",
       "handler": "scripts/session/record-decision.sh",
       "hook": null,
-      "status": "planned",
+      "status": "active",
       "behavior_by_comfort": { "git-native": "offer", "guided": "offer", "hidden": "offer" }
     },
     {
       "id": "session-end",
       "trigger": "The operator signals they are wrapping up.",
       "handler": "scripts/session/wrapup.sh",
+      "hook": null,
+      "status": "active",
+      "behavior_by_comfort": { "git-native": "offer", "guided": "offer", "hidden": "offer" }
+    },
+    {
+      "id": "session-terminated",
+      "trigger": "The agent session actually ends (terminal closes / session exits).",
+      "handler": "scripts/session/auto-save.sh",
+      "hook": "SessionEnd",
+      "status": "active",
+      "behavior_by_comfort": { "git-native": "skip", "guided": "skip", "hidden": "auto" }
+    },
+    {
+      "id": "uncommitted-reminder",
+      "trigger": "End of any assistant turn while uncommitted work exists.",
+      "handler": "scripts/session/stop.sh",
       "hook": "Stop",
       "status": "active",
-      "behavior_by_comfort": { "git-native": "offer", "guided": "offer", "hidden": "auto" }
+      "behavior_by_comfort": { "git-native": "skip", "guided": "offer", "hidden": "offer" }
     }
   ]
 }
