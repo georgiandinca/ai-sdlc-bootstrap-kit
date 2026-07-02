@@ -31,6 +31,34 @@ if [ -f "$personal" ]; then
 fi
 
 echo "[session-start] repo=$repo branch=$branch upstream=$upstream behind=$behind ahead=$ahead tree=$dirty seat=$seat_status token=$token_status"
+
+# --- seat context (Phase 1): load the saved seat + git-comfort and its profile ---
+seat_u=""; comfort_u=""
+if [ -f USER.md ]; then
+  seat_u=$(grep -iE '^- \*\*Seat:\*\*' USER.md | head -1 | sed -E 's/^- \*\*Seat:\*\* *//; s/ *$//')
+  comfort_u=$(grep -iE '^- \*\*Git comfort:\*\*' USER.md | head -1 | sed -E 's/^- \*\*Git comfort:\*\* *//; s/ *$//')
+fi
+seat="${seat_u:-${SESSION_SEAT:-}}"
+if [ -n "$seat" ] && [ -f scripts/session/seat-profiles.json ]; then
+  profile=$(python3 - "$seat" <<'PY' 2>/dev/null || true
+import json, sys
+from pathlib import Path
+seat = sys.argv[1]
+try:
+    data = json.loads(Path("scripts/session/seat-profiles.json").read_text())
+except Exception:
+    sys.exit(0)
+for s in data.get("seats", []):
+    if str(s.get("id", "")).lower() == seat.lower():
+        print(f"{s.get('playbook','')}|{','.join(s.get('connectors', []))}")
+        break
+PY
+)
+  playbook="${profile%%|*}"; connectors="${profile#*|}"
+  echo "[seat-context] operating as: ${seat} (git-comfort: ${comfort_u:-unset})"
+  [ -n "$playbook" ] && echo "[seat-context] load skill: ${playbook} | seat connectors: ${connectors}"
+fi
+
 cat <<'EOF'
 [session ritual] Before creating artefacts and during this session:
 1. Confirm the operator's SEAT (Architect/EM/Product/Developer/QA). If a saved seat is

@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "seats": [
+    { "id": "Architect", "git_comfort_default": "git-native", "playbook": "playbook-architect",
+      "connectors": ["issue-tracker", "docs-wiki", "knowledge"],
+      "first_task": "Record a first ADR stub at docs/architecture/decisions/ADR-0001-<topic>.md." },
+    { "id": "EM", "git_comfort_default": "git-native", "playbook": "playbook-em",
+      "connectors": ["issue-tracker", "docs-wiki", "knowledge"],
+      "first_task": "Draft an engineering-spec stub, or record the code repos in AGENTS.md section 2." },
+    { "id": "Product", "git_comfort_default": "hidden", "playbook": "playbook-product",
+      "connectors": ["issue-tracker", "docs-wiki"],
+      "first_task": "Draft a first user story with acceptance criteria." },
+    { "id": "Developer", "git_comfort_default": "git-native", "playbook": "playbook-dev",
+      "connectors": ["issue-tracker", "knowledge", "context7"],
+      "first_task": "Open a feature branch for your first change." },
+    { "id": "QA", "git_comfort_default": "guided", "playbook": "playbook-qa",
+      "connectors": ["issue-tracker", "knowledge"],
+      "first_task": "Write a test-plan stub with one traceability entry." }
+  ]
+}
