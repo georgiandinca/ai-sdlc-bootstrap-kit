@@ -29,19 +29,20 @@ MANIFEST_REL = "scripts/session/seat-profiles.json"
 MCP_REL = ".mcp.json"
 
 
-def _mcp_server_keys(base_dir: Path) -> set:
+def _mcp_server_keys(base_dir: Path) -> tuple[set, str]:
+    """Return (keys, status) where status is 'absent', 'malformed', or 'ok'."""
     mcp_path = base_dir / MCP_REL
     if not mcp_path.exists():
-        return set()
+        return set(), "absent"
     try:
         data = json.loads(mcp_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError:
-        return set()
+        return set(), "malformed"
     servers = data.get("mcpServers")
-    return set(servers.keys()) if isinstance(servers, dict) else set()
+    return (set(servers.keys()) if isinstance(servers, dict) else set()), "ok"
 
 
-def validate_manifest(data, base_dir: Path) -> list[str]:
+def validate_manifest(data: dict, base_dir: Path) -> list[str]:
     errors: list[str] = []
     if not isinstance(data, dict):
         return ["manifest root must be a JSON object"]
@@ -50,8 +51,9 @@ def validate_manifest(data, base_dir: Path) -> list[str]:
         return ["manifest must have a 'seats' list"]
     if not seats:
         errors.append("'seats' list is empty")
+        return errors
 
-    connector_keys = _mcp_server_keys(base_dir)
+    connector_keys, mcp_status = _mcp_server_keys(base_dir)
     seen_ids: set = set()
     for i, s in enumerate(seats):
         if not isinstance(s, dict):
@@ -75,10 +77,15 @@ def validate_manifest(data, base_dir: Path) -> list[str]:
             if not (base_dir / ".claude" / "skills" / playbook).is_dir():
                 errors.append(f"{sid}: playbook skill dir not found: .claude/skills/{playbook}/")
         connectors = s.get("connectors")
-        if isinstance(connectors, list) and connector_keys:
-            for c in connectors:
-                if c not in connector_keys:
-                    errors.append(f"{sid}: connector {c!r} not declared in .mcp.json mcpServers")
+        if isinstance(connectors, list):
+            if mcp_status == "absent":
+                pass  # skip connector validation when .mcp.json is absent
+            elif mcp_status == "malformed":
+                errors.append(f"{sid}: cannot validate connectors — .mcp.json is not valid JSON")
+            else:
+                for c in connectors:
+                    if c not in connector_keys:
+                        errors.append(f"{sid}: connector {c!r} not declared in .mcp.json mcpServers")
     missing = KNOWN_SEATS - seen_ids
     if missing:
         errors.append(f"missing seats: {sorted(missing)}")

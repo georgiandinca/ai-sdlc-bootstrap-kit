@@ -76,6 +76,14 @@ class ValidateSeatProfilesTests(unittest.TestCase):
     def test_root_not_object(self):
         self.assertTrue(any("root" in e for e in vsp.validate_manifest([], self.base)))
 
+    def test_connector_check_runs_with_empty_mcpservers(self):
+        """Empty mcpServers must NOT silently skip connector validation."""
+        (self.base / ".mcp.json").write_text(json.dumps({"mcpServers": {}}))
+        m = full_manifest()  # every seat declares connector "issue-tracker"
+        errors = vsp.validate_manifest(m, self.base)
+        self.assertTrue(any("not declared" in e for e in errors),
+                        f"Expected 'not declared' error for connector against empty mcpServers; got: {errors}")
+
 
 if __name__ == "__main__":
     unittest.main()
