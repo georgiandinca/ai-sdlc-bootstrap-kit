@@ -72,6 +72,22 @@ class QueryTests(unittest.TestCase):
             self.assertEqual(impl["source_file"], "src/graph_store.py")
             self.assertEqual(impl["line"], 2)
 
+    def test_trace_accepts_shorthand_ids(self):
+        with tempfile.TemporaryDirectory() as d:
+            base = Path(d); data = _build_fixture(base)
+            fed = q.open_federated(data=data, base=base)
+            # Trace using shorthand ref
+            res_shorthand = q.trace(fed, "ADR-0001")
+            # Trace using full node id
+            res_full = q.trace(fed, "adr:ADR-0001")
+            # Both should return the same nodes
+            node_ids_shorthand = {n["id"] for n in res_shorthand["nodes"]}
+            node_ids_full = {n["id"] for n in res_full["nodes"]}
+            self.assertEqual(node_ids_shorthand, node_ids_full)
+            # And both should be non-empty (contain at least the root)
+            self.assertTrue(len(node_ids_shorthand) > 0)
+            self.assertIn("adr:ADR-0001", node_ids_shorthand)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -10,6 +10,7 @@ import sqlite3
 from pathlib import Path
 
 import manifest as manifest_mod
+from graph_store import normalize_ref
 
 _NODE_COLS = "id,kind,subtype,name,path,tier,text,meta,namespace"
 _EDGE_COLS = "src,dst,kind,source_file,line,resolved,namespace"
@@ -110,6 +111,8 @@ def neighbors(kg, node_id):
 
 
 def trace(kg, node_id, max_depth=4):
+    if ":" not in node_id:
+        node_id = normalize_ref(node_id)  # 'ADR-0001' -> 'adr:ADR-0001', 'AS-1' -> 'story:AS-1'
     seen = {node_id}
     frontier = [node_id]
     chain, chain_keys = [], set()
