@@ -126,10 +126,13 @@ def collect(repo=".", since=None, db_path=None):
             for l in body.splitlines()
         )
         klass, source = classify(ai_lines, human_lines, has_note, has_ai_trailer)
-        if source == "trailer" and klass == "ai-assisted":
-            # No line-level note: attribute the commit's insertions to AI as a
-            # coarse (commit-level) estimate. Upgrade to git-ai for precision.
-            ai_lines = ins
+        if source == "trailer":
+            # No line-level note: attribute the commit's insertions as a coarse
+            # (commit-level) estimate. Upgrade to git-ai for precision.
+            if klass == "ai-assisted":
+                ai_lines = ins
+            elif klass == "human":
+                human_lines = ins
         m = TICKET_RE.search(subj) or TICKET_RE.search(body)
         ticket = m.group(0) if m else None
         seat = None

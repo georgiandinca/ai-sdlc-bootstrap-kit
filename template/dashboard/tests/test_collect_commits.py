@@ -69,6 +69,16 @@ class CollectTests(unittest.TestCase):
             self.assertEqual(by["add foo"], "mixed")   # ai 10 + human 4
             ai_lines = con.execute("SELECT ai_lines FROM commits WHERE subject='add foo'").fetchone()[0]
             self.assertEqual(ai_lines, 10)
+            # human trailer commit should have human_lines == its insertions (> 0)
+            human_lines_human = con.execute(
+                "SELECT human_lines FROM commits WHERE subject='plain human change'"
+            ).fetchone()[0]
+            self.assertGreater(human_lines_human, 0)
+            # ai-assisted trailer commit should have ai_lines == its insertions (> 0)
+            ai_lines_ai = con.execute(
+                "SELECT ai_lines FROM commits WHERE subject='add b'"
+            ).fetchone()[0]
+            self.assertGreater(ai_lines_ai, 0)
             con.close()
 
 

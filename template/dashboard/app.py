@@ -27,6 +27,8 @@ def load(table: str) -> pd.DataFrame:
         df = pd.read_sql_query(f"SELECT * FROM {table}", conn, parse_dates=["ts"])
     finally:
         conn.close()
+    if "ts" in df.columns:
+        df["ts"] = pd.to_datetime(df["ts"], utc=True, errors="coerce").dt.tz_localize(None)
     return df
 
 
@@ -48,7 +50,6 @@ def utilization_tab(sessions: pd.DataFrame) -> None:
     view = _date_filter(sessions, "util_dates")
     if view.empty:
         st.warning("No sessions in range."); return
-    view = view.assign(tokens_total=view["tokens_in"] + view["tokens_out"])
     n = len(view)
     accepted = int((view["outcome"] == "accepted").sum())
     reworked = int((view["outcome"] == "reworked").sum())
@@ -76,7 +77,6 @@ def attribution_tab(commits: pd.DataFrame, sessions: pd.DataFrame) -> None:
     n = len(view)
     ai = int((view["klass"].isin(["ai", "ai-assisted"])).sum())
     mixed = int((view["klass"] == "mixed").sum())
-    human = int((view["klass"] == "human").sum())
     ai_loc = int(view["ai_lines"].sum())
     total_loc = int(view["ai_lines"].sum() + view["human_lines"].sum()) or 1
     # quality pairing: rework rate from sessions over the same window
