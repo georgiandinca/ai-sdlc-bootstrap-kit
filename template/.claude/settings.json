@@ -5,10 +5,21 @@
       {
         "matcher": "startup",
         "hooks": [
-          {
-            "type": "command",
-            "command": "bash scripts/session/start.sh 2>/dev/null || true"
-          }
+          { "type": "command", "command": "bash scripts/session/start.sh 2>/dev/null || true" }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          { "type": "command", "command": "bash scripts/session/auto-save.sh 2>/dev/null || true" }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "bash scripts/session/stop.sh 2>/dev/null || true" }
         ]
       }
     ]
