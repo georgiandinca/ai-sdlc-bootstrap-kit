@@ -30,5 +30,19 @@ jobs:
       - name: Validate doc frontmatter contract (AGENTS.md §4.2)
         run: python3 scripts/validate-frontmatter.py
 
-      - name: Knowledge ingest smoke test (stub builds cleanly)
-        run: python3 scripts/knowledge/ingest.py --build
+      - name: Run knowledge-graph unit tests
+        run: |
+          python3 scripts/knowledge/tests/test_graph_store.py
+          python3 scripts/knowledge/tests/test_manifest.py
+          python3 scripts/knowledge/tests/test_ingest_docs.py
+          python3 scripts/knowledge/tests/test_ingest_code.py
+          python3 scripts/knowledge/tests/test_link_commits.py
+          python3 scripts/knowledge/tests/test_query.py
+          python3 scripts/knowledge/tests/test_ingest.py
+          python3 scripts/knowledge/tests/test_mcp_server.py
+          python3 scripts/knowledge/tests/test_end_to_end.py
+
+      - name: Knowledge graph build + traceability smoke
+        run: |
+          python3 scripts/knowledge/ingest.py --build
+          python3 scripts/knowledge/ingest.py --federated --trace ADR-0001

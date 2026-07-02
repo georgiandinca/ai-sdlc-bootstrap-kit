@@ -27,6 +27,7 @@ ai-governance:
   stage: governance
   image: python:3.12-slim
   before_script:
+  - apt-get update -qq && apt-get install -y -qq --no-install-recommends git
   - pip install --quiet "pyyaml>=6"
   script:
   - echo "Validating Agent Skills (agentskills.io)…"
@@ -41,8 +42,19 @@ ai-governance:
   - python3 template/scripts/validate-seat-profiles.py
   - echo "Running seat-profiles validator unit tests…"
   - python3 template/scripts/tests/test_validate_seat_profiles.py
-  - echo "Knowledge ingest smoke test (stub builds cleanly)…"
+  - echo "Running knowledge-graph unit tests…"
+  - python3 template/scripts/knowledge/tests/test_graph_store.py
+  - python3 template/scripts/knowledge/tests/test_manifest.py
+  - python3 template/scripts/knowledge/tests/test_ingest_docs.py
+  - python3 template/scripts/knowledge/tests/test_ingest_code.py
+  - python3 template/scripts/knowledge/tests/test_link_commits.py
+  - python3 template/scripts/knowledge/tests/test_query.py
+  - python3 template/scripts/knowledge/tests/test_ingest.py
+  - python3 template/scripts/knowledge/tests/test_mcp_server.py
+  - python3 template/scripts/knowledge/tests/test_end_to_end.py
+  - echo "Knowledge graph build + traceability smoke…"
   - python3 template/scripts/knowledge/ingest.py --build
+  - python3 template/scripts/knowledge/ingest.py --federated --trace ADR-0001
   rules:
   - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
   - if: '$CI_COMMIT_BRANCH'
