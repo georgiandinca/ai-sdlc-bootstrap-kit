@@ -32,6 +32,13 @@ repos:
         files: ^scripts/session/moments\.json$
         pass_filenames: false
 
+      - id: validate-seat-profiles
+        name: Validate per-seat profiles manifest
+        entry: python3 scripts/validate-seat-profiles.py
+        language: system
+        files: ^scripts/session/seat-profiles\.json$
+        pass_filenames: false
+
       - id: commit-msg-ticket
         name: Commit message references an issue key (advisory)
         entry: python scripts/git/commit_msg_ticket.py --mode warn
