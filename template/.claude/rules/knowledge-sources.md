@@ -1,11 +1,16 @@
 ---
 paths:
   - "docs/knowledge/**"
+  - "docs/architecture/decisions/**"
+  - "docs/product/stories/**"
 ---
-# Knowledge sources
+# Knowledge graph & sources
 
-Files under `docs/knowledge/sources/` are ingestable inputs for the knowledge layer (pillar 5).
-- Treat them per their trust tier (`AGENTS.md` §4.2); cite the source file when grounding an answer.
-- After adding or changing sources, rebuild the index: `python3 scripts/knowledge/ingest.py --build`.
+The knowledge layer is a local **docs+code graph** (pillar 5) — see
+`docs/knowledge/schema.md` and `README.md`.
+
+- After adding/changing docs, code, or sources, rebuild: `python3 scripts/knowledge/ingest.py --build`.
+- **Link convention** (how edges are drawn): frontmatter `implements:`/`covers:`/`traces:`/`cites:`/`supersedes:` (lists of ids/paths); a `# ADR-NNNN` comment in code; `test_x ↔ x` naming. Each edge cites its source line.
+- Ground answers on the graph and **cite the source file + trust tier** (`AGENTS.md §4.2`); do not paraphrase Authoritative sources from memory — quote and cite.
+- Unresolved links are reported honestly (`resolved=0`); fix the reference or add the missing node rather than inventing one.
 - `docs/knowledge/schema.md` is exempt from the frontmatter contract; source docs still carry it.
-- Do not paraphrase Authoritative sources from memory — quote and cite.

@@ -160,7 +160,7 @@ Guardrail: **no silent changes.** An AI never modifies a load-bearing artefact w
 
 ### 4.4 Knowledge grounding (pillar 5)
 
-When a question can be answered from the project's own knowledge, **ground on it instead of guessing.** The ingestion stub and schema live under `docs/knowledge/` and `scripts/knowledge/ingest.py`. Cite the source file and its trust tier (§4.2). If the knowledge store is empty or stale, say so rather than inventing an answer.
+When a question can be answered from the project's own knowledge, **ground on it instead of guessing.** A local **docs+code knowledge graph** lives under `docs/knowledge/` and `scripts/knowledge/`: build it with `python3 scripts/knowledge/ingest.py --build`, then query it **scoped** (one repo/docs-tree) or **federated** (whole project) — `ingest.py --trace ADR-0001`, `ingest.py --query "…"`, or the `knowledge` MCP server (`kg_query`/`kg_federated_query`/`kg_trace`). It answers traceability (ADR→code→test→story) and content search, each result **cited** with its source file, line, and trust tier (§4.2). If the graph is empty or stale, say so — unresolved links are reported honestly, never invented.
 
 ### 4.5 Commit attribution
 

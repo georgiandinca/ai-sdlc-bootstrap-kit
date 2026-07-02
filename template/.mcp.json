@@ -18,10 +18,9 @@
     },
 
     "knowledge": {
-      "$note": "Used by: all seats (ingest & query the KG/RAG/vector store — pillar 5). Point at your vector-DB / KG MCP server.",
-      "command": "<KNOWLEDGE_MCP_COMMAND>",
-      "args": [],
-      "$disabled": true
+      "$note": "Used by: all seats. Local docs+code knowledge graph (pillar 5). Build it: `python3 scripts/knowledge/ingest.py --build`. This server answers scoped/federated queries + traceability (kg_query, kg_federated_query, kg_trace). Fully local — no URL or secret. Swap for a hosted KG/vector-DB MCP if you outgrow it.",
+      "command": "python3",
+      "args": ["scripts/knowledge/mcp_server.py"]
     },
 
     "context7": {
