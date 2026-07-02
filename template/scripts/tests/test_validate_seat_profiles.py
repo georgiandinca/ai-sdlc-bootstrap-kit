@@ -84,6 +84,15 @@ class ValidateSeatProfilesTests(unittest.TestCase):
         self.assertTrue(any("not declared" in e for e in errors),
                         f"Expected 'not declared' error for connector against empty mcpServers; got: {errors}")
 
+    def test_connector_skips_on_malformed_mcp(self):
+        """A malformed .mcp.json must produce exactly ONE error, not one per seat."""
+        (self.base / ".mcp.json").write_text("{ not json")
+        m = full_manifest()  # 5 seats, each with connectors
+        errors = vsp.validate_manifest(m, self.base)
+        malformed_errors = [e for e in errors if "cannot validate connectors" in e]
+        self.assertEqual(len(malformed_errors), 1,
+                         f"Expected exactly 1 malformed-mcp error, got {len(malformed_errors)}: {errors}")
+
 
 if __name__ == "__main__":
     unittest.main()

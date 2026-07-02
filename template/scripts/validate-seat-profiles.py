@@ -54,6 +54,8 @@ def validate_manifest(data: dict, base_dir: Path) -> list[str]:
         return errors
 
     connector_keys, mcp_status = _mcp_server_keys(base_dir)
+    if mcp_status == "malformed":
+        errors.append("cannot validate connectors — .mcp.json is not valid JSON")
     seen_ids: set = set()
     for i, s in enumerate(seats):
         if not isinstance(s, dict):
@@ -77,15 +79,10 @@ def validate_manifest(data: dict, base_dir: Path) -> list[str]:
             if not (base_dir / ".claude" / "skills" / playbook).is_dir():
                 errors.append(f"{sid}: playbook skill dir not found: .claude/skills/{playbook}/")
         connectors = s.get("connectors")
-        if isinstance(connectors, list):
-            if mcp_status == "absent":
-                pass  # skip connector validation when .mcp.json is absent
-            elif mcp_status == "malformed":
-                errors.append(f"{sid}: cannot validate connectors — .mcp.json is not valid JSON")
-            else:
-                for c in connectors:
-                    if c not in connector_keys:
-                        errors.append(f"{sid}: connector {c!r} not declared in .mcp.json mcpServers")
+        if isinstance(connectors, list) and mcp_status == "ok":
+            for c in connectors:
+                if c not in connector_keys:
+                    errors.append(f"{sid}: connector {c!r} not declared in .mcp.json mcpServers")
     missing = KNOWN_SEATS - seen_ids
     if missing:
         errors.append(f"missing seats: {sorted(missing)}")
