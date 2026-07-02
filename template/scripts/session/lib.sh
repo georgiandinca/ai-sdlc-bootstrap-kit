@@ -59,6 +59,6 @@ sdlc_ensure_feature_branch() {
   fi
   branch=$(git branch --show-current)
   printf '%s\n' "$branch"
-  case "$branch" in main|master) return 1 ;; esac
+  case "$branch" in ''|main|master) return 1 ;; esac
   return 0
 }

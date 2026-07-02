@@ -12,7 +12,7 @@ cd "$root" || exit 0
 case "$(sdlc_git_comfort)" in guided|hidden) ;; *) exit 0 ;; esac
 [ -n "$(git status --porcelain)" ] || exit 0
 
-state="$root/.git/.sdlc-stop-state"
+state=$(git rev-parse --git-path .sdlc-stop-state 2>/dev/null) || state="$root/.git/.sdlc-stop-state"
 now=$(date +%s); last=0
 [ -f "$state" ] && last=$(cat "$state" 2>/dev/null || echo 0)
 case "$last" in ''|*[!0-9]*) last=0 ;; esac
