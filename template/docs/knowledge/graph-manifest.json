@@ -1,0 +1,7 @@
+{
+  "namespaces": {
+    "docs":     { "kind": "docs", "db": "docs/.knowledge/graph.db", "roots": ["docs/"] },
+    "kit-code": { "kind": "code", "db": ".knowledge/graph.db",       "roots": ["scripts/", "dashboard/"] }
+  },
+  "overlay": "docs/knowledge/.knowledge/global.db"
+}

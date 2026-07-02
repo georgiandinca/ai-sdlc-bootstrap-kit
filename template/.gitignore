@@ -8,10 +8,12 @@ USER.md
 !.env.example
 *.local
 
-# Knowledge layer — local vector store / build artifacts (sources stay tracked)
+# Knowledge layer — local vector store / graph build artifacts (sources + manifest stay tracked)
 docs/knowledge/.index/
 docs/knowledge/*.duckdb
 docs/knowledge/*.sqlite
+# Derived per-namespace graph DBs + the global overlay (Phase 4)
+**/.knowledge/
 
 # Dashboard local DB
 dashboard/*.db

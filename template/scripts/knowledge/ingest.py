@@ -1,143 +1,145 @@
 #!/usr/bin/env python3
-"""Knowledge-layer ingestion — STUB (board pillar 5: Sources -> KG / RAG / VectorDB).
+# ADR-0001 — local docs+code knowledge graph
+"""Knowledge-graph orchestrator + CLI. Replaces the keyword stub: builds a
+per-namespace docs+code graph (+ a global overlay) and answers scoped or
+federated queries/traces, each grounded on a source citation.
 
-This is a deliberately minimal, dependency-light reference implementation. It walks
-the tracked source documents under docs/knowledge/sources/, chunks them, and writes a
-local index that an agent (or an MCP knowledge server) can query to *ground* answers
-instead of guessing (AGENTS.md §4.4).
-
-What it does today (no external services, no embeddings):
-  - discover sources (.md / .txt) under docs/knowledge/sources/
-  - read each source's trust tier from its frontmatter (defaults to 'working')
-  - split into overlapping character chunks
-  - write a JSONL index to docs/knowledge/.index/chunks.jsonl  (git-ignored)
-  - keyword search over that index (a placeholder for vector search)
-
-How to grow it into production (documented, not built here — see docs/knowledge/README.md):
-  - swap the keyword search for embeddings (e.g. a local model or a provider via the
-    Vercel AI Gateway) + a vector store (DuckDB-VSS, sqlite-vec, LanceDB, pgvector, …)
-  - or point .mcp.json's `knowledge` server at a hosted vector DB / knowledge graph and
-    let the agent ingest/query over MCP instead of this script.
-
-Usage:
-  ingest.py --build                 # (re)build the index from sources
-  ingest.py --query "some text"     # keyword search the index (top 5)
-  ingest.py --stats                 # show what's indexed
+  ingest.py --build                       # (re)build every namespace + overlay
+  ingest.py --stats
+  ingest.py --query "text" [--scope NS | --federated]
+  ingest.py --trace ADR-0001 [--scope NS | --federated]
 """
 from __future__ import annotations
 
 import argparse
 import json
-import re
+import sys
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-SOURCES = REPO_ROOT / "docs" / "knowledge" / "sources"
-INDEX_DIR = REPO_ROOT / "docs" / "knowledge" / ".index"
-INDEX_FILE = INDEX_DIR / "chunks.jsonl"
-CHUNK_CHARS = 1200
-OVERLAP = 200
-SUFFIXES = {".md", ".txt"}
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import graph_store as gs          # noqa: E402
+import manifest as manifest_mod   # noqa: E402
+import ingest_docs                # noqa: E402
+import ingest_code                # noqa: E402
+import link_commits               # noqa: E402
+import query as query_mod         # noqa: E402
+
+DASHBOARD_DB = manifest_mod.REPO_ROOT / "dashboard" / "utilization.db"
 
 
-def read_trust_tier(text: str) -> str:
-    if text.startswith("---"):
-        end = text.find("\n---", 3)
-        if end != -1:
-            fm = text[3:end]
-            m = re.search(r"^ai-trust:\s*(\S+)", fm, re.MULTILINE)
-            if m:
-                return m.group(1)
-    return "working"
+def build(data=None, base=None):
+    data = data or manifest_mod.load()
+    base = base or manifest_mod.REPO_ROOT
+    all_ids: set[str] = set()
+    all_paths: dict[str, str] = {}
+    held: list[dict] = []
 
-
-def chunk(text: str) -> list[str]:
-    text = text.strip()
-    if len(text) <= CHUNK_CHARS:
-        return [text] if text else []
-    out, start = [], 0
-    while start < len(text):
-        out.append(text[start : start + CHUNK_CHARS])
-        start += CHUNK_CHARS - OVERLAP
-    return out
-
-
-def build() -> int:
-    if not SOURCES.exists():
-        print(f"No sources directory at {SOURCES.relative_to(REPO_ROOT)} — nothing to ingest.")
-        return 0
-    INDEX_DIR.mkdir(parents=True, exist_ok=True)
-    n_src = n_chunk = 0
-    with INDEX_FILE.open("w", encoding="utf-8") as out:
-        for src in sorted(SOURCES.rglob("*")):
-            if src.suffix.lower() not in SUFFIXES or not src.is_file():
+    for name, kind, db, roots in manifest_mod.namespaces(data, base=base):
+        conn = gs.connect(db)
+        conn.execute("DELETE FROM edges")
+        conn.execute("DELETE FROM nodes")
+        ns_nodes, ns_edges = [], []
+        for root in roots:
+            if not Path(root).exists():
                 continue
-            text = src.read_text(encoding="utf-8", errors="replace")
-            tier = read_trust_tier(text)
-            rel = str(src.relative_to(REPO_ROOT))
-            n_src += 1
-            for i, ch in enumerate(chunk(text)):
-                out.write(json.dumps({"source": rel, "tier": tier, "chunk": i, "text": ch}) + "\n")
-                n_chunk += 1
-    print(f"Indexed {n_chunk} chunks from {n_src} source(s) -> {INDEX_FILE.relative_to(REPO_ROOT)}")
-    print("Note: keyword index only. See docs/knowledge/README.md to add embeddings + a vector store.")
-    return 0
+            if kind == "code":
+                n, e = ingest_code.ingest_root(root, name, base)
+            else:
+                n, e = ingest_docs.ingest_root(root, name, base)
+            ns_nodes += n
+            ns_edges += e
+        if kind == "code":
+            cn, ce, attrib = link_commits.link(name, ns_nodes, DASHBOARD_DB, base)
+            ns_nodes += cn
+            ns_edges += ce
+            for nd in ns_nodes:
+                if nd["id"] in attrib:
+                    nd["meta"] = {**(nd.get("meta") or {}), **attrib[nd["id"]]}
+        ns_ids = {nd["id"] for nd in ns_nodes}
+        for nd in ns_nodes:
+            gs.add_node(conn, nd)
+            if nd.get("path") and nd["kind"] != "symbol":
+                all_paths.setdefault(nd["path"], nd["id"])  # first namespace wins on cross-namespace path collisions
+        all_ids |= ns_ids
+        for e in ns_edges:
+            if e["src"] in ns_ids and e["dst"] in ns_ids:
+                e = {**e, "resolved": 1}
+                gs.add_edge(conn, e)
+            else:
+                held.append(e)
+        conn.commit()
+        conn.close()
+
+    ov = manifest_mod.overlay_db(data, base=base)
+    oconn = gs.connect(ov)
+    oconn.execute("DELETE FROM edges")
+    oconn.execute("DELETE FROM nodes")
+    for e in held:
+        dst = e["dst"]
+        if isinstance(dst, str) and dst.startswith("path:"):
+            p = dst[len("path:"):]
+            dst = all_paths.get(p, dst)
+        row = {**e, "dst": dst, "namespace": "global"}
+        row["resolved"] = 1 if (e["src"] in all_ids and dst in all_ids) else 0
+        gs.add_edge(oconn, row)
+    oconn.commit()
+    oconn.close()
+    return _stats(data, base)
 
 
-def load_index() -> list[dict]:
-    if not INDEX_FILE.exists():
-        return []
-    return [json.loads(line) for line in INDEX_FILE.read_text(encoding="utf-8").splitlines() if line]
+def _stats(data, base):
+    ns_stats = []
+    for name, kind, db, roots in manifest_mod.namespaces(data, base=base):
+        if Path(db).exists():
+            c = gs.connect_ro(db)
+            nn = c.execute("SELECT COUNT(*) FROM nodes").fetchone()[0]
+            ne = c.execute("SELECT COUNT(*) FROM edges").fetchone()[0]
+            c.close()
+            ns_stats.append([name, nn, ne])
+    ov = manifest_mod.overlay_db(data, base=base)
+    ove = 0
+    if Path(ov).exists():
+        c = gs.connect_ro(ov)
+        ove = c.execute("SELECT COUNT(*) FROM edges").fetchone()[0]
+        c.close()
+    return {"namespaces": ns_stats, "overlay_edges": ove}
 
 
-def query(q: str, k: int = 5) -> int:
-    rows = load_index()
-    if not rows:
-        print("Index is empty. Run: ingest.py --build")
-        return 1
-    terms = [t for t in re.findall(r"\w+", q.lower()) if len(t) > 2]
-    scored = []
-    for r in rows:
-        low = r["text"].lower()
-        score = sum(low.count(t) for t in terms)
-        if score:
-            scored.append((score, r))
-    scored.sort(key=lambda x: x[0], reverse=True)
-    if not scored:
-        print("No matches.")
-        return 0
-    for score, r in scored[:k]:
-        snippet = " ".join(r["text"].split())[:200]
-        print(f"[{score:>3}] {r['source']} (tier={r['tier']}, chunk={r['chunk']})\n      {snippet}…\n")
-    return 0
+def _kg(scope):
+    return query_mod.open_scoped(scope) if scope else query_mod.open_federated()
 
 
-def stats() -> int:
-    rows = load_index()
-    if not rows:
-        print("Index is empty. Run: ingest.py --build")
-        return 0
-    by_src: dict[str, int] = {}
-    for r in rows:
-        by_src[r["source"]] = by_src.get(r["source"], 0) + 1
-    print(f"{len(rows)} chunks across {len(by_src)} source(s):")
-    for src, n in sorted(by_src.items()):
-        print(f"  {n:>4}  {src}")
-    return 0
-
-
-def main() -> int:
-    ap = argparse.ArgumentParser(description="Knowledge-layer ingestion stub.")
+def main():
+    ap = argparse.ArgumentParser(description="Docs+code knowledge graph.")
     g = ap.add_mutually_exclusive_group(required=True)
-    g.add_argument("--build", action="store_true", help="(re)build the index from sources")
-    g.add_argument("--query", metavar="TEXT", help="keyword search the index")
-    g.add_argument("--stats", action="store_true", help="show what's indexed")
-    args = ap.parse_args()
-    if args.build:
-        return build()
-    if args.query:
-        return query(args.query)
-    return stats()
+    g.add_argument("--build", action="store_true", help="(re)build all namespaces + overlay")
+    g.add_argument("--stats", action="store_true", help="show node/edge counts")
+    g.add_argument("--query", metavar="TEXT", help="content search")
+    g.add_argument("--trace", metavar="ID", help="trace a node id's chain")
+    ap.add_argument("--scope", metavar="NS", help="restrict to one namespace")
+    ap.add_argument("--federated", action="store_true", help="query across all namespaces (default)")
+    a = ap.parse_args()
+
+    if a.build:
+        stats = build()
+        for name, nn, ne in stats["namespaces"]:
+            print(f"  {name:<10} {nn:>5} nodes  {ne:>5} edges")
+        print(f"  {'overlay':<10} {'':>5}        {stats['overlay_edges']:>5} edges")
+        print("Built docs+code knowledge graph. See docs/knowledge/README.md.")
+        return 0
+    if a.stats:
+        print(json.dumps(_stats(manifest_mod.load(), manifest_mod.REPO_ROOT), indent=2))
+        return 0
+    scope = a.scope if not a.federated else None
+    kg = _kg(scope)
+    if not kg.aliases:
+        print(query_mod.EMPTY_HINT)
+        return 1
+    if a.query:
+        print(json.dumps(query_mod.search(kg, a.query), indent=2))
+    else:
+        print(json.dumps(query_mod.trace(kg, a.trace), indent=2))
+    return 0
 
 
 if __name__ == "__main__":
