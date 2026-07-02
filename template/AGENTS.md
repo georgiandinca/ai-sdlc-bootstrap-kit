@@ -20,6 +20,8 @@ Every AI agent **must** execute this sequence at the start of every session in t
 
 > **Onboarding runs in two phases.** `ONBOARDING.md` runs **Phase A (Global)** — identity, environment, preferences (every seat) — then **Phase B (Seat)** — seat, git-comfort, the seat's playbook, MCP profile, and a first task. Seat and git-comfort are recorded in `USER.md` and load live each session via the SessionStart hook. Switch seats later with `scripts/session/switch-seat.sh <seat>`.
 
+> **Non-git operators work through verbs, not git.** For `guided`/`hidden` git-comfort seats, use the **`git-verbs`** skill — "save my work" (`checkpoint.sh`), "get the latest" (`sync.sh`), "send for review" (`wrapup.sh`) — never raw git. The SessionStart hook, SessionEnd safety net, and a debounced Stop reminder keep their work synced and never lost (`scripts/session/moments.json`).
+
 ### What lives in `USER.md`
 
 `USER.md` is a **per-user, git-ignored** file that stores:

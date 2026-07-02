@@ -17,7 +17,7 @@ This rule exists so the two files can never drift: maintain `AGENTS.md`, and eve
 ## Claude Code specifics
 
 - **Bundled skills** are auto-discovered from [`.claude/skills/`](./.claude/skills/) — the `playbook-<seat>` role contracts and `skill-creator`. See [`.claude/skills/README.md`](./.claude/skills/README.md).
-- **Session hooks** are configured in [`.claude/settings.json`](./.claude/settings.json) and run `scripts/session/start.sh` at session start.
+- **Session hooks** are configured in [`.claude/settings.json`](./.claude/settings.json) (SessionStart / SessionEnd / Stop) and run the `scripts/session/` scripts.
 - **MCP servers** are declared in [`.mcp.json`](./.mcp.json).
 
 ---

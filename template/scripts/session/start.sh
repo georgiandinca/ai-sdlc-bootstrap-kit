@@ -5,6 +5,8 @@ set -uo pipefail
 repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || {
   echo "[session-start] not inside a git repo — skipping sync check."; exit 0; }
 cd "$repo_root"
+# shellcheck source=/dev/null
+[ -f scripts/session/lib.sh ] && . scripts/session/lib.sh || true
 
 config="scripts/session/config"
 [ -f "$config" ] && . "$config" || true
@@ -58,6 +60,24 @@ PY
   echo "[seat-context] operating as: ${seat} (git-comfort: ${comfort_u:-unset})"
   [ -n "$playbook" ] && echo "[seat-context] load skill: ${playbook} | seat connectors: ${connectors}"
 fi
+
+# --- git-comfort-aware auto-sync + verb guidance (Phase 2) ---
+comfort="${comfort_u:-unset}"
+ss_behavior=$(sdlc_moment_behavior session-start "$comfort" 2>/dev/null || true)
+if [ "${behind:-0}" -gt 0 ] 2>/dev/null && [ "${dirty:-dirty}" = clean ]; then
+  if [ "$ss_behavior" = auto ]; then
+    if bash scripts/session/sync.sh >/dev/null 2>&1; then
+      echo "[sync] auto-pulled ${behind} update(s)."
+    else
+      echo "[sync] auto-pull did not complete — run scripts/session/sync.sh."
+    fi
+  else
+    echo "[sync] behind by ${behind} — offer to run scripts/session/sync.sh."
+  fi
+fi
+case "$comfort" in
+  guided|hidden) echo "[git-verbs] operator is git-'${comfort}' — use the git-verbs skill (save my work / get the latest / send for review), not raw git." ;;
+esac
 
 cat <<'EOF'
 [session ritual] Before creating artefacts and during this session:
