@@ -35,14 +35,14 @@ PY
 canonical="${resolved%%|*}"; rest="${resolved#*|}"
 comfort="${rest%%|*}"; playbook="${rest#*|}"
 
-# Update USER.md in place (exact-case markers; portable -i.bak then remove backup).
+# Update USER.md in place (exact-case markers; portable -i.bak, remove backup per call).
 if grep -qE '^- \*\*Seat:\*\*' USER.md; then
-  sed -i.bak -E "s|^- \*\*Seat:\*\*.*|- **Seat:** ${canonical}|" USER.md
+  sed -i.bak -E "s|^- \*\*Seat:\*\*.*|- **Seat:** ${canonical}|" USER.md && rm -f USER.md.bak
 else
   printf -- '- **Seat:** %s\n' "${canonical}" >> USER.md
 fi
 if grep -qE '^- \*\*Git comfort:\*\*' USER.md; then
-  sed -i.bak -E "s|^- \*\*Git comfort:\*\*.*|- **Git comfort:** ${comfort}|" USER.md
+  sed -i.bak -E "s|^- \*\*Git comfort:\*\*.*|- **Git comfort:** ${comfort}|" USER.md && rm -f USER.md.bak
 else
   printf -- '- **Git comfort:** %s\n' "${comfort}" >> USER.md
 fi
