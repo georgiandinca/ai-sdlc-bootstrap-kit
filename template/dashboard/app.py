@@ -1,119 +1,135 @@
 #!/usr/bin/env python3
-"""AI-utilization dashboard (board pillar 4 / pillar 7: "Dashboard utilization — DB + web").
-
-A minimal, runnable Streamlit app over a local SQLite DB (schema.sql). It surfaces the
-small, stable metric set from docs/methodology/continuous-improvement.md so a human retro
-can see how AI is used, what it costs, and whether it's grounded — then improve the rules.
+"""AI-SDLC dashboard (board pillar 4 / 7). Two tabs over a local SQLite DB:
+Utilization (AI session cost/outcome/grounding) and Commit attribution
+(AI / mixed / human by LOC, from collect_commits.py). Volume is always shown
+next to a quality metric — never volume alone.
 
 Run:
     pip install -r dashboard/requirements.txt
     streamlit run dashboard/app.py
-
-The DB is created and seeded from schema.sql on first run. Your agent harness writes real
-rows into the `sessions` table (or you import an export of your AI tool's usage logs).
 """
 from __future__ import annotations
 
-import sqlite3
+import sys
 from pathlib import Path
 
 import pandas as pd
 import streamlit as st
 
-HERE = Path(__file__).resolve().parent
-DB_PATH = HERE / "utilization.db"
-SCHEMA = HERE / "schema.sql"
-
-
-def get_conn() -> sqlite3.Connection:
-    first_run = not DB_PATH.exists()
-    conn = sqlite3.connect(DB_PATH)
-    if first_run and SCHEMA.exists():
-        conn.executescript(SCHEMA.read_text(encoding="utf-8"))
-        conn.commit()
-    return conn
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import db as dbmod  # noqa: E402
 
 
 @st.cache_data(ttl=30)
-def load() -> pd.DataFrame:
-    conn = get_conn()
+def load(table: str) -> pd.DataFrame:
+    conn = dbmod.connect()
     try:
-        df = pd.read_sql_query("SELECT * FROM sessions", conn, parse_dates=["ts"])
+        df = pd.read_sql_query(f"SELECT * FROM {table}", conn, parse_dates=["ts"])
     finally:
         conn.close()
-    if not df.empty:
-        df["tokens_total"] = df["tokens_in"] + df["tokens_out"]
+    if "ts" in df.columns:
+        df["ts"] = pd.to_datetime(df["ts"], utc=True, errors="coerce").dt.tz_localize(None)
     return df
 
 
-def main() -> None:
-    st.set_page_config(page_title="AI-SDLC Utilization", page_icon="🤖", layout="wide")
-    st.title("🤖 AI-SDLC Utilization Dashboard")
-    st.caption(
-        "Pillar 7 — the human-in-the-loop feedback machine. "
-        "Metrics defined in docs/methodology/continuous-improvement.md."
-    )
-
-    df = load()
+def _date_filter(df: pd.DataFrame, key: str) -> pd.DataFrame:
     if df.empty:
-        st.info("No sessions yet. Seed rows are in schema.sql; your harness writes real ones.")
-        return
-
-    # ---- Filters ---------------------------------------------------------
-    seats = sorted(df["seat"].unique())
-    picked = st.sidebar.multiselect("Seats", seats, default=seats)
+        return df
     dmin, dmax = df["ts"].min().date(), df["ts"].max().date()
-    drange = st.sidebar.date_input("Date range", (dmin, dmax))
-    view = df[df["seat"].isin(picked)]
+    drange = st.sidebar.date_input("Date range", (dmin, dmax), key=key)
     if isinstance(drange, (list, tuple)) and len(drange) == 2:
         lo, hi = pd.Timestamp(drange[0]), pd.Timestamp(drange[1]) + pd.Timedelta(days=1)
-        view = view[(view["ts"] >= lo) & (view["ts"] < hi)]
+        return df[(df["ts"] >= lo) & (df["ts"] < hi)]
+    return df
 
-    if view.empty:
-        st.warning("No sessions in the selected range.")
+
+def utilization_tab(sessions: pd.DataFrame) -> None:
+    if sessions.empty:
+        st.info("No sessions yet. Seed rows are in seed.sql; your harness writes real ones.")
         return
-
-    # ---- Headline metrics (the small, stable set) ------------------------
+    view = _date_filter(sessions, "util_dates")
+    if view.empty:
+        st.warning("No sessions in range."); return
     n = len(view)
-    accepted = (view["outcome"] == "accepted").sum()
-    reworked = (view["outcome"] == "reworked").sum()
-    acc_rate = accepted / n if n else 0
-    cost_total = view["cost_usd"].sum()
-    cost_per_accepted = cost_total / accepted if accepted else float("nan")
-    grounding_rate = view["grounded"].mean() if n else 0
-
-    c1, c2, c3, c4, c5 = st.columns(5)
+    accepted = int((view["outcome"] == "accepted").sum())
+    reworked = int((view["outcome"] == "reworked").sum())
+    c1, c2, c3, c4 = st.columns(4)
     c1.metric("Sessions", n)
-    c2.metric("Acceptance rate", f"{acc_rate:.0%}")
+    c2.metric("Acceptance rate", f"{accepted / n:.0%}")
     c3.metric("Rework rate", f"{reworked / n:.0%}")
-    c4.metric("Cost / accepted", f"${cost_per_accepted:,.2f}" if accepted else "—")
-    c5.metric("Grounding rate", f"{grounding_rate:.0%}")
-
-    st.divider()
-
-    # ---- Charts ----------------------------------------------------------
+    c4.metric("Grounding rate", f"{view['grounded'].mean():.0%}")
     left, right = st.columns(2)
     with left:
         st.subheader("Sessions by seat")
         st.bar_chart(view.groupby("seat").size().rename("sessions"))
-        st.subheader("Cost by seat ($)")
-        st.bar_chart(view.groupby("seat")["cost_usd"].sum())
     with right:
         st.subheader("Outcome mix")
         st.bar_chart(view.groupby("outcome").size().rename("sessions"))
-        st.subheader("Tokens over time")
-        ts = view.set_index("ts").sort_index()["tokens_total"].resample("D").sum()
-        st.line_chart(ts)
 
-    st.divider()
-    st.subheader("Sessions")
+
+def attribution_tab(commits: pd.DataFrame, sessions: pd.DataFrame) -> None:
+    if commits.empty:
+        st.info("No commits yet. Run `python3 dashboard/collect_commits.py` to populate.")
+        return
+    view = _date_filter(commits, "attr_dates")
+    if view.empty:
+        st.warning("No commits in range."); return
+    n = len(view)
+    ai = int((view["klass"].isin(["ai", "ai-assisted"])).sum())
+    mixed = int((view["klass"] == "mixed").sum())
+    ai_loc = int(view["ai_lines"].sum())
+    total_loc = int(view["ai_lines"].sum() + view["human_lines"].sum()) or 1
+    # quality pairing: rework rate from sessions over the same window
+    rework = "—"
+    if not sessions.empty:
+        s = _sessions_in_range(sessions, view)
+        if len(s):
+            rework = f"{(s['outcome'] == 'reworked').mean():.0%}"
+    c1, c2, c3, c4, c5 = st.columns(5)
+    c1.metric("Commits", n)
+    c2.metric("AI-involved", f"{ai / n:.0%}")
+    c3.metric("Mixed", f"{mixed / n:.0%}")
+    c4.metric("AI lines", f"{ai_loc / total_loc:.0%}")
+    c5.metric("Rework rate (quality)", rework, help="Read volume next to quality — never alone.")
+    st.caption("Deep defect-linkage (which bug fixed which AI code) is Phase 4 (knowledge graph).")
+    left, right = st.columns(2)
+    with left:
+        st.subheader("Commits by class")
+        st.bar_chart(view.groupby("klass").size().rename("commits"))
+        st.subheader("Lines by class")
+        st.bar_chart(pd.Series({"ai": view["ai_lines"].sum(), "human": view["human_lines"].sum()}))
+    with right:
+        st.subheader("Class over time")
+        ot = view.assign(day=view["ts"].dt.date).groupby(["day", "klass"]).size().unstack(fill_value=0)
+        st.line_chart(ot)
+        by = "seat" if view["seat"].notna().any() else "author_name"
+        st.subheader(f"AI lines by {by}")
+        st.bar_chart(view.groupby(by)["ai_lines"].sum())
+    st.subheader("Recent commits")
     st.dataframe(
         view.sort_values("ts", ascending=False)[
-            ["ts", "seat", "tool", "task", "ticket", "tokens_total", "cost_usd", "outcome", "grounded"]
+            ["ts", "author_name", "seat", "klass", "source", "ai_lines", "human_lines", "subject", "tool"]
         ],
-        use_container_width=True,
-        hide_index=True,
+        use_container_width=True, hide_index=True,
     )
+
+
+def _sessions_in_range(sessions: pd.DataFrame, commits_view: pd.DataFrame) -> pd.DataFrame:
+    lo, hi = commits_view["ts"].min(), commits_view["ts"].max()
+    return sessions[(sessions["ts"] >= lo) & (sessions["ts"] <= hi)]
+
+
+def main() -> None:
+    st.set_page_config(page_title="AI-SDLC Dashboard", page_icon="🤖", layout="wide")
+    st.title("🤖 AI-SDLC Dashboard")
+    st.caption("Pillar 7 — usage + attribution, read together. Metrics: docs/methodology/continuous-improvement.md.")
+    sessions = load("sessions")
+    commits = load("commits")
+    tab1, tab2 = st.tabs(["Utilization", "Commit attribution"])
+    with tab1:
+        utilization_tab(sessions)
+    with tab2:
+        attribution_tab(commits, sessions)
 
 
 if __name__ == "__main__":

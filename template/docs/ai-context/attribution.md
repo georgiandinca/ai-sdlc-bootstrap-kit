@@ -11,28 +11,22 @@ ai-trust: working
 
 # Commit-attribution convention
 
-To make AI usage measurable (pillar 7 — the dashboard and retro loop), every commit is classifiable as **human**, **AI-authored**, or **mixed**. This document fixes the convention; the classifier that consumes it is built in Phase 3 of the evolution roadmap.
+To make AI usage measurable (pillar 7 — the dashboard and retro loop), every commit is classifiable as **human**, **AI**, or **mixed**. The dashboard's `commits` table and `collect_commits.py` implement this.
 
-## Baseline signal — the `Co-Authored-By` trailer
+## Primary signal — git-ai line-level notes
 
-An AI-assisted commit carries a trailer naming the agent:
+**[git-ai](https://usegitai.com)** records exactly which lines an agent wrote, in git notes at **`refs/notes/ai`** (format `authorship/3.0.0`): an attestation block mapping files to `s_…` (AI session) / `h_…` (human) line ranges, a `---` divider, then JSON metadata (agent tool, model, author). It captures automatically via agent tool-call hooks and adds no git-hot-path overhead.
 
-```
-Co-Authored-By: <Agent Name> <email>
-```
+- Install (per developer endpoint, optional): `curl -sSL https://usegitai.com/install.sh | bash` then `git ai install-hooks`.
+- Sync notes with the team: `git fetch origin 'refs/notes/*:refs/notes/*'` (git-ai pushes/fetches them automatically once installed).
+- The collector reads these notes with plain `git notes --ref=ai show <sha>` — **the git-ai binary is not required on the machine running the dashboard.**
 
-This is **tool-agnostic** — Claude Code, GitHub Copilot, and Cursor all emit or support this trailer — so classification never depends on a single vendor. A commit with no AI trailer is treated as **human**.
+Per commit: **ai** (only AI lines), **human** (only human/untracked lines), **mixed** (both).
 
-## The three classes
+## Fallback — the `Co-Authored-By` trailer
 
-| Class | Rule |
-|---|---|
-| **human** | No AI `Co-Authored-By` trailer. |
-| **AI-authored** | An agent produced the commit and it carries the trailer. |
-| **mixed** | AI-produced content later edited by a human. |
+Commits without a git-ai note (existing history, or tools without git-ai) are classified from the commit trailer: an AI `Co-Authored-By:` (name/email matching `anthropic`/`claude`/`copilot`/`cursor`/`windsurf`/`bot`) → **ai-assisted**; otherwise **human**. This is coarser (commit-level, not line-level) and is marked `source: trailer` in the dashboard.
 
-> The precise, reproducible rule for **mixed** (how much human editing tips a commit from AI-authored to mixed) is defined in Phase 3, where the classifier lives. Phase 0 fixes only the vocabulary and the trailer convention.
+## Reading it
 
-## Upgrade path — line-level attribution
-
-When per-commit granularity is not enough, the convention upgrades to **`git-ai`** (git-ai-project): agents self-report exactly which lines they wrote, stored in **git notes** without rewriting history, viewable via `git log --show-notes=ai`. Phase 0 does **not** install `git-ai` or build any classifier — it only records this as the sanctioned path to line-level precision.
+`python3 dashboard/collect_commits.py` populates the `commits` table; the dashboard's **Commit attribution** tab shows AI/mixed/human volume next to the utilization **rework** rate — volume is never read alone. Deep defect-linkage (which bug fixed which AI-authored code) is Phase 4 (knowledge graph).
