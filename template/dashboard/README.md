@@ -11,19 +11,22 @@ On first run it creates `utilization.db` from [`schema.sql`](./schema.sql) (seed
 
 ## What it shows
 
-The small, stable metric set from [`../docs/methodology/continuous-improvement.md`](../docs/methodology/continuous-improvement.md): sessions, acceptance rate, rework rate, **cost per accepted unit**, and **grounding rate**, broken down by seat and over time.
+Two tabs over a local SQLite DB:
+
+- **Utilization** — the session metric set (sessions, acceptance/rework, grounding), by seat and over time.
+- **Commit attribution** — AI / mixed / human commits and lines of code, by author/seat and over time, shown next to the utilization rework rate (volume is never read alone).
 
 ## Feeding it real data
 
-The dashboard *reads*; your harness *writes* to the `sessions` table. Two common paths:
+- **Sessions** — your agent wrapper inserts a row per session (seat, tokens, cost, outcome, grounded), or you import an export of your AI tool's usage logs.
+- **Commits** — run the collector before a retro:
 
-- **Direct write** — have your agent wrapper insert a row per session (seat, task, tokens, cost, outcome, grounded).
-- **Import** — periodically import an export of your AI tool's usage logs and map columns to the schema.
+  ```bash
+  python3 dashboard/collect_commits.py                 # all commits
+  python3 dashboard/collect_commits.py --since main~50 # a recent range
+  ```
 
-```sql
-INSERT INTO sessions (ts, seat, tool, task, ticket, tokens_in, tokens_out, cost_usd, outcome, grounded)
-VALUES ('2026-06-26T10:00:00', 'Developer', 'claude', 'fix auth bug', 'PROJ-123', 15000, 3000, 0.18, 'accepted', 1);
-```
+  It classifies each commit AI/mixed/human from **git-ai** line-level notes (`refs/notes/ai`) when present, else the `Co-Authored-By` trailer. See [`../docs/ai-context/attribution.md`](../docs/ai-context/attribution.md). (Optional: schedule it via cron.)
 
 ## Growing it
 

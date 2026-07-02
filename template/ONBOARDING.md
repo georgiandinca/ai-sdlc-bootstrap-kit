@@ -129,6 +129,17 @@ python3 scripts/knowledge/ingest.py --build
 
 If there are no sources yet, skip — this is safe to run later. See `docs/knowledge/README.md`.
 
+## A4b — (Optional) Install git-ai for line-level attribution
+
+For line-level AI/human commit attribution in the dashboard (pillar 7), install **git-ai** (per endpoint):
+
+```bash
+curl -sSL https://usegitai.com/install.sh | bash   # macOS / Linux / WSL
+git ai install-hooks
+```
+
+Optional — skipping it only lowers the dashboard's resolution to the `Co-Authored-By` trailer (human vs AI-assisted). See [`docs/ai-context/attribution.md`](./docs/ai-context/attribution.md).
+
 ## A5 — Identity
 
 Use your interactive tool (ask-the-user / prompt) to collect:
