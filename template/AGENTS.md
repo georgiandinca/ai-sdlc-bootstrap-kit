@@ -18,6 +18,8 @@ Every AI agent **must** execute this sequence at the start of every session in t
 2. **If `USER.md` does not exist** → load and follow [`ONBOARDING.md`](./ONBOARDING.md). Do not proceed with project work until onboarding is complete and `USER.md` has been created.
 3. **If `USER.md` exists** → read it. Use the user's name, role/seat, and communication preferences to tailor all responses for the rest of this session.
 
+> **Onboarding runs in two phases.** `ONBOARDING.md` runs **Phase A (Global)** — identity, environment, preferences (every seat) — then **Phase B (Seat)** — seat, git-comfort, the seat's playbook, MCP profile, and a first task. Seat and git-comfort are recorded in `USER.md` and load live each session via the SessionStart hook. Switch seats later with `scripts/session/switch-seat.sh <seat>`.
+
 ### What lives in `USER.md`
 
 `USER.md` is a **per-user, git-ignored** file that stores:
@@ -175,6 +177,8 @@ This template ships with the **full SDLC team**. Each seat has an invokable role
 | **QA** | Test strategy, test plans, traceability; quality gates. | `playbook-qa` |
 
 > **Naming discipline.** Fill `<SEAT_HOLDERS>` with first names only. Don't invent a name for an unfilled seat — refer to it by role.
+
+Per-seat data — git-comfort default, role playbook, MCP connectors, and the onboarding first task — is declared in [`scripts/session/seat-profiles.json`](./scripts/session/seat-profiles.json) and validated by `scripts/validate-seat-profiles.py`.
 
 ## 6. Languages
 
