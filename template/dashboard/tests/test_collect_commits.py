@@ -29,6 +29,12 @@ class CollectTests(unittest.TestCase):
         self.assertEqual(human, 4)    # h_ key range 11-14
         self.assertEqual(tool, "claude")
 
+    def test_parse_note_joins_space_separated_ranges(self):
+        note = "foo.py\n  s_aaaaaaaaaaaaaa::t_bbbbbbbbbbbbbb 1-5 10-20\n---\n{}"
+        ai, human, tool = cc.parse_note(note)
+        self.assertEqual(ai, 16)  # 1-5 (5) + 10-20 (11), not just the first token
+        self.assertEqual(human, 0)
+
     def test_classify(self):
         self.assertEqual(cc.classify(10, 0, True, False)[0], "ai")
         self.assertEqual(cc.classify(10, 4, True, False)[0], "mixed")

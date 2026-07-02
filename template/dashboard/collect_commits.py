@@ -38,7 +38,7 @@ def _count_ranges(spec: str) -> int:
         if "-" in part:
             lo, _, hi = part.partition("-")
             try:
-                total += int(hi) - int(lo) + 1
+                total += max(0, int(hi) - int(lo) + 1)
             except ValueError:
                 pass
         elif part.isdigit():
@@ -59,7 +59,9 @@ def parse_note(note: str):
         parts = line.split()
         if len(parts) < 2:
             continue
-        key, ranges = parts[0], parts[1]
+        # ranges are a single comma-separated token per authorship/3.0.0; join any
+        # remaining whitespace-separated groups defensively so none are dropped.
+        key, ranges = parts[0], ",".join(parts[1:])
         n = _count_ranges(ranges)
         if key.startswith("h_"):
             human += n
@@ -125,6 +127,8 @@ def collect(repo=".", since=None, db_path=None):
         )
         klass, source = classify(ai_lines, human_lines, has_note, has_ai_trailer)
         if source == "trailer" and klass == "ai-assisted":
+            # No line-level note: attribute the commit's insertions to AI as a
+            # coarse (commit-level) estimate. Upgrade to git-ai for precision.
             ai_lines = ins
         m = TICKET_RE.search(subj) or TICKET_RE.search(body)
         ticket = m.group(0) if m else None
