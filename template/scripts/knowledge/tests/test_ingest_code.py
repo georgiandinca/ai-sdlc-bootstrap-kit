@@ -58,6 +58,30 @@ class IngestCodeTests(unittest.TestCase):
             self.assertTrue(any(e["kind"] == "implements" and e["dst"] == "adr:ADR-0002"
                                 for e in edges))
 
+    def test_import_resolution_boundary(self):
+        """Regression test: ensure import resolution requires path-separator boundary.
+
+        Fixture: s2/util.py (empty), s2/myutil.py (empty), s2/app.py (imports util).
+        Verify: imports edge targets s2/util.py, NOT s2/myutil.py (no bare-suffix match).
+        """
+        with tempfile.TemporaryDirectory() as d:
+            base = Path(d)
+            self._write(base / "s2/util.py", "def helper():\n    return 1\n")
+            self._write(base / "s2/myutil.py", "def myhelper():\n    return 2\n")
+            self._write(base / "s2/app.py", "import util\n\ndef main():\n    return 3\n")
+            nodes, edges = icode.ingest_root(base / "s2", "kit", base)
+            ids = {n["id"] for n in nodes}
+            self.assertIn("code:kit:s2/util.py", ids)
+            self.assertIn("code:kit:s2/myutil.py", ids)
+            self.assertIn("code:kit:s2/app.py", ids)
+            # imports edges from app.py should target util.py, not myutil.py
+            imports = [e for e in edges if e["kind"] == "imports"
+                       and e["src"] == "code:kit:s2/app.py"]
+            self.assertTrue(any(e["dst"] == "code:kit:s2/util.py" for e in imports),
+                            "Should resolve 'import util' to s2/util.py")
+            self.assertFalse(any(e["dst"] == "code:kit:s2/myutil.py" for e in imports),
+                             "Should NOT match s2/myutil.py via bare-suffix match")
+
 
 if __name__ == "__main__":
     unittest.main()

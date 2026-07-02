@@ -123,7 +123,8 @@ def ingest_root(root: Path, namespace: str, base: Path):
     # resolve intra-namespace imports (dotted module -> a file in this root)
     for src_id, mod, line in raw_imports:
         target = mod.replace(".", "/") + ".py"
-        match = next((rid for rp, rid in file_index.items() if rp.endswith(target)), None)
+        match = next((rid for rp, rid in file_index.items()
+                      if rp == target or rp.endswith("/" + target)), None)
         if match and match != src_id:
             edges.append({"src": src_id, "dst": match, "kind": "imports",
                           "source_file": src_id.split(":", 2)[-1], "line": line,
