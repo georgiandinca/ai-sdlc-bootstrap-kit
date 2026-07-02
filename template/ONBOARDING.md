@@ -147,6 +147,21 @@ Used for `author` in YAML frontmatter (`AGENTS.md` §4.2).
 
 Accept a custom seat, but recommend the closest match.
 
+### 5.2b Git comfort
+
+Based on the seat, propose a **git-comfort** level and ask the user to confirm or change it:
+
+> "Based on your seat I'd set your **git-comfort** to `<default>`. Keep it, or change it? (git-native / guided / hidden)"
+
+| Seat | Suggested default | Meaning |
+|---|---|---|
+| Architect / EM / Developer | `git-native` | You drive git directly — branches, commits, PRs. |
+| QA | `guided` | Intent-verbs with a brief explanation of the git underneath. |
+| Product (PO/PM) | `hidden` | Git fully abstracted — "save my work", "get the latest", "send for review". |
+| Custom seat | *(ask explicitly — no default)* | — |
+
+Record the confirmed level. It is written to `USER.md` (Step 6) and governs how git surfaces to this operator in later sessions (see `docs/ai-context/lifecycle-moments.md`).
+
 ### 5.3 Communication preferences
 - **Tone:** Professional & Direct / Warm & Collaborative / Formal & Precise
 - **Detail level:** Comprehensive / Balanced / Concise
@@ -157,7 +172,7 @@ Accept a custom seat, but recommend the closest match.
 
 ## Step 6 — Create `USER.md`
 
-Write `USER.md` at the repo root from the shape in [`USER.md.example`](./USER.md.example), filling in the answers from Step 5. Keep it under 100 lines. It is git-ignored.
+Write `USER.md` at the repo root from the shape in [`USER.md.example`](./USER.md.example), filling in the answers from Step 5 (name, email, seat, **git-comfort**, communication preferences). Keep it under 100 lines. It is git-ignored.
 
 ---
 
