@@ -48,6 +48,7 @@ PY
 }
 
 # If on a protected branch, switch to a personal feature branch. Echo the branch.
+# Returns non-zero if still on a protected branch after the switch attempt.
 sdlc_ensure_feature_branch() {
   local seat="${1:-}" purpose="${2:-work}" branch slug pslug
   branch=$(git branch --show-current)
@@ -56,5 +57,8 @@ sdlc_ensure_feature_branch() {
     pslug=$(printf '%s' "$purpose" | tr '[:upper:] ' '[:lower:]-' | tr -cd 'a-z0-9-'); [ -z "$pslug" ] && pslug=work
     git switch -c "session/${slug}/${pslug}" 2>/dev/null || git switch "session/${slug}/${pslug}" 2>/dev/null || true
   fi
-  git branch --show-current
+  branch=$(git branch --show-current)
+  printf '%s\n' "$branch"
+  case "$branch" in main|master) return 1 ;; esac
+  return 0
 }

@@ -17,7 +17,7 @@ msg="${1:-}"; if [ -n "$msg" ]; then shift; fi
 
 if [ -z "$(git status --porcelain)" ]; then echo "[checkpoint] nothing to save — tree clean."; exit 0; fi
 
-branch=$(sdlc_ensure_feature_branch "$seat" checkpoint)
+branch=$(sdlc_ensure_feature_branch "$seat" checkpoint) || { echo "[checkpoint] refusing to commit on a protected branch" >&2; exit 1; }
 [ "$branch" != "$(git branch --show-current 2>/dev/null)" ] && echo "[checkpoint] moved to $branch (was on a protected branch)."
 
 if [ "$#" -gt 0 ]; then git add -- "$@"; else git add -A; fi
