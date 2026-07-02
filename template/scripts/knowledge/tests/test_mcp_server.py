@@ -1,8 +1,9 @@
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-import io, json, unittest
+import io, json, sqlite3, unittest
 import mcp_server as srv
+import query
 
 
 class McpProtocolTests(unittest.TestCase):
@@ -35,6 +36,20 @@ class McpProtocolTests(unittest.TestCase):
         lines = [l for l in stdout.getvalue().splitlines() if l.strip()]
         self.assertEqual(len(lines), 1)  # bad line skipped, one valid reply
         self.assertEqual(json.loads(lines[0])["id"], 9)
+
+    def test_empty_graph_hint_in_federated_query(self):
+        """When no DBs are attached the MCP server must include EMPTY_HINT in the result."""
+        empty_kg = query.KG(sqlite3.connect(":memory:"), [])
+        orig = srv.query_mod.open_federated
+        try:
+            srv.query_mod.open_federated = lambda **kw: empty_kg
+            r = srv.handle({"jsonrpc": "2.0", "id": 10, "method": "tools/call",
+                            "params": {"name": "kg_federated_query",
+                                       "arguments": {"query": "anything"}}})
+            text = r["result"]["content"][0]["text"]
+            self.assertIn(query.EMPTY_HINT, text)
+        finally:
+            srv.query_mod.open_federated = orig
 
 
 if __name__ == "__main__":

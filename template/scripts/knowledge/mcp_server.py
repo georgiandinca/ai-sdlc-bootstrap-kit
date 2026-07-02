@@ -44,12 +44,18 @@ def _text(obj):
 def call_tool(name, args):
     if name == "kg_query":
         kg = query_mod.open_scoped(args["scope"])
+        if not kg.aliases:
+            return _text({"results": [], "hint": query_mod.EMPTY_HINT})
         return _text(query_mod.search(kg, args["query"], args.get("k", 5)))
     if name == "kg_federated_query":
         kg = query_mod.open_federated()
+        if not kg.aliases:
+            return _text({"results": [], "hint": query_mod.EMPTY_HINT})
         return _text(query_mod.search(kg, args["query"], args.get("k", 5)))
     if name == "kg_trace":
         kg = query_mod.open_scoped(args["scope"]) if args.get("scope") else query_mod.open_federated()
+        if not kg.aliases:
+            return _text({"root": args["id"], "nodes": [], "edges": [], "hint": query_mod.EMPTY_HINT})
         return _text(query_mod.trace(kg, args["id"]))
     raise KeyError(name)
 
@@ -90,6 +96,7 @@ def serve(stdin=None, stdout=None):
         try:
             msg = json.loads(line)
         except json.JSONDecodeError:
+            print("knowledge-mcp: skipping invalid JSON line", file=sys.stderr)
             continue
         resp = handle(msg)
         if resp is not None:

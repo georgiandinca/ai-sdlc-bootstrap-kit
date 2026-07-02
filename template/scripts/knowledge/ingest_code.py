@@ -134,8 +134,6 @@ def ingest_root(root: Path, namespace: str, base: Path):
     for tid, stem, parent in covers_pending:
         cands = [str((parent / f"{stem}.py")).replace("\\", "/"),
                  str((parent.parent / f"{stem}.py")).replace("\\", "/")]
-        # parent/parent.parent are relative to base already? they are relative to base
-        cands = [c[len(str(base)) + 1:] if c.startswith(str(base)) else c for c in cands]
         target = next((file_index[c] for c in cands if c in file_index), None)
         if target:
             edges.append({"src": tid, "dst": target, "kind": "covers",

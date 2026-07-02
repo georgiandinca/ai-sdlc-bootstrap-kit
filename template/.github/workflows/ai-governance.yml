@@ -45,4 +45,4 @@ jobs:
       - name: Knowledge graph build + traceability smoke
         run: |
           python3 scripts/knowledge/ingest.py --build
-          python3 scripts/knowledge/ingest.py --federated --trace ADR-0001
+          python3 scripts/knowledge/ingest.py --federated --trace ADR-0001 | python3 -c "import json,sys; d=json.load(sys.stdin); assert d.get('nodes'), 'empty trace chain'; print('trace OK:', len(d.get('nodes')), 'nodes')"

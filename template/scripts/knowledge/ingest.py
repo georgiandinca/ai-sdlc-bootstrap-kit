@@ -59,7 +59,7 @@ def build(data=None, base=None):
         for nd in ns_nodes:
             gs.add_node(conn, nd)
             if nd.get("path") and nd["kind"] != "symbol":
-                all_paths.setdefault(nd["path"], nd["id"])
+                all_paths.setdefault(nd["path"], nd["id"])  # first namespace wins on cross-namespace path collisions
         all_ids |= ns_ids
         for e in ns_edges:
             if e["src"] in ns_ids and e["dst"] in ns_ids:
@@ -132,6 +132,9 @@ def main():
         return 0
     scope = a.scope if not a.federated else None
     kg = _kg(scope)
+    if not kg.aliases:
+        print(query_mod.EMPTY_HINT)
+        return 1
     if a.query:
         print(json.dumps(query_mod.search(kg, a.query), indent=2))
     else:

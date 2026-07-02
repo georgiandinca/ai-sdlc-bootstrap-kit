@@ -23,6 +23,13 @@ def _fixture_repo(base):
     return data
 
 
+def _fixture_repo_with_ghost(base):
+    """Same as _fixture_repo but adds src/ghost.py referencing a missing ADR-0099."""
+    data = _fixture_repo(base)
+    (base / "src/ghost.py").write_text("# ADR-0099\ndef ghost(): pass\n", encoding="utf-8")
+    return data
+
+
 class IngestBuildTests(unittest.TestCase):
     def test_build_and_federated_trace(self):
         with tempfile.TemporaryDirectory() as d:
@@ -45,6 +52,42 @@ class IngestBuildTests(unittest.TestCase):
             s1 = ingest.build(data=data, base=base)
             s2 = ingest.build(data=data, base=base)
             self.assertEqual(s1, s2)
+
+
+class DanglingLinkTests(unittest.TestCase):
+    def test_dangling_link_honesty_and_scoped_isolation(self):
+        """Covers Finding 2 + 3: dangling edges kept with resolved=0 and scoped
+        overlay filtering prevents cross-namespace leakage."""
+        with tempfile.TemporaryDirectory() as d:
+            base = Path(d)
+            data = _fixture_repo_with_ghost(base)
+            ingest.build(data=data, base=base)
+
+            # (a) Federated: dangling link preserved with resolved=0 and source_file set.
+            fed = q.open_federated(data=data, base=base)
+            res = q.trace(fed, "adr:ADR-0099")
+            dangling = [e for e in res["edges"]
+                        if e["dst"] == "adr:ADR-0099" and e["kind"] == "implements"]
+            self.assertTrue(dangling, "dangling edge must be surfaced, not dropped")
+            self.assertEqual(dangling[0]["resolved"], 0, "dangling edge must have resolved=0")
+            self.assertIsNotNone(dangling[0]["source_file"],
+                                 "dangling edge must carry its source_file citation")
+
+            # (b) Scoped to 'docs': neither endpoint is a docs node — edge must not leak.
+            docs_kg = q.open_scoped("docs", data=data, base=base)
+            docs_res = q.trace(docs_kg, "adr:ADR-0099")
+            docs_dangling = [e for e in docs_res["edges"]
+                             if e["dst"] == "adr:ADR-0099" and e["kind"] == "implements"]
+            self.assertEqual(docs_dangling, [],
+                             "docs scope must not see a kit-only dangling overlay edge")
+
+            # (c) Scoped to 'kit': source node is a kit node — edge IS visible.
+            kit_kg = q.open_scoped("kit", data=data, base=base)
+            kit_res = q.trace(kit_kg, "adr:ADR-0099")
+            kit_dangling = [e for e in kit_res["edges"]
+                            if e["dst"] == "adr:ADR-0099" and e["kind"] == "implements"]
+            self.assertTrue(kit_dangling,
+                            "kit scope must see the kit-only dangling overlay edge")
 
 
 if __name__ == "__main__":

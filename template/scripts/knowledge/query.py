@@ -15,24 +15,38 @@ from graph_store import normalize_ref
 _NODE_COLS = "id,kind,subtype,name,path,tier,text,meta,namespace"
 _EDGE_COLS = "src,dst,kind,source_file,line,resolved,namespace"
 
+EMPTY_HINT = "Graph is empty. Run: ingest.py --build"
+
 
 class KG:
-    def __init__(self, conn, aliases):
+    def __init__(self, conn, aliases, scope_alias=None):
         self.conn = conn
         self.aliases = aliases
+        self.scope_alias = scope_alias
 
     def nodes_sql(self):
         return " UNION ALL ".join(f"SELECT {_NODE_COLS} FROM {a}.nodes" for a in self.aliases)
 
     def edges_sql(self):
-        return " UNION ALL ".join(f"SELECT {_EDGE_COLS} FROM {a}.edges" for a in self.aliases)
+        parts = []
+        for a in self.aliases:
+            if a == "overlay" and self.scope_alias:
+                # Spec §2.1: scoped view includes only overlay edges touching this namespace.
+                parts.append(
+                    f"SELECT {_EDGE_COLS} FROM overlay.edges "
+                    f"WHERE src IN (SELECT id FROM {self.scope_alias}.nodes) "
+                    f"OR dst IN (SELECT id FROM {self.scope_alias}.nodes)"
+                )
+            else:
+                parts.append(f"SELECT {_EDGE_COLS} FROM {a}.edges")
+        return " UNION ALL ".join(parts)
 
 
 def _alias(name):
     return "ns_" + re.sub(r"\W", "_", name)
 
 
-def _open(pairs):
+def _open(pairs, scope_alias=None):
     """pairs: list of (alias, db_path). Returns a KG over attached DBs (ro)."""
     conn = sqlite3.connect(":memory:")
     aliases = []
@@ -41,18 +55,22 @@ def _open(pairs):
             conn.execute(f"ATTACH DATABASE ? AS {alias}", (str(db),))
             aliases.append(alias)
     conn.execute("PRAGMA query_only=ON")
-    return KG(conn, aliases)
+    # Only honour scope_alias if the namespace DB was actually attached.
+    effective_scope = scope_alias if (scope_alias and scope_alias in aliases) else None
+    return KG(conn, aliases, scope_alias=effective_scope)
 
 
 def open_scoped(namespace, data=None, base=None):
     data = data or manifest_mod.load()
     base = base or manifest_mod.REPO_ROOT
     pairs = []
+    ns_alias = None
     for name, kind, db, roots in manifest_mod.namespaces(data, base=base):
         if name == namespace:
-            pairs.append((_alias(name), db))
+            ns_alias = _alias(name)
+            pairs.append((ns_alias, db))
     pairs.append(("overlay", manifest_mod.overlay_db(data, base=base)))
-    return _open(pairs)
+    return _open(pairs, scope_alias=ns_alias)
 
 
 def open_federated(data=None, base=None):
