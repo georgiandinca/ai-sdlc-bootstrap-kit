@@ -25,6 +25,13 @@ repos:
         exclude: ^docs/(drafts|received|knowledge)/
         pass_filenames: true
 
+      - id: validate-moments
+        name: Validate session lifecycle-moments manifest
+        entry: python3 scripts/validate-moments.py
+        language: system
+        files: ^scripts/session/moments\.json$
+        pass_filenames: false
+
       - id: commit-msg-ticket
         name: Commit message references an issue key (advisory)
         entry: python scripts/git/commit_msg_ticket.py --mode warn

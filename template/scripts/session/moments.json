@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "moments": [
+    {
+      "id": "session-start",
+      "trigger": "A new working session begins.",
+      "handler": "scripts/session/start.sh",
+      "hook": "SessionStart",
+      "status": "active",
+      "behavior_by_comfort": { "git-native": "offer", "guided": "offer", "hidden": "auto" }
+    },
+    {
+      "id": "checkpoint",
+      "trigger": "The operator finishes a topic or says 'I'm done with X'.",
+      "handler": "scripts/session/checkpoint.sh",
+      "hook": null,
+      "status": "planned",
+      "behavior_by_comfort": { "git-native": "offer", "guided": "offer", "hidden": "auto" }
+    },
+    {
+      "id": "decision-made",
+      "trigger": "A decision or ADR is reached in conversation.",
+      "handler": "scripts/session/record-decision.sh",
+      "hook": null,
+      "status": "planned",
+      "behavior_by_comfort": { "git-native": "offer", "guided": "offer", "hidden": "offer" }
+    },
+    {
+      "id": "session-end",
+      "trigger": "The operator signals they are wrapping up.",
+      "handler": "scripts/session/wrapup.sh",
+      "hook": "Stop",
+      "status": "active",
+      "behavior_by_comfort": { "git-native": "offer", "guided": "offer", "hidden": "auto" }
+    }
+  ]
+}

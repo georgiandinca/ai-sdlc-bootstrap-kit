@@ -13,6 +13,7 @@ created: YYYY-MM-DD
 - **Full name:** <full_name>
 - **Email:** <email>
 - **Seat:** <Architect | EM | Product | Developer | QA>
+- **Git comfort:** <git-native | guided | hidden>
 
 ## Communication preferences
 

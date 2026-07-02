@@ -27,6 +27,7 @@ Every AI agent **must** execute this sequence at the start of every session in t
 | **Full name** | How to address the user |
 | **Email** | Used for the `author` field in YAML frontmatter (§4.2) |
 | **Seat** | Their role on this project (from the seat list in §5) |
+| **Git comfort** | How much git to surface to this seat — `git-native` / `guided` / `hidden`; governs session-sync ergonomics (see [`docs/ai-context/lifecycle-moments.md`](./docs/ai-context/lifecycle-moments.md)) |
 | **Communication preferences** | Tone, detail level, language, technical depth — adapts the AI's style |
 | **Preferences** | AI-managed section for accumulated preferences |
 | **Onboarding status** | AI-managed section tracking what failed during onboarding — check each session and retry pending fixes |
@@ -90,7 +91,7 @@ The `docs/` tree is **additive and demand-driven** — roles create topic folder
 | `docs/knowledge/` | Sources ingested into the KG/RAG/vector layer (pillar 5) |
 | `docs/onboarding/` | How to join the project |
 | `docs/methodology/` | The framework, working-agreement rationale, continuous-improvement loop (pillar 7) |
-| `docs/ai-context/` | Trust tiers, MCP posture, read-on-demand role playbooks |
+| `docs/ai-context/` | Trust tiers, MCP posture, read-on-demand role playbooks, session lifecycle moments, commit-attribution convention |
 
 ## 3. Hard constraints (non-negotiable)
 
@@ -156,6 +157,10 @@ Guardrail: **no silent changes.** An AI never modifies a load-bearing artefact w
 ### 4.4 Knowledge grounding (pillar 5)
 
 When a question can be answered from the project's own knowledge, **ground on it instead of guessing.** The ingestion stub and schema live under `docs/knowledge/` and `scripts/knowledge/ingest.py`. Cite the source file and its trust tier (§4.2). If the knowledge store is empty or stale, say so rather than inventing an answer.
+
+### 4.5 Commit attribution
+
+Every commit is classifiable as **human**, **AI-authored**, or **mixed** so AI usage stays measurable (pillar 7). AI-assisted commits carry a `Co-Authored-By: <agent> <email>` trailer. The convention — and the `git-ai` upgrade path for line-level attribution — is in [`docs/ai-context/attribution.md`](./docs/ai-context/attribution.md).
 
 ## 5. Roles & named seats
 

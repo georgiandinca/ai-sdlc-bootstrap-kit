@@ -33,6 +33,10 @@ ai-governance:
   - python3 template/scripts/validate-skills.py
   - echo "Validating doc frontmatter contract (AGENTS.md §4.2)…"
   - python3 template/scripts/validate-frontmatter.py
+  - echo "Validating session lifecycle-moments manifest…"
+  - python3 template/scripts/validate-moments.py
+  - echo "Running validator unit tests…"
+  - python3 template/scripts/tests/test_validate_moments.py
   - echo "Knowledge ingest smoke test (stub builds cleanly)…"
   - python3 template/scripts/knowledge/ingest.py --build
   rules:
