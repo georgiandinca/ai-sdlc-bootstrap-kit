@@ -62,6 +62,13 @@ class NormalizeTests(unittest.TestCase):
         self.assertEqual(r["description"], "Plain wiki text.")
         self.assertEqual(r["url"], "https://jira.co/browse/PROJ-3")
 
+    def test_adf_multiparagraph_not_run_together(self):
+        doc = {"type": "doc", "content": [
+            {"type": "paragraph", "content": [{"type": "text", "text": "First paragraph."}]},
+            {"type": "paragraph", "content": [{"type": "text", "text": "Second paragraph."}]}]}
+        self.assertEqual(ej.adf_to_text(doc), "First paragraph.\nSecond paragraph.")
+        self.assertEqual(ej.normalize_description(doc, 500), "First paragraph. Second paragraph.")
+
     def test_natural_key_sorts_numerically(self):
         self.assertEqual(ej.natural_key("PROJ-2"), ("PROJ", 2))
         self.assertTrue(ej.natural_key("PROJ-2") < ej.natural_key("PROJ-10"))

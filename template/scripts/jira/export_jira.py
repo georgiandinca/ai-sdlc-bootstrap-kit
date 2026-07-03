@@ -38,6 +38,13 @@ def _num(v):
         return str(v)
 
 
+# ADF block-level nodes: separate these so sibling blocks don't run together.
+# (Inline runs like `text` concatenate directly; downstream whitespace-collapsing
+#  turns the inserted "\n" into a single space.)
+_ADF_BLOCKS = {"paragraph", "heading", "blockquote", "codeBlock", "panel",
+               "listItem", "bulletList", "orderedList", "rule", "tableRow"}
+
+
 def adf_to_text(node):
     """Flatten an Atlassian Document Format node (Cloud) to plain text."""
     if isinstance(node, str):
@@ -46,9 +53,15 @@ def adf_to_text(node):
         return ""
     if node.get("type") == "text":
         return node.get("text", "")
-    parts = [adf_to_text(c) for c in node.get("content", []) or []]
-    sep = "\n" if node.get("type") in {"paragraph", "heading"} else ""
-    return sep.join(p for p in parts if p)
+    parts = []
+    for child in node.get("content", []) or []:
+        text = adf_to_text(child)
+        if not text:
+            continue
+        if parts and isinstance(child, dict) and child.get("type") in _ADF_BLOCKS:
+            parts.append("\n")
+        parts.append(text)
+    return "".join(parts)
 
 
 def normalize_description(desc, max_chars):
