@@ -3,6 +3,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import tempfile, unittest
 import ingest_issues
+import ingest
 
 HEADER = ("key,type,title,status,assignee,reporter,labels,sprint,epic,parent,"
           "priority,story_points,created,updated,resolution,url,description\n")
@@ -42,6 +43,24 @@ class IngestIssuesTests(unittest.TestCase):
             self.assertEqual(nodes, [])
             missing = base / "docs/product/jira/none.csv"
             self.assertEqual(ingest_issues.ingest_root(missing, "issues", base), ([], []))
+
+    def test_build_registers_issue_namespace(self):
+        with tempfile.TemporaryDirectory() as t:
+            base = Path(t)
+            self._write(
+                base,
+                "PROJ-1,Epic,Root,In Progress,,,,,,,,,,,,,\n"
+                "PROJ-2,Story,Child,To Do,,,,,PROJ-1,,,,,,,,\n")
+            data = {"namespaces": {
+                        "issues": {"kind": "issues",
+                                   "db": "docs/product/jira/.knowledge/graph.db",
+                                   "roots": ["docs/product/jira/issues.csv"]}},
+                    "overlay": "docs/knowledge/.knowledge/global.db"}
+            stats = ingest.build(data=data, base=base)
+            names = [n for n, *_ in stats["namespaces"]]
+            self.assertIn("issues", names)
+            counts = {n: nn for n, nn, ne in stats["namespaces"]}
+            self.assertEqual(counts["issues"], 2)
 
 
 if __name__ == "__main__":
