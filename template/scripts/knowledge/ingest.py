@@ -58,6 +58,8 @@ def build(data=None, base=None):
             cn, ce, attrib = link_commits.link(name, ns_nodes, DASHBOARD_DB, base)
             ns_nodes += cn
             ns_edges += ce
+            if issues_present:
+                ns_edges += link_issues.link(name, cn, base)
             for nd in ns_nodes:
                 if nd["id"] in attrib:
                     nd["meta"] = {**(nd.get("meta") or {}), **attrib[nd["id"]]}
