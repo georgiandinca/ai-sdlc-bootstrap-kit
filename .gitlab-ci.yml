@@ -52,9 +52,14 @@ ai-governance:
   - python3 template/scripts/knowledge/tests/test_ingest.py
   - python3 template/scripts/knowledge/tests/test_mcp_server.py
   - python3 template/scripts/knowledge/tests/test_end_to_end.py
+  - python3 template/scripts/knowledge/tests/test_ingest_issues.py
+  - python3 template/scripts/knowledge/tests/test_link_issues.py
+  - python3 template/scripts/knowledge/tests/test_issue_chain.py
+  - python3 template/scripts/jira/tests/test_export_jira.py
   - echo "Knowledge graph build + traceability smoke…"
   - python3 template/scripts/knowledge/ingest.py --build
   - python3 template/scripts/knowledge/ingest.py --federated --trace ADR-0001 | python3 -c "import json,sys; d=json.load(sys.stdin); assert d.get('nodes'), 'empty trace chain'; print('trace OK:', len(d.get('nodes')), 'nodes')"
+  - python3 template/scripts/knowledge/ingest.py --federated --trace issue:PROJ-1 | python3 -c "import json,sys; d=json.load(sys.stdin); assert d.get('nodes'), 'empty issue trace'; print('issue trace OK:', len(d['nodes']), 'nodes')"
   rules:
   - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
   - if: '$CI_COMMIT_BRANCH'
