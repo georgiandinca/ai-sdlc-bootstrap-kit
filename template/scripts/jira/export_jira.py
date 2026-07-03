@@ -7,10 +7,16 @@ docs/product/jira/issues.csv (sorted, idempotent). See docs/product/jira/README.
 """
 from __future__ import annotations
 
+import base64
 import csv
+import json
 import os
 import re
+import sys
 import tempfile
+import urllib.error
+import urllib.parse
+import urllib.request
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -134,3 +140,126 @@ def write_ledger(rows, path=LEDGER):
         os.unlink(tmp)
         raise
     return path
+
+
+FIELDS = ["issuetype", "summary", "status", "assignee", "reporter", "labels",
+          "priority", "resolution", "created", "updated", "parent", "description"]
+
+
+def load_config(path=CONFIG):
+    return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def _env(name):
+    v = os.environ.get(name)
+    if not v:
+        sys.exit(f"export_jira: missing required env var {name}")
+    return v
+
+
+def _http_get(url, headers, timeout=30):
+    req = urllib.request.Request(url, headers=headers)
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def cloud_headers():
+    b = base64.b64encode(f"{_env('JIRA_EMAIL')}:{_env('JIRA_API_TOKEN')}".encode()).decode()
+    return {"Authorization": f"Basic {b}", "Accept": "application/json"}
+
+
+def datacenter_headers():
+    pat = os.environ.get("JIRA_PAT")
+    if pat:
+        return {"Authorization": f"Bearer {pat}", "Accept": "application/json"}
+    b = base64.b64encode(f"{_env('JIRA_USER')}:{_env('JIRA_PASSWORD')}".encode()).decode()
+    return {"Authorization": f"Basic {b}", "Accept": "application/json"}
+
+
+def paginate_offset(fetch, base_url, api, jql, fields, page_size=50):
+    """DC / classic search: startAt + maxResults until total reached."""
+    start, issues = 0, []
+    while True:
+        qs = urllib.parse.urlencode({"jql": jql, "startAt": start,
+                                     "maxResults": page_size, "fields": ",".join(fields)})
+        data = fetch(f"{base_url.rstrip('/')}/rest/api/{api}/search?{qs}")
+        batch = data.get("issues", [])
+        issues += batch
+        start += len(batch)
+        if not batch or start >= data.get("total", 0):
+            return issues
+
+
+def paginate_cursor(fetch, base_url, jql, fields, page_size=50):
+    """Cloud enhanced search: nextPageToken cursor."""
+    token, issues = None, []
+    while True:
+        params = {"jql": jql, "maxResults": page_size, "fields": ",".join(fields)}
+        if token:
+            params["nextPageToken"] = token
+        data = fetch(f"{base_url.rstrip('/')}/rest/api/3/search/jql?"
+                     f"{urllib.parse.urlencode(params)}")
+        issues += data.get("issues", [])
+        token = data.get("nextPageToken")
+        if not token:
+            return issues
+
+
+BACKENDS = {
+    "cloud": {"headers": cloud_headers, "paginate": "cursor"},
+    "datacenter": {"headers": datacenter_headers, "paginate": "offset", "api": "2"},
+}
+
+
+def fetch_all(cfg):
+    dep = cfg.get("deployment")
+    if dep not in BACKENDS:
+        sys.exit(f"export_jira: unknown deployment {dep!r} (expected cloud|datacenter)")
+    backend = BACKENDS[dep]
+    base_url = _env(cfg.get("base_url_env", "JIRA_BASE_URL"))
+    headers = backend["headers"]()
+    fields = FIELDS + [v for v in cfg.get("fields", {}).values() if v]
+    jql = cfg.get("jql") or f"project = {cfg['project']} ORDER BY updated DESC"
+
+    def fetch(url):
+        return _http_get(url, headers)
+
+    if backend["paginate"] == "cursor":
+        raw = paginate_cursor(fetch, base_url, jql, fields)
+    else:
+        raw = paginate_offset(fetch, base_url, backend["api"], jql, fields)
+    return base_url, raw
+
+
+def main(argv=None, config=None, ledger=None):
+    argv = list(sys.argv[1:] if argv is None else argv)
+    from_json = None
+    do_build = False
+    if "--from-json" in argv:
+        i = argv.index("--from-json")
+        from_json = argv[i + 1]
+        del argv[i:i + 2]
+    if "--build" in argv:
+        do_build = True
+        argv.remove("--build")
+    cfg = config if config is not None else load_config()
+    if from_json:
+        loaded = json.loads(Path(from_json).read_text(encoding="utf-8"))
+        raw = loaded.get("issues", loaded) if isinstance(loaded, dict) else loaded
+        base_url = os.environ.get(cfg.get("base_url_env", "JIRA_BASE_URL"),
+                                  cfg.get("base_url", ""))
+    else:
+        base_url, raw = fetch_all(cfg)
+    rows = [normalize_issue(r, cfg, base_url) for r in raw]
+    path = write_ledger(rows, ledger if ledger is not None else LEDGER)
+    print(f"export_jira: wrote {len(rows)} issues -> {path}")
+    if do_build:
+        import subprocess
+        subprocess.run([sys.executable,
+                        str(REPO_ROOT / "scripts" / "knowledge" / "ingest.py"), "--build"],
+                       check=False)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

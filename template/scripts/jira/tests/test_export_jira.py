@@ -1,6 +1,7 @@
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+import json, os
 import tempfile, unittest
 import export_jira as ej
 
@@ -85,6 +86,49 @@ class NormalizeTests(unittest.TestCase):
             text = first.decode("utf-8")
             self.assertTrue(text.startswith(",".join(ej.COLUMNS)))
             self.assertLess(text.index("PROJ-2"), text.index("PROJ-3"))  # sorted
+
+
+class AdapterTests(unittest.TestCase):
+    def _fake(self, pages):
+        it = iter(pages)
+        return lambda url: next(it)
+
+    def test_offset_pagination_stops_at_total(self):
+        pages = [{"issues": [{"key": "A"}, {"key": "B"}], "total": 3},
+                 {"issues": [{"key": "C"}], "total": 3}]
+        got = ej.paginate_offset(self._fake(pages), "https://j", "2",
+                                 "project=P", ["summary"], page_size=2)
+        self.assertEqual([i["key"] for i in got], ["A", "B", "C"])
+
+    def test_cursor_pagination_follows_token(self):
+        pages = [{"issues": [{"key": "A"}], "nextPageToken": "t1"},
+                 {"issues": [{"key": "B"}], "nextPageToken": None}]
+        got = ej.paginate_cursor(self._fake(pages), "https://x", "project=P", ["summary"])
+        self.assertEqual([i["key"] for i in got], ["A", "B"])
+
+    def test_cloud_headers_basic(self):
+        os.environ["JIRA_EMAIL"] = "a@b.c"
+        os.environ["JIRA_API_TOKEN"] = "tok"
+        h = ej.cloud_headers()
+        self.assertTrue(h["Authorization"].startswith("Basic "))
+
+    def test_datacenter_headers_bearer(self):
+        os.environ.pop("JIRA_USER", None)
+        os.environ.pop("JIRA_PASSWORD", None)
+        os.environ["JIRA_PAT"] = "pat123"
+        h = ej.datacenter_headers()
+        self.assertEqual(h["Authorization"], "Bearer pat123")
+
+    def test_main_from_json_writes_ledger(self):
+        payload = json.dumps({"issues": [CLOUD_RAW]})
+        with tempfile.TemporaryDirectory() as d:
+            jf = Path(d) / "in.json"
+            jf.write_text(payload, encoding="utf-8")
+            out = Path(d) / "issues.csv"
+            os.environ["JIRA_BASE_URL"] = "https://x.atlassian.net"
+            rc = ej.main(["--from-json", str(jf)], config=CFG, ledger=out)
+            self.assertEqual(rc, 0)
+            self.assertIn("PROJ-2", out.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":
