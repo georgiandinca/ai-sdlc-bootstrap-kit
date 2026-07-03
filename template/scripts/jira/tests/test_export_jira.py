@@ -130,6 +130,20 @@ class AdapterTests(unittest.TestCase):
             self.assertEqual(rc, 0)
             self.assertIn("PROJ-2", out.read_text(encoding="utf-8"))
 
+    def test_http_get_exits_clearly_on_urlerror(self):
+        import urllib.request, urllib.error
+        orig = urllib.request.urlopen
+        def boom(*a, **k):
+            raise urllib.error.URLError("no route")
+        urllib.request.urlopen = boom
+        try:
+            with self.assertRaises(SystemExit) as cm:
+                ej._http_get("https://jira.example/rest/api/2/search", {})
+            self.assertIn("export_jira:", str(cm.exception))
+            self.assertIn("could not reach JIRA", str(cm.exception))
+        finally:
+            urllib.request.urlopen = orig
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -159,8 +159,14 @@ def _env(name):
 
 def _http_get(url, headers, timeout=30):
     req = urllib.request.Request(url, headers=headers)
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        return json.loads(resp.read().decode("utf-8"))
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        sys.exit(f"export_jira: JIRA returned HTTP {e.code} for {url} "
+                 f"(check credentials, base URL, and JQL/custom-field ids)")
+    except urllib.error.URLError as e:
+        sys.exit(f"export_jira: could not reach JIRA at {url}: {e.reason}")
 
 
 def cloud_headers():

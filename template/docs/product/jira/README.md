@@ -47,9 +47,10 @@ instance. Find them at `<base>/rest/api/2/field` (Data Center) or
 ## Linking
 
 - **issue → issue** (`part-of`) — from the `epic`/`parent` columns.
-- **commit → issue** (`references`) — from `Refs: KEY` trailers (enforced by the
-  `commit-msg` hook). Requires the Phase-3 commit layer (`dashboard/`) for the
-  issue → commit → code chain; without it, issues still link to docs/stories.
+- **commit → issue** (`references`) — from any JIRA key (`ABC-123`) in a commit
+  message; the `commit-msg` hook injects a `Refs: KEY` trailer from the branch
+  name when none is present. Requires the Phase-3 commit layer (`dashboard/`) for
+  the issue → commit → code chain; without it, issues still link to docs/stories.
 - **doc/adr/story → issue** — put the JIRA key in a frontmatter link field
   (`traces:`, `implements:`, `cites:`), e.g. `traces: [PROJ-1]`.
 
