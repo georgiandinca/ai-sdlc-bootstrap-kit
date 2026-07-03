@@ -826,7 +826,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
   - `BACKENDS: dict` — deployment → `{headers, paginate, [api]}`.
   - `main(argv=None) -> int` — supports `--build` and `--from-json <path>`.
 
-- [ ] **Step 1: Write the failing tests** — append to `template/scripts/jira/tests/test_export_jira.py` (add `import os` at top):
+- [ ] **Step 1: Write the failing tests** — append to `template/scripts/jira/tests/test_export_jira.py` (add `import json, os` to the top imports):
 
 ```python
 class AdapterTests(unittest.TestCase):
@@ -861,7 +861,7 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual(h["Authorization"], "Bearer pat123")
 
     def test_main_from_json_writes_ledger(self):
-        payload = ('{"issues": [' + str(CLOUD_RAW).replace("'", '"').replace("None", "null") + ']}')
+        payload = json.dumps({"issues": [CLOUD_RAW]})
         with tempfile.TemporaryDirectory() as d:
             jf = Path(d) / "in.json"
             jf.write_text(payload, encoding="utf-8")
