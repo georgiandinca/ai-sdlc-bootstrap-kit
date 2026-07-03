@@ -79,9 +79,11 @@ def source_id(ns: str, path: str) -> str: return f"source:{ns}:{path}"
 def symbol_id(ns: str, path: str, name: str) -> str: return f"sym:{ns}:{path}:{name}"
 def test_id(ns: str, path: str) -> str: return f"test:{ns}:{path}"
 def commit_id(ns: str, sha: str) -> str: return f"commit:{ns}:{sha}"
+def issue_id(key: str) -> str: return f"issue:{key}"
 
 _ADR_RE = re.compile(r"^ADR-\d{3,4}$")
 _STORY_RE = re.compile(r"^AS-\d+$", re.I)
+_ISSUE_RE = re.compile(r"^[A-Z][A-Z0-9]+-\d+$")
 
 
 def normalize_ref(ref: str) -> str:
@@ -92,6 +94,8 @@ def normalize_ref(ref: str) -> str:
         return adr_id(ref)
     if _STORY_RE.match(ref):
         return story_id(ref.upper())
+    if _ISSUE_RE.match(ref):
+        return issue_id(ref)
     if "/" in ref or "." in ref:
         return f"path:{ref}"
     return ref

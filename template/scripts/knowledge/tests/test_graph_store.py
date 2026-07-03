@@ -41,6 +41,10 @@ class GraphStoreTests(unittest.TestCase):
         self.assertEqual(gs.normalize_ref("ADR-0003"), "adr:ADR-0003")
         self.assertEqual(gs.normalize_ref("AS-2"), "story:AS-2")
         self.assertEqual(gs.normalize_ref("scripts/x.py"), "path:scripts/x.py")
+        self.assertEqual(gs.issue_id("PROJ-123"), "issue:PROJ-123")
+        self.assertEqual(gs.normalize_ref("PROJ-123"), "issue:PROJ-123")
+        self.assertEqual(gs.normalize_ref("AS-2"), "story:AS-2")      # story wins over issue
+        self.assertEqual(gs.normalize_ref("ADR-0003"), "adr:ADR-0003")  # adr wins over issue
 
 
 if __name__ == "__main__":
