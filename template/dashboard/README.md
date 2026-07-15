@@ -22,7 +22,9 @@ Four tabs over a local SQLite DB:
 - **ROI** — human-day-equivalent ROI over closed tickets with an
   evidence-tier band and a coverage indicator, plus a client-report HTML
   export. Per-ticket AI cost is session tokens only; invoice/flat-rate spend
-  joins at period level (counted exactly once).
+  joins at period level (counted exactly once) — unless you also import the
+  org cost report for tokens already collected as sessions, which
+  double-counts them; see `scripts/spend/README.md`.
 
 ## Feeding it real data
 

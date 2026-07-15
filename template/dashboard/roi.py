@@ -116,5 +116,8 @@ pre-work estimate, historical velocity, post-hoc judgment. Tickets without an
 estimate or actual are excluded from the ratio but counted in coverage;
 per-ticket AI cost covers session tokens only — invoice/flat-rate spend is
 amortized at period level. Flagged tickets (actual &lt; 0.1 day):
-{html.escape(', '.join(summary['flagged']) or 'none')}.</p>
+{html.escape(', '.join(summary['flagged']) or 'none')}. Where the org cost
+report and locally collected sessions cover the same tokens, period totals
+count them twice — see scripts/spend/README.md; import the cost report only
+for non-session API spend.</p>
 </body></html>"""

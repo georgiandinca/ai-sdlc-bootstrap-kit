@@ -16,6 +16,15 @@ Monthly ritual (before the retro):
     python3 scripts/spend/import_invoice.py --csv invoices/2026-06.csv
     python3 scripts/spend/import_tickets.py --ledger docs/product/jira/issues.csv --actuals actuals/2026-06.csv
 
+**Double-counting caveat.** `import_api_usage.py` pulls the org-wide Admin
+cost report, which includes Claude Code's own API usage. If the SessionEnd
+collector (`collect-usage.sh` → `sessions`) is already active for this same
+billing org, importing the full cost report double-counts those tokens in
+`period_rollup`'s "AI € this period" and the client report. Import the cost
+report only for API spend that is **not** already captured as sessions (e.g.
+other tools/services on the same org key), or skip it entirely and rely on
+sessions + invoices.
+
 - `prices.json` — model → USD/Mtok (+ `eur_per_usd`). A maintained config:
   refresh from the pricing docs when models change. Unknown models cost 0 and
   are flagged on the Waste tab — never a guessed price.
