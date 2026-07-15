@@ -18,6 +18,7 @@ import argparse
 import json
 import os
 import sys
+import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -33,9 +34,17 @@ def rows_from_cost_report(payload, eur_per_usd):
                          "check the Admin API docs and update this parser")
     rows = []
     for bucket in payload["data"]:
+        if not isinstance(bucket.get("results"), list):
+            keys = sorted(bucket.keys())
+            raise ValueError(f"cost_report bucket has no results list (got {keys}); "
+                             "check the Admin API docs and update this parser")
         usd = 0.0
-        for result in bucket.get("results", []):
-            usd += float(result.get("amount", 0))
+        for result in bucket["results"]:
+            if "amount" not in result:
+                keys = sorted(result.keys())
+                raise ValueError(f"cost_report result has no amount field (got {keys}); "
+                                 "check the Admin API docs and update this parser")
+            usd += float(result["amount"])
         rows.append({
             "source": "anthropic-api",
             "period_start": str(bucket["starting_at"])[:10],
@@ -59,8 +68,17 @@ def fetch_cost_report(starting_at, ending_at, api_key):
         req = urllib.request.Request(
             API + "?" + urllib.parse.urlencode(params),
             headers={"x-api-key": api_key, "anthropic-version": "2023-06-01"})
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            payload = json.loads(resp.read().decode("utf-8"))
+        try:
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                payload = json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            raise SystemExit(
+                f"[import-api-usage] cost_report request failed: {e} "
+                "(check ANTHROPIC_ADMIN_KEY / network / Admin API access)")
+        except urllib.error.URLError as e:
+            raise SystemExit(
+                f"[import-api-usage] cost_report request failed: {e} "
+                "(check ANTHROPIC_ADMIN_KEY / network / Admin API access)")
         pages.append(payload)
         page = payload.get("next_page")
         if not payload.get("has_more") or not page:

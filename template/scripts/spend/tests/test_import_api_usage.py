@@ -35,6 +35,36 @@ class TestRowsFromCostReport(unittest.TestCase):
         rows = imp.rows_from_cost_report(payload, eur_per_usd=1.0)
         self.assertAlmostEqual(rows[0]["cost_eur"], 2.0)
 
+    def test_bucket_without_results_fails_loudly(self):
+        payload = {"data": [{"starting_at": "2026-01-01T00:00:00Z",
+                             "ending_at": "2026-01-02T00:00:00Z"}]}
+        with self.assertRaises(ValueError):
+            imp.rows_from_cost_report(payload, eur_per_usd=1.0)
+
+    def test_result_without_amount_fails_loudly(self):
+        payload = {"data": [{"starting_at": "2026-01-01T00:00:00Z",
+                             "ending_at": "2026-01-02T00:00:00Z",
+                             "results": [{"currency": "USD"}]}]}
+        with self.assertRaises(ValueError):
+            imp.rows_from_cost_report(payload, eur_per_usd=1.0)
+
+
+class TestFetchCostReport(unittest.TestCase):
+    def setUp(self):
+        self._orig_urlopen = imp.urllib.request.urlopen
+
+    def tearDown(self):
+        imp.urllib.request.urlopen = self._orig_urlopen
+
+    def test_network_error_exits_with_clear_message(self):
+        def boom(*args, **kwargs):
+            raise imp.urllib.error.URLError("boom")
+
+        imp.urllib.request.urlopen = boom
+        with self.assertRaises(SystemExit) as ctx:
+            imp.fetch_cost_report("2026-01-01", "2026-01-02", "sk-test")
+        self.assertIn("cost_report request failed", str(ctx.exception))
+
 
 if __name__ == "__main__":
     unittest.main()
