@@ -85,7 +85,10 @@ CREATE TABLE IF NOT EXISTS spend (
     source       TEXT NOT NULL,          -- anthropic-api | cursor | copilot | claude-max | other
     period_start TEXT NOT NULL,          -- ISO date
     period_end   TEXT NOT NULL,
-    seat         TEXT,                   -- NULL = unattributable org-level spend
+    seat         TEXT NOT NULL DEFAULT '(org)',  -- '(org)' = unattributable org-level
+                                         -- spend (NOT NULL because SQLite treats
+                                         -- NULLs as distinct in UNIQUE, which would
+                                         -- break re-import idempotency)
     cost_eur     REAL NOT NULL,
     granularity  TEXT NOT NULL,          -- tokens | invoice | flat-rate
     notes        TEXT,
@@ -166,7 +169,7 @@ to existing artefacts. Anti-bloat: each technique has a metric proxy on the Wast
 |---|---|---|---|
 | 1 | **Model routing** — mechanical work on cheap models, design/review on the big model | `seat-profiles.json` gains `default_model` + `escalation_hint` per seat; playbooks reference it | cost per accepted outcome, by model |
 | 2 | **Prompt-cache hygiene** — briefs byte-stable within a sprint | rule + CI check in `ai-governance.yml` flagging AGENTS.md churn above a threshold | `cache_read_tokens ÷ tokens_in` per seat |
-| 3 | **Context hygiene** — one ticket per session, `/clear` between tickets, targeted reads | rule + `wrapup.sh` reminder when a session spans tickets | tokens-per-session distribution, flagged long tail |
+| 3 | **Context hygiene** — one ticket per session, `/clear` between tickets, targeted reads | rule; multi-ticket sessions aren't detectable in `wrapup.sh`, so the Waste tab's flagged long tail is the enforcement surface | tokens-per-session distribution, flagged long tail |
 | 4 | **Ground, don't paste** — knowledge layer over document dumping | pointer to pillar 5; now measured | `grounded` flag vs `tokens_in` correlation |
 | 5 | **Plan-before-code** — design gate cuts rework loops (the #1 token multiplier) | already in playbooks; `outcome` makes it measurable | rework burn: % tokens in reworked/rejected sessions |
 | 6 | **Subagent scoping** — exploration in subagents, main context stays lean | rule, per-seat guidance | tokens_in per accepted outcome trend |
