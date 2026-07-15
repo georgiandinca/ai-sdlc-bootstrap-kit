@@ -1,0 +1,12 @@
+{
+  "deployment": "cloud",
+  "base_url_env": "JIRA_BASE_URL",
+  "project": "PROJ",
+  "jql": "project = PROJ ORDER BY updated DESC",
+  "fields": {
+    "sprint": "customfield_10020",
+    "epic_link": "customfield_10014",
+    "story_points": "customfield_10016"
+  },
+  "description_max_chars": 500
+}

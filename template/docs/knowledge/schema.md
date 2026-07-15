@@ -36,6 +36,7 @@ links. Add a repo by adding a namespace entry — no code change.
 | `symbol` | `sym:<ns>:<path>:<name>` | `ast`/regex def/class |
 | `test` | `test:<ns>:<path>` | `test_*.py` / `*_test.py` |
 | `commit` | `commit:<ns>:<sha>` | optional Phase-3 commit layer |
+| `issue` | `issue:<KEY>` | JIRA CSV ledger (`docs/product/jira/issues.csv`) |
 
 Every node carries `namespace`, `path`, and (for docs) a `tier` from `ai-trust`,
 so retrieved context is always citable with its trust tier (`AGENTS.md §4.2`).
@@ -52,6 +53,8 @@ so retrieved context is always citable with its trust tier (`AGENTS.md §4.2`).
 | `imports` | code → code | `ast`/regex (intra-namespace only) |
 | `contains` | code → symbol | `ast`/regex |
 | `touches` | commit → code | git numstat (optional) |
+| `part-of` | issue → issue | ledger `epic`/`parent` columns |
+| `references` | commit → issue | `Refs: KEY` in commit messages (optional commit layer) |
 
 Every edge stores `source_file` + `line` (its citation) and `resolved`
 (`0` = the target node was not found — surfaced honestly, never invented).
@@ -63,6 +66,8 @@ Every edge stores `source_file` + `line` (its citation) and `resolved`
 - **Code marker:** a comment containing `ADR-NNNN` → an `implements` edge (file
   level, plus symbol level when the marker is inside a def).
 - **Naming:** `tests/test_x.py` → `covers` the same-namespace `x.py`.
+- **JIRA keys:** a frontmatter link value matching `ABC-123` resolves to
+  `issue:<KEY>`, linking docs/stories/ADRs to imported issues.
 
 ## Source-document frontmatter (unchanged)
 

@@ -1,0 +1,3 @@
+key,type,title,status,assignee,reporter,labels,sprint,epic,parent,priority,story_points,created,updated,resolution,url,description
+PROJ-1,Epic,Adopt the JIRA ledger,In Progress,,,knowledge,Sprint 1,,,High,,2026-07-03,2026-07-03,,https://example.atlassian.net/browse/PROJ-1,Seed epic demonstrating the issue namespace in the knowledge graph.
+PROJ-2,Story,Ingest issues into the graph,To Do,,,knowledge,Sprint 1,PROJ-1,PROJ-1,Medium,3,2026-07-03,2026-07-03,,https://example.atlassian.net/browse/PROJ-2,Seed story that is part-of PROJ-1; shows a resolved part-of edge.

@@ -1,7 +1,8 @@
 {
   "namespaces": {
     "docs":     { "kind": "docs", "db": "docs/.knowledge/graph.db", "roots": ["docs/"] },
-    "kit-code": { "kind": "code", "db": ".knowledge/graph.db",       "roots": ["scripts/", "dashboard/"] }
+    "kit-code": { "kind": "code", "db": ".knowledge/graph.db",       "roots": ["scripts/", "dashboard/"] },
+    "issues":   { "kind": "issues", "db": "docs/product/jira/.knowledge/graph.db", "roots": ["docs/product/jira/issues.csv"] }
   },
   "overlay": "docs/knowledge/.knowledge/global.db"
 }

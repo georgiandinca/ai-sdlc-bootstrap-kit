@@ -21,6 +21,8 @@ import graph_store as gs          # noqa: E402
 import manifest as manifest_mod   # noqa: E402
 import ingest_docs                # noqa: E402
 import ingest_code                # noqa: E402
+import ingest_issues              # noqa: E402
+import link_issues                # noqa: E402
 import link_commits               # noqa: E402
 import query as query_mod         # noqa: E402
 
@@ -33,6 +35,8 @@ def build(data=None, base=None):
     all_ids: set[str] = set()
     all_paths: dict[str, str] = {}
     held: list[dict] = []
+    issues_present = any(spec.get("kind") == "issues"
+                         for spec in data.get("namespaces", {}).values())
 
     for name, kind, db, roots in manifest_mod.namespaces(data, base=base):
         conn = gs.connect(db)
@@ -44,6 +48,8 @@ def build(data=None, base=None):
                 continue
             if kind == "code":
                 n, e = ingest_code.ingest_root(root, name, base)
+            elif kind == "issues":
+                n, e = ingest_issues.ingest_root(root, name, base)
             else:
                 n, e = ingest_docs.ingest_root(root, name, base)
             ns_nodes += n
@@ -52,6 +58,8 @@ def build(data=None, base=None):
             cn, ce, attrib = link_commits.link(name, ns_nodes, DASHBOARD_DB, base)
             ns_nodes += cn
             ns_edges += ce
+            if issues_present:
+                ns_edges += link_issues.link(name, cn, base)
             for nd in ns_nodes:
                 if nd["id"] in attrib:
                     nd["meta"] = {**(nd.get("meta") or {}), **attrib[nd["id"]]}
