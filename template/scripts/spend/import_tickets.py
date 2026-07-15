@@ -25,6 +25,8 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 CONFIG = HERE / "config.json"
 
+EVIDENCE_TIERS = {"calibration", "pre-estimate", "velocity", "post-hoc"}
+
 
 def _cfg():
     return json.loads(CONFIG.read_text(encoding="utf-8"))
@@ -62,10 +64,15 @@ def apply_actuals(fileobj):
             actual = float(rec.get("actual_human_days") or "")
         except ValueError as exc:
             raise ValueError(f"line {i}: bad actual_human_days") from exc
+        tier = (rec.get("evidence_tier") or "").strip() or None
+        if tier and tier not in EVIDENCE_TIERS:
+            raise ValueError(
+                f"line {i}: unknown evidence_tier '{tier}' "
+                f"(want one of {sorted(EVIDENCE_TIERS)})")
         rows.append({
             "ticket": key,
             "actual_human_days": actual,
-            "evidence_tier": (rec.get("evidence_tier") or "").strip() or None,
+            "evidence_tier": tier,
             "_kind": "actuals",
         })
     return rows

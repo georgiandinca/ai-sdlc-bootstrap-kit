@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Unit tests for the JIRA-ledger → tickets importer."""
+import io
 import json
 import sqlite3
 import sys
@@ -55,6 +56,11 @@ class TestImportTickets(unittest.TestCase):
             ).fetchone()
             self.assertIsNone(row[0])           # absurd HDE suppressed
             self.assertEqual(row[1], 1)         # ...but flagged for review
+
+    def test_apply_actuals_rejects_unknown_evidence_tier(self):
+        csv_text = "ticket,actual_human_days,evidence_tier\nPROJ-1,1.0,calibraton\n"
+        with self.assertRaises(ValueError):
+            imp.apply_actuals(io.StringIO(csv_text))
 
 
 if __name__ == "__main__":
