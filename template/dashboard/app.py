@@ -169,6 +169,11 @@ def waste_tab(sessions: pd.DataFrame, spend: pd.DataFrame) -> None:
             lambda g: g["cache_read_tokens"].sum()
             / max(1, g["cache_read_tokens"].sum() + g["tokens_in"].sum()))
         st.bar_chart(ratios)
+        st.subheader("Tokens-in per accepted outcome — technique 6 (subagent scoping)")
+        by_month = view.assign(month=view["ts"].dt.to_period("M").astype(str)).groupby("month")
+        tipao = by_month.apply(
+            lambda g: g["tokens_in"].sum() / max(1, int((g["outcome"] == "accepted").sum())))
+        st.line_chart(tipao)
     unpriced = view["notes"].fillna("").str.contains("unpriced models")
     if unpriced.any():
         st.warning(f"{int(unpriced.sum())} session(s) contain unpriced models "

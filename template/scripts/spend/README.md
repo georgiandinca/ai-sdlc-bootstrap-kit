@@ -33,4 +33,6 @@ sessions + invoices.
 - Secrets are env-only (`ANTHROPIC_ADMIN_KEY`); nothing secret in git.
 - **Batch discount (token-economy rule 7):** non-interactive jobs through the
   Batch API cost 50% of standard — spend rows for batch work land at that
-  rate automatically since they come from the cost report.
+  rate automatically since they come from the cost report. The dashboard
+  does not yet break out batch share (no rate flag on spend rows) — check
+  the cost report directly until that lands.

@@ -32,7 +32,9 @@ edits.
 Non-interactive jobs (bulk doc generation, triage sweeps, dataset
 processing) go through the Batch API at 50% of standard price — see
 scripts/spend/README.md.
-*Proxy: share of API spend at batch rate.*
+*Proxy: share of API spend at batch rate — not yet surfaced on the
+dashboard (needs a rate flag on spend rows); track via the cost report
+until then.*
 
 ## Grounding (pointer)
 Answer from the knowledge layer (pillar 5) instead of pasting documents into
