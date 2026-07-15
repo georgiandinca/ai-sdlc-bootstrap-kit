@@ -66,5 +66,46 @@ class TestPricing(unittest.TestCase):
         self.assertEqual(unknown, ["experimental-model-x"])
 
 
+import sqlite3
+import tempfile
+
+
+class TestMainUpsert(unittest.TestCase):
+    def _run(self, tmp, session_id="sess-1"):
+        db = Path(tmp) / "u.db"
+        rc = pt.main([
+            "--transcript", str(HERE / "fixtures" / "transcript_ok.jsonl"),
+            "--session-id", session_id, "--seat", "Developer",
+            "--ticket", "PROJ-7", "--db", str(db),
+        ])
+        self.assertEqual(rc, 0)
+        return db
+
+    def test_insert_then_idempotent_rerun(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = self._run(tmp)
+            conn = sqlite3.connect(db)
+            n0 = conn.execute("SELECT COUNT(*) FROM sessions WHERE session_id='sess-1'").fetchone()[0]
+            self.assertEqual(n0, 1)
+            # outcome preserved across re-runs (wrapup ritual owns it)
+            conn.execute("UPDATE sessions SET outcome='accepted' WHERE session_id='sess-1'")
+            conn.commit(); conn.close()
+            self._run(tmp)  # same session id → upsert, not duplicate
+            conn = sqlite3.connect(db)
+            row = conn.execute(
+                "SELECT COUNT(*), MAX(outcome), MAX(cache_read_tokens), MAX(model) "
+                "FROM sessions WHERE session_id='sess-1'").fetchone()
+            self.assertEqual(row[0], 1)
+            self.assertEqual(row[1], "accepted")
+            self.assertEqual(row[2], 11000)
+            self.assertEqual(row[3], "claude-opus-4-8")
+
+    def test_missing_transcript_returns_2(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            rc = pt.main(["--transcript", str(Path(tmp) / "nope.jsonl"),
+                          "--session-id", "x", "--db", str(Path(tmp) / "u.db")])
+            self.assertEqual(rc, 2)
+
+
 if __name__ == "__main__":
     unittest.main()

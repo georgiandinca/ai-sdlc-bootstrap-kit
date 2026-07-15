@@ -95,3 +95,74 @@ def totals(per_model):
         model = max(per_model, key=lambda m: sum(per_model[m].values()))
     return {"tokens_in": tokens_in, "tokens_out": tokens_out,
             "cache_read_tokens": cache_read, "model": model}
+
+
+def upsert_session(conn, row):
+    conn.execute(
+        """INSERT INTO sessions (ts, seat, tool, task, ticket, tokens_in,
+               tokens_out, cost_usd, outcome, grounded, notes, session_id,
+               model, cache_read_tokens)
+           VALUES (:ts, :seat, 'claude', :task, :ticket, :tokens_in,
+               :tokens_out, :cost_usd, 'unknown', 0, :notes, :session_id,
+               :model, :cache_read_tokens)
+           ON CONFLICT(session_id) DO UPDATE SET
+               tokens_in=excluded.tokens_in, tokens_out=excluded.tokens_out,
+               cost_usd=excluded.cost_usd, model=excluded.model,
+               cache_read_tokens=excluded.cache_read_tokens,
+               notes=excluded.notes""",
+        row,
+    )
+    conn.commit()
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--transcript", required=True)
+    ap.add_argument("--session-id", required=True)
+    ap.add_argument("--seat", default="unknown")
+    ap.add_argument("--ticket", default=None)
+    ap.add_argument("--task", default=None)
+    ap.add_argument("--db", required=True)
+    args = ap.parse_args(argv)
+
+    transcript = Path(args.transcript)
+    if not transcript.is_file():
+        print(f"[parse-transcript] no transcript at {transcript}", file=sys.stderr)
+        return 2
+
+    with open(transcript, encoding="utf-8", errors="replace") as f:
+        per_model, skipped = parse_usage(f)
+    prices = (json.loads(PRICES_PATH.read_text(encoding="utf-8"))
+              if PRICES_PATH.exists() else {"models": {}})
+    cost_usd, unknown = price_usage(per_model, prices)
+    t = totals(per_model)
+
+    notes = []
+    if skipped:
+        notes.append(f"skipped {skipped} malformed transcript lines")
+    if unknown:
+        notes.append("unpriced models (cost=0): " + ", ".join(unknown))
+
+    sys.path.insert(0, str(HERE.parents[1] / "dashboard"))
+    import db as dbmod  # noqa: E402
+
+    conn = dbmod.connect(args.db)
+    try:
+        upsert_session(conn, {
+            "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S"),
+            "seat": args.seat, "task": args.task, "ticket": args.ticket,
+            "tokens_in": t["tokens_in"], "tokens_out": t["tokens_out"],
+            "cost_usd": round(cost_usd, 4),
+            "notes": "; ".join(notes) or None,
+            "session_id": args.session_id, "model": t["model"],
+            "cache_read_tokens": t["cache_read_tokens"],
+        })
+    finally:
+        conn.close()
+    print(f"[parse-transcript] {args.session_id}: {t['tokens_in']}in/"
+          f"{t['tokens_out']}out/{t['cache_read_tokens']}cache ${cost_usd:.4f}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
