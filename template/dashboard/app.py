@@ -11,6 +11,7 @@ Run:
 from __future__ import annotations
 
 import sys
+from datetime import timedelta
 from pathlib import Path
 
 import pandas as pd
@@ -185,9 +186,10 @@ def roi_tab() -> None:
         col1, col2 = st.columns(2)
         start = col1.date_input("Period start", key="roi_start",
                                 value=pd.Timestamp.today().replace(day=1))
-        end = col2.date_input("Period end", key="roi_end",
+        end = col2.date_input("Period end (incl.)", key="roi_end",
                               value=pd.Timestamp.today())
-        rollup = roimod.period_rollup(conn, str(start), str(end), EUR_PER_USD)
+        end_excl = end + timedelta(days=1)
+        rollup = roimod.period_rollup(conn, str(start), str(end_excl), EUR_PER_USD)
     finally:
         conn.close()
     used, closed = summary["coverage"]
