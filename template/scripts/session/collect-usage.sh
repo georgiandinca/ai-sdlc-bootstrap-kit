@@ -39,11 +39,20 @@ fi
 branch=$(git branch --show-current 2>/dev/null || true)
 ticket=$(printf '%s' "$branch" | grep -oE '[A-Z][A-Z0-9]+-[0-9]+' | head -n1 || true)
 
+user=$(python3 -c 'import sys; sys.path.insert(0, "scripts/spend"); from export_sessions import resolve_user; print(resolve_user() or "")' 2>/dev/null || true)
+
 db="${SDLC_USAGE_DB:-dashboard/utilization.db}"
 if python3 scripts/spend/parse_transcript.py \
      --transcript "$transcript" --session-id "$session_id" \
-     --seat "$seat" ${ticket:+--ticket "$ticket"} --db "$db" 2>>"$errlog"; then
-  :
+     --seat "$seat" ${ticket:+--ticket "$ticket"} ${user:+--user "$user"} \
+     --db "$db" 2>>"$errlog"; then
+  # Team ledger (design §5): regenerate this user's committed CSV. Failure
+  # is telemetry loss, never a broken session — log and keep exit 0.
+  ledger_dir="${SDLC_SESSIONS_DIR:-docs/metrics/sessions}"
+  if ! python3 scripts/spend/export_sessions.py \
+       --db "$db" --out-dir "$ledger_dir" ${user:+--user "$user"} 2>>"$errlog"; then
+    log_err "export_sessions failed for $session_id"
+  fi
 else
   log_err "parse_transcript failed for $transcript"
 fi
