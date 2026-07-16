@@ -101,15 +101,16 @@ def upsert_session(conn, row):
     conn.execute(
         """INSERT INTO sessions (ts, seat, tool, task, ticket, tokens_in,
                tokens_out, cost_usd, outcome, grounded, notes, session_id,
-               model, cache_read_tokens)
+               model, cache_read_tokens, user)
            VALUES (:ts, :seat, 'claude', :task, :ticket, :tokens_in,
                :tokens_out, :cost_usd, 'unknown', 0, :notes, :session_id,
-               :model, :cache_read_tokens)
+               :model, :cache_read_tokens, :user)
            ON CONFLICT(session_id) DO UPDATE SET
                tokens_in=excluded.tokens_in, tokens_out=excluded.tokens_out,
                cost_usd=excluded.cost_usd, model=excluded.model,
                cache_read_tokens=excluded.cache_read_tokens,
-               notes=excluded.notes""",
+               notes=excluded.notes,
+               user=COALESCE(excluded.user, sessions.user)""",
         row,
     )
     conn.commit()
@@ -122,6 +123,8 @@ def main(argv=None):
     ap.add_argument("--seat", default="unknown")
     ap.add_argument("--ticket", default=None)
     ap.add_argument("--task", default=None)
+    ap.add_argument("--user", default=None,
+                    help="ledger identity (git email local part); hook-resolved")
     ap.add_argument("--db", required=True)
     args = ap.parse_args(argv)
 
@@ -156,6 +159,7 @@ def main(argv=None):
             "notes": "; ".join(notes) or None,
             "session_id": args.session_id, "model": t["model"],
             "cache_read_tokens": t["cache_read_tokens"],
+            "user": args.user,
         })
     finally:
         conn.close()

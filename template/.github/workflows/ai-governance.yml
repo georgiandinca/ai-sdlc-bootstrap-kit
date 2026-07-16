@@ -53,6 +53,8 @@ jobs:
           python3 scripts/spend/tests/test_import_invoice.py
           python3 scripts/spend/tests/test_import_api_usage.py
           python3 scripts/spend/tests/test_import_tickets.py
+          python3 scripts/spend/tests/test_export_sessions.py
+          python3 scripts/spend/tests/test_import_sessions.py
           python3 scripts/tests/test_check_brief_churn.py
 
       - name: Brief-churn gate (token-economy rule 2)

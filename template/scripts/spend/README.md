@@ -36,3 +36,17 @@ sessions + invoices.
   rate automatically since they come from the cost report. The dashboard
   does not yet break out batch share (no rate flag on spend rows) — check
   the cost report directly until that lands.
+
+## Team session ledger (export_sessions.py / import_sessions.py)
+
+`sessions` telemetry is per-machine — `~/.claude/projects` only holds *your*
+transcripts. The team sees each other's sessions through a committed ledger:
+
+- `export_sessions.py --db dashboard/utilization.db --out-dir docs/metrics/sessions`
+  — regenerates `docs/metrics/sessions/<user>.csv` from your local DB (the
+  SessionEnd hook runs this for you; commit the CSV with your normal PRs).
+- `import_sessions.py` — merges every `docs/metrics/sessions/*.csv` into the
+  `sessions` table. Upsert by `session_id`, greater token total wins;
+  malformed files fail loudly. Idempotent.
+
+See `docs/metrics/sessions/README.md` for the privacy note.

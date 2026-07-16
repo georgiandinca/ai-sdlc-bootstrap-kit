@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS sessions (
     cost_usd    REAL    NOT NULL DEFAULT 0,
     outcome     TEXT    NOT NULL DEFAULT 'unknown',    -- accepted | reworked | rejected | unknown
     grounded    INTEGER NOT NULL DEFAULT 0,
-    notes       TEXT, session_id TEXT, model TEXT, cache_read_tokens INTEGER NOT NULL DEFAULT 0
+    notes       TEXT, session_id TEXT, model TEXT, cache_read_tokens INTEGER NOT NULL DEFAULT 0, user TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_sessions_ts   ON sessions(ts);
 CREATE INDEX IF NOT EXISTS idx_sessions_seat ON sessions(seat);

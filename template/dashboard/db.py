@@ -40,6 +40,7 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
         "session_id": "TEXT",
         "model": "TEXT",
         "cache_read_tokens": "INTEGER NOT NULL DEFAULT 0",
+        "user": "TEXT",
     })
     if SCHEMA.exists():
         conn.executescript(SCHEMA.read_text(encoding="utf-8"))

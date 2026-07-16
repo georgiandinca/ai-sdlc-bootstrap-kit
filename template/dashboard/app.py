@@ -77,6 +77,22 @@ def utilization_tab(sessions: pd.DataFrame) -> None:
     with right:
         st.subheader("Outcome mix")
         st.bar_chart(view.groupby("outcome").size().rename("sessions"))
+    st.subheader("By user (team ledger)")
+    by_user = (view.assign(user=view["user"].fillna("(unattributed)"))
+               if "user" in view.columns
+               else view.assign(user="(unattributed)"))
+    by_user = by_user.groupby("user").agg(
+        sessions=("ts", "size"),
+        tokens_in=("tokens_in", "sum"),
+        tokens_out=("tokens_out", "sum"),
+        cost_usd=("cost_usd", "sum"),
+    )
+    by_user["cost_eur"] = (by_user.pop("cost_usd") * EUR_PER_USD).round(2)
+    st.dataframe(by_user.sort_values("cost_eur", ascending=False))
+    st.caption("Team-wide once teammates' ledgers are imported "
+               "(python3 scripts/spend/import_sessions.py — see "
+               "docs/metrics/sessions/README.md); until then this is "
+               "this machine's sessions only.")
 
 
 def attribution_tab(commits: pd.DataFrame, sessions: pd.DataFrame) -> None:

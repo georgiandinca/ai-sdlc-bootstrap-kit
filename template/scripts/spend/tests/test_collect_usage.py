@@ -43,6 +43,24 @@ class TestCollectUsage(unittest.TestCase):
                 proc = self._run(payload, db)
                 self.assertEqual(proc.returncode, 0, proc.stderr)
 
+    def test_writes_committed_ledger_csv(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = Path(tmp) / "u.db"
+            ledger = Path(tmp) / "ledger"
+            payload = {"session_id": "hook-sess-2",
+                       "transcript_path": str(HERE / "fixtures" / "transcript_ok.jsonl")}
+            proc = subprocess.run(
+                ["bash", str(HOOK)], input=json.dumps(payload), text=True,
+                cwd=TEMPLATE, env={"PATH": "/usr/bin:/bin:/usr/local/bin",
+                                   "SDLC_USAGE_DB": str(db),
+                                   "SDLC_SESSIONS_DIR": str(ledger),
+                                   "USER": "hooktester"},
+                capture_output=True, timeout=60)
+            self.assertEqual(proc.returncode, 0, proc.stderr)
+            csvs = list(ledger.glob("*.csv"))
+            self.assertEqual(len(csvs), 1, "hook must write exactly one ledger CSV")
+            self.assertIn("hook-sess-2", csvs[0].read_text(encoding="utf-8"))
+
 
 if __name__ == "__main__":
     unittest.main()

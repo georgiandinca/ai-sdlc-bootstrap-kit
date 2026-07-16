@@ -106,6 +106,22 @@ class TestMainUpsert(unittest.TestCase):
                           "--session-id", "x", "--db", str(Path(tmp) / "u.db")])
             self.assertEqual(rc, 2)
 
+    def test_user_recorded_and_preserved(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = Path(tmp) / "u.db"
+            args = ["--transcript", str(HERE / "fixtures" / "transcript_ok.jsonl"),
+                    "--session-id", "sess-u", "--db", str(db)]
+            self.assertEqual(pt.main(args + ["--user", "geo"]), 0)
+            conn = sqlite3.connect(db)
+            self.assertEqual(conn.execute(
+                "SELECT user FROM sessions WHERE session_id='sess-u'").fetchone()[0], "geo")
+            conn.close()
+            # a re-run WITHOUT --user must not erase the recorded identity
+            self.assertEqual(pt.main(args), 0)
+            conn = sqlite3.connect(db)
+            self.assertEqual(conn.execute(
+                "SELECT user FROM sessions WHERE session_id='sess-u'").fetchone()[0], "geo")
+
 
 if __name__ == "__main__":
     unittest.main()
