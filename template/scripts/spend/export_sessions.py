@@ -40,7 +40,7 @@ def _git_config(key):
         out = subprocess.run(["git", "config", key], capture_output=True,
                              text=True, timeout=10)
         return out.stdout.strip() if out.returncode == 0 else ""
-    except OSError:
+    except (OSError, subprocess.SubprocessError):
         return ""
 
 

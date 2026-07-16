@@ -17,4 +17,6 @@ so a fresher local parse is never overwritten by an older committed CSV).
 access. For sensitive client work leave `task` empty (the collector defaults
 it to empty) and/or keep ticket keys out of branch names. Data arrives with
 commit latency — this ledger feeds retros and ROI reviews, not real-time
-monitoring.
+monitoring. Rows are trusted to the same degree as repo write access — the importer
+takes each file's identity from its filename, but anyone who can push can
+edit any CSV.
