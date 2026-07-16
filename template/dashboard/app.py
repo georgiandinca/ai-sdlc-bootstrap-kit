@@ -41,11 +41,11 @@ def load(table: str) -> pd.DataFrame:
     return df
 
 
-def _date_filter(df: pd.DataFrame, key: str) -> pd.DataFrame:
+def _date_filter(df: pd.DataFrame, key: str, label: str = "Date range") -> pd.DataFrame:
     if df.empty:
         return df
     dmin, dmax = df["ts"].min().date(), df["ts"].max().date()
-    drange = st.sidebar.date_input("Date range", (dmin, dmax), key=key)
+    drange = st.sidebar.date_input(label, (dmin, dmax), key=key)
     if isinstance(drange, (list, tuple)) and len(drange) == 2:
         lo, hi = pd.Timestamp(drange[0]), pd.Timestamp(drange[1]) + pd.Timedelta(days=1)
         return df[(df["ts"] >= lo) & (df["ts"] < hi)]
@@ -56,7 +56,7 @@ def utilization_tab(sessions: pd.DataFrame) -> None:
     if sessions.empty:
         st.info("No sessions yet. Seed rows are in seed.sql; your harness writes real ones.")
         return
-    view = _date_filter(sessions, "util_dates")
+    view = _date_filter(sessions, "util_dates", "Date range — Utilization")
     if view.empty:
         st.warning("No sessions in range."); return
     n = len(view)
@@ -80,7 +80,7 @@ def attribution_tab(commits: pd.DataFrame, sessions: pd.DataFrame) -> None:
     if commits.empty:
         st.info("No commits yet. Run `python3 dashboard/collect_commits.py` to populate.")
         return
-    view = _date_filter(commits, "attr_dates")
+    view = _date_filter(commits, "attr_dates", "Date range — Commit attribution")
     if view.empty:
         st.warning("No commits in range."); return
     n = len(view)
@@ -135,7 +135,7 @@ def waste_tab(sessions: pd.DataFrame, spend: pd.DataFrame) -> None:
     if sessions.empty:
         st.info("No sessions yet — scripts/session/collect-usage.sh writes real rows on SessionEnd.")
         return
-    view = _date_filter(sessions, "waste_dates")
+    view = _date_filter(sessions, "waste_dates", "Date range — Waste signals")
     if view.empty:
         st.warning("No sessions in range."); return
     view = view.copy()
