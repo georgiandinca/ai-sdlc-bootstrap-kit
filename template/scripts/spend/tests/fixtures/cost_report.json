@@ -1,0 +1,10 @@
+{
+  "data": [
+    {"starting_at": "2026-06-22T00:00:00Z", "ending_at": "2026-06-23T00:00:00Z",
+     "results": [{"amount": "3.50", "currency": "USD"}, {"amount": "1.50", "currency": "USD"}]},
+    {"starting_at": "2026-06-23T00:00:00Z", "ending_at": "2026-06-24T00:00:00Z",
+     "results": [{"amount": "2.00", "currency": "USD"}]}
+  ],
+  "has_more": false,
+  "next_page": null
+}

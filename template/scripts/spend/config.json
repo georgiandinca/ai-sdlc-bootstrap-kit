@@ -1,0 +1,6 @@
+{
+  "points_to_days": 0.5,
+  "day_rate_eur": 500.0,
+  "working_days_per_month": 20,
+  "closed_statuses": ["Done", "Closed", "Resolved"]
+}

@@ -17,10 +17,33 @@ SCHEMA = HERE / "schema.sql"
 SEED = HERE / "seed.sql"
 
 
+def _ensure_columns(conn: sqlite3.Connection, table: str, columns: dict) -> None:
+    """Add any missing columns to a pre-existing table (SQLite has no
+    ALTER TABLE IF NOT EXISTS; new columns also live in schema.sql for
+    fresh DBs)."""
+    # Check if table exists first; PRAGMA table_info returns empty for non-existent tables
+    table_exists = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)
+    ).fetchone() is not None
+
+    if not table_exists:
+        return  # Fresh DB, skip migration; schema.sql will create the table with all columns
+
+    have = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+    for name, decl in columns.items():
+        if name not in have:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {decl}")
+
+
 def ensure_schema(conn: sqlite3.Connection) -> None:
+    _ensure_columns(conn, "sessions", {
+        "session_id": "TEXT",
+        "model": "TEXT",
+        "cache_read_tokens": "INTEGER NOT NULL DEFAULT 0",
+    })
     if SCHEMA.exists():
         conn.executescript(SCHEMA.read_text(encoding="utf-8"))
-        conn.commit()
+    conn.commit()
 
 
 def connect(db_path=DB_PATH) -> sqlite3.Connection:

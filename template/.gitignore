@@ -18,6 +18,7 @@ docs/knowledge/*.sqlite
 # Dashboard local DB
 dashboard/*.db
 dashboard/*.sqlite
+scripts/session/.usage-errors.log
 
 # Python
 __pycache__/

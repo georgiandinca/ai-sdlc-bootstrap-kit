@@ -1,0 +1,5 @@
+source,period_start,period_end,seat,cost_eur,granularity,notes
+cursor,2026-06-01,2026-07-01,Developer,20.00,invoice,Cursor Pro June
+copilot,2026-06-01,2026-07-01,QA,19.00,invoice,Copilot Business June
+claude-max,2026-06-01,2026-07-01,Architect,90.00,flat-rate,Max 5x June
+anthropic-api,2026-06-01,2026-07-01,,231.50,tokens,org API spend June

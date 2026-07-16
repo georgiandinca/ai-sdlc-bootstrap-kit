@@ -1,0 +1,4 @@
+key,type,title,status,assignee,reporter,labels,sprint,epic,parent,priority,story_points,created,updated,resolution,url,description
+PROJ-1,Story,Login form,Done,dev1,po1,,S1,,,High,3,2026-06-01,2026-06-20,Done,https://x/PROJ-1,desc
+PROJ-2,Story,Data layer,In Progress,dev2,po1,,S1,,,High,5,2026-06-02,2026-06-25,,https://x/PROJ-2,desc
+PROJ-3,Bug,Fix crash,Done,dev1,qa1,,S1,,,High,,2026-06-03,2026-06-21,Done,https://x/PROJ-3,desc

@@ -13,3 +13,14 @@ INSERT INTO commits (sha, ts, author_name, author_email, seat, klass, source, ai
   ('seed0001', '2026-06-22T09:12:00', 'Dev One', 'dev1@example.com', 'Developer', 'ai',    'git-ai',  180, 10, 190,  4, 3, 'claude', 'implement login form',        '<TICKET>-101'),
   ('seed0002', '2026-06-23T14:20:00', 'PO One',  'po1@example.com',  'Product',   'human', 'trailer',   0, 40,  40,  2, 1, NULL,     'refine acceptance criteria',  '<TICKET>-090'),
   ('seed0003', '2026-06-24T16:50:00', 'Dev Two', 'dev2@example.com', 'Developer', 'mixed', 'git-ai',  120, 60, 180, 30, 5, 'claude', 'refactor data layer',         '<TICKET>-112');
+
+INSERT INTO spend (source, period_start, period_end, seat, cost_eur, granularity, notes) VALUES
+  ('claude-max',    '2026-06-01', '2026-07-01', 'Developer', 90.0, 'flat-rate', 'seed: Max seat, monthly'),
+  ('cursor',        '2026-06-01', '2026-07-01', 'QA',        20.0, 'invoice',   'seed: Cursor Pro'),
+  ('anthropic-api', '2026-06-22', '2026-06-23', '(org)',      4.6, 'tokens',    'seed: usage API, one day');
+
+INSERT INTO tickets (ticket, estimate_human_days, actual_human_days, day_rate_eur, evidence_tier, status, closed_at) VALUES
+  ('<TICKET>-101', 2.0, 1.0, 500, 'pre-estimate', 'closed', '2026-06-23T12:00:00'),
+  ('<TICKET>-090', 1.5, 1.5, 500, 'post-hoc',     'closed', '2026-06-24T12:00:00'),
+  ('<TICKET>-077', 3.0, 1.5, 500, 'calibration',  'closed', '2026-06-25T12:00:00'),
+  ('<TICKET>-112', 2.0, NULL, 500, 'pre-estimate', 'open',   NULL);

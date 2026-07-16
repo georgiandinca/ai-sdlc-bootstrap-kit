@@ -11,14 +11,28 @@ On first run it creates `utilization.db` from [`schema.sql`](./schema.sql) (seed
 
 ## What it shows
 
-Two tabs over a local SQLite DB:
+Four views (sidebar menu, each with its own in-screen date filter) over a local SQLite DB:
 
 - **Utilization** — the session metric set (sessions, acceptance/rework, grounding), by seat and over time.
 - **Commit attribution** — AI / mixed / human commits and lines of code, by author/seat and over time, shown next to the utilization rework rate (volume is never read alone).
+- **Waste signals** — the token-economy pack, validated: cost per accepted
+  outcome, rework burn, cache-hit ratio, cost by model, grounded vs
+  ungrounded, unattributed share. Read top-to-bottom at retro: "is the pack
+  working?" (`.claude/rules/token-economy.md`).
+- **ROI** — human-day-equivalent ROI over closed tickets with an
+  evidence-tier band and a coverage indicator, plus a client-report HTML
+  export. Per-ticket AI cost is session tokens only; invoice/flat-rate spend
+  joins at period level (counted exactly once) — unless you also import the
+  org cost report for tokens already collected as sessions, which
+  double-counts them; see `scripts/spend/README.md`.
 
 ## Feeding it real data
 
-- **Sessions** — your agent wrapper inserts a row per session (seat, tokens, cost, outcome, grounded), or you import an export of your AI tool's usage logs.
+- **Sessions** — automatic: `scripts/session/collect-usage.sh` runs on
+  SessionEnd and prices the transcript (`scripts/spend/parse_transcript.py`).
+  Set the outcome (accepted/reworked/rejected) in your wrap-up ritual.
+- **Spend & tickets** — run the importers in `scripts/spend/` (see its
+  README) monthly, before the retro.
 - **Commits** — run the collector before a retro:
 
   ```bash

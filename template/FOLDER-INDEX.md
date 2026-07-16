@@ -36,6 +36,7 @@ A map of every directory in this workspace and what belongs there. When in doubt
 │   ├── validate-skills.py          # SKILL.md conformity (agentskills.io)
 │   ├── validate-frontmatter.py     # frontmatter contract on docs
 │   ├── session/                    # start.sh, sync.sh, wrapup.sh, config
+│   ├── spend/                      # AI consumption collectors + ROI inputs (prices, importers)
 │   ├── git/                        # commit_msg_ticket.py (issue-key hook)
 │   └── knowledge/                  # ingest.py (RAG/KG ingestion stub)
 │
@@ -59,6 +60,7 @@ A map of every directory in this workspace and what belongs there. When in doubt
     ├── README.md
     ├── app.py                      # Streamlit app
     ├── schema.sql
+    ├── roi.py                      # ROI logic (HDE, evidence band, client report)
     └── requirements.txt
 ```
 
