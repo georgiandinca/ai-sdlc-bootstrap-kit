@@ -72,6 +72,26 @@ class TestSchema(unittest.TestCase):
             "WHERE t.status != 'closed'").fetchone()[0]
         self.assertEqual(open_in_view, 0)
 
+    def test_sessions_user_column(self):
+        conn = self._fresh()
+        self.assertIn("user", self._cols(conn, "sessions"))
+
+    def test_migrates_user_onto_old_sessions_table(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        path = Path(self.tmp.name) / "old.db"
+        raw = sqlite3.connect(path)
+        raw.execute("""CREATE TABLE sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL,
+            seat TEXT NOT NULL, tool TEXT NOT NULL DEFAULT 'claude',
+            task TEXT, ticket TEXT, tokens_in INTEGER NOT NULL DEFAULT 0,
+            tokens_out INTEGER NOT NULL DEFAULT 0, cost_usd REAL NOT NULL DEFAULT 0,
+            outcome TEXT NOT NULL DEFAULT 'unknown',
+            grounded INTEGER NOT NULL DEFAULT 0, notes TEXT)""")
+        raw.commit(); raw.close()
+        conn = dbmod.connect(path)
+        self.assertIn("user", self._cols(conn, "sessions"))
+        conn.execute("INSERT INTO sessions (ts, seat, user) VALUES ('t','QA','geo')")
+
 
 if __name__ == "__main__":
     unittest.main()
