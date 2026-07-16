@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""AI-SDLC dashboard (board pillar 4 / 7). Two tabs over a local SQLite DB:
-Utilization (AI session cost/outcome/grounding) and Commit attribution
-(AI / mixed / human by LOC, from collect_commits.py). Volume is always shown
-next to a quality metric — never volume alone.
+"""AI-SDLC dashboard (board pillar 4 / 7). Four views behind a sidebar menu,
+each with its own title and in-screen date filter: Utilization (AI session
+cost/outcome/grounding), Commit attribution (AI / mixed / human by LOC, from
+collect_commits.py), Waste signals (token-economy proxies), and ROI
+(human-day-equivalent + client report). Volume is always shown next to a
+quality metric — never volume alone.
 
 Run:
     pip install -r dashboard/requirements.txt
@@ -41,11 +43,12 @@ def load(table: str) -> pd.DataFrame:
     return df
 
 
-def _date_filter(df: pd.DataFrame, key: str, label: str = "Date range") -> pd.DataFrame:
+def _date_filter(df: pd.DataFrame, key: str) -> pd.DataFrame:
+    """In-screen date filter (each view owns its own, like the ROI period)."""
     if df.empty:
         return df
     dmin, dmax = df["ts"].min().date(), df["ts"].max().date()
-    drange = st.sidebar.date_input(label, (dmin, dmax), key=key)
+    drange = st.date_input("Date range", (dmin, dmax), key=key)
     if isinstance(drange, (list, tuple)) and len(drange) == 2:
         lo, hi = pd.Timestamp(drange[0]), pd.Timestamp(drange[1]) + pd.Timedelta(days=1)
         return df[(df["ts"] >= lo) & (df["ts"] < hi)]
@@ -56,7 +59,7 @@ def utilization_tab(sessions: pd.DataFrame) -> None:
     if sessions.empty:
         st.info("No sessions yet. Seed rows are in seed.sql; your harness writes real ones.")
         return
-    view = _date_filter(sessions, "util_dates", "Date range — Utilization")
+    view = _date_filter(sessions, "util_dates")
     if view.empty:
         st.warning("No sessions in range."); return
     n = len(view)
@@ -80,7 +83,7 @@ def attribution_tab(commits: pd.DataFrame, sessions: pd.DataFrame) -> None:
     if commits.empty:
         st.info("No commits yet. Run `python3 dashboard/collect_commits.py` to populate.")
         return
-    view = _date_filter(commits, "attr_dates", "Date range — Commit attribution")
+    view = _date_filter(commits, "attr_dates")
     if view.empty:
         st.warning("No commits in range."); return
     n = len(view)
@@ -135,7 +138,7 @@ def waste_tab(sessions: pd.DataFrame, spend: pd.DataFrame) -> None:
     if sessions.empty:
         st.info("No sessions yet — scripts/session/collect-usage.sh writes real rows on SessionEnd.")
         return
-    view = _date_filter(sessions, "waste_dates", "Date range — Waste signals")
+    view = _date_filter(sessions, "waste_dates")
     if view.empty:
         st.warning("No sessions in range."); return
     view = view.copy()
@@ -232,22 +235,23 @@ def roi_tab() -> None:
                "per-ticket AI cost is session tokens only, coarse spend joins at period level.")
 
 
+VIEWS = ["Utilization", "Commit attribution", "Waste signals", "ROI"]
+
+
 def main() -> None:
     st.set_page_config(page_title="AI-SDLC Dashboard", page_icon="🤖", layout="wide")
-    st.title("🤖 AI-SDLC Dashboard")
-    st.caption("Pillar 7 — usage + attribution, read together. Metrics: docs/methodology/continuous-improvement.md.")
-    sessions = load("sessions")
-    commits = load("commits")
-    spend = load("spend")
-    tab1, tab2, tab3, tab4 = st.tabs(
-        ["Utilization", "Commit attribution", "Waste signals", "ROI"])
-    with tab1:
-        utilization_tab(sessions)
-    with tab2:
-        attribution_tab(commits, sessions)
-    with tab3:
-        waste_tab(sessions, spend)
-    with tab4:
+    st.sidebar.title("🤖 AI-SDLC Dashboard")
+    view = st.sidebar.radio("Views", VIEWS, key="nav")
+    st.sidebar.caption("Pillar 7 — usage + attribution, read together. "
+                       "Metrics: docs/methodology/continuous-improvement.md.")
+    st.title(view)
+    if view == "Utilization":
+        utilization_tab(load("sessions"))
+    elif view == "Commit attribution":
+        attribution_tab(load("commits"), load("sessions"))
+    elif view == "Waste signals":
+        waste_tab(load("sessions"), load("spend"))
+    else:
         roi_tab()
 
 

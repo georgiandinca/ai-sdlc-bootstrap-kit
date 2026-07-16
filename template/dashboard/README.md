@@ -11,7 +11,7 @@ On first run it creates `utilization.db` from [`schema.sql`](./schema.sql) (seed
 
 ## What it shows
 
-Four tabs over a local SQLite DB:
+Four views (sidebar menu, each with its own in-screen date filter) over a local SQLite DB:
 
 - **Utilization** — the session metric set (sessions, acceptance/rework, grounding), by seat and over time.
 - **Commit attribution** — AI / mixed / human commits and lines of code, by author/seat and over time, shown next to the utilization rework rate (volume is never read alone).
