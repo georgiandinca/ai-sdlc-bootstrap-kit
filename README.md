@@ -76,4 +76,16 @@ These are the same gates the generated project's CI runs ([`template/.github/wor
 
 ## Provenance
 
-Distilled from a real multi-repo programme's governance setup, generalised and stripped of all project specifics, and aligned to the *AUTOMATIZARE* whiteboard model. License: `<CHOOSE_A_LICENSE>`.
+Distilled from a real multi-repo programme's governance setup, generalised and stripped of all project specifics, and aligned to the *AUTOMATIZARE* whiteboard model.
+
+## Contributing
+
+Contributions are welcome — see [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the
+workflow, local checks, and conventions, and [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md)
+for community expectations. Security issues: please follow [`SECURITY.md`](./SECURITY.md)
+rather than opening a public issue.
+
+## License
+
+Released under the [MIT License](./LICENSE) — you are free to use, copy, modify,
+and distribute this kit, including in commercial and closed-source projects.
