@@ -20,6 +20,12 @@ dashboard/*.db
 dashboard/*.sqlite
 scripts/session/.usage-errors.log
 
+# Per-user session metrics — personal usage data (who ran what, tokens, cost).
+# Never ship these in the framework template; a project decides per-situation
+# whether to track its own. The README documenting the folder stays tracked.
+docs/metrics/sessions/*
+!docs/metrics/sessions/README.md
+
 # Python
 __pycache__/
 *.py[cod]
