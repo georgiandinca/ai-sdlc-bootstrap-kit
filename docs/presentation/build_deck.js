@@ -361,6 +361,6 @@ const sh = () => ({ type: "outer", color: "0B1330", blur: 9, offset: 3, angle: 1
   s.addText("Bootstrap a governed AI-SDLC into your next repo in one command.", { x: 0.95, y: 5.6, w: 11, h: 0.5, fontFace: BF, fontSize: 16, color: DIM, margin: 0 });
   s.addText("AI-SDLC Bootstrap Kit  ·  README.md → docs/SPEC.md → template/AGENTS.md", { x: 0.95, y: 6.35, w: 11.5, h: 0.4, fontFace: BF, fontSize: 12, italic: true, color: PERI, margin: 0 });
 
-  await p.writeFile({ fileName: "/Users/georgiandinca/ps/AI/SDLC/docs/presentation/ai-sdlc-bootstrap.pptx" });
+  await p.writeFile({ fileName: `${__dirname}/ai-sdlc-bootstrap.pptx` });
   console.log("WROTE ai-sdlc-bootstrap.pptx");
 })();

@@ -1,0 +1,74 @@
+# Kit-level CI for GitHub — the GitHub-native equivalent of the root .gitlab-ci.yml
+# governance gate. Runs the template's validators + unit tests + knowledge-graph
+# smoke test. The scripts resolve their own repo root, so they scope to template/
+# regardless of CWD. (template/.github/workflows/ governs a *generated* project;
+# this file governs the kit repo itself.)
+name: ai-governance
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  ai-governance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install deps
+        run: pip install --quiet "pyyaml>=6"
+
+      - name: Validate Agent Skills (agentskills.io)
+        run: python3 template/scripts/validate-skills.py
+      - name: Validate doc frontmatter contract (AGENTS.md §4.2)
+        run: python3 template/scripts/validate-frontmatter.py
+      - name: Validate session lifecycle-moments manifest
+        run: python3 template/scripts/validate-moments.py
+      - name: Validator unit tests
+        run: python3 template/scripts/tests/test_validate_moments.py
+      - name: Validate per-seat profiles manifest
+        run: python3 template/scripts/validate-seat-profiles.py
+      - name: Seat-profiles validator unit tests
+        run: python3 template/scripts/tests/test_validate_seat_profiles.py
+
+      - name: Knowledge-graph unit tests
+        run: |
+          python3 template/scripts/knowledge/tests/test_graph_store.py
+          python3 template/scripts/knowledge/tests/test_manifest.py
+          python3 template/scripts/knowledge/tests/test_ingest_docs.py
+          python3 template/scripts/knowledge/tests/test_ingest_code.py
+          python3 template/scripts/knowledge/tests/test_link_commits.py
+          python3 template/scripts/knowledge/tests/test_query.py
+          python3 template/scripts/knowledge/tests/test_ingest.py
+          python3 template/scripts/knowledge/tests/test_mcp_server.py
+          python3 template/scripts/knowledge/tests/test_end_to_end.py
+          python3 template/scripts/knowledge/tests/test_ingest_issues.py
+          python3 template/scripts/knowledge/tests/test_link_issues.py
+          python3 template/scripts/knowledge/tests/test_issue_chain.py
+          python3 template/scripts/jira/tests/test_export_jira.py
+
+      - name: Consumption/ROI unit tests (token-roi theme)
+        run: |
+          python3 template/dashboard/tests/test_schema.py
+          python3 template/dashboard/tests/test_roi.py
+          python3 template/scripts/spend/tests/test_parse_transcript.py
+          python3 template/scripts/spend/tests/test_collect_usage.py
+          python3 template/scripts/spend/tests/test_import_invoice.py
+          python3 template/scripts/spend/tests/test_import_api_usage.py
+          python3 template/scripts/spend/tests/test_import_tickets.py
+          python3 template/scripts/spend/tests/test_export_sessions.py
+          python3 template/scripts/spend/tests/test_import_sessions.py
+          python3 template/scripts/tests/test_check_brief_churn.py
+
+      - name: Brief-churn gate (token-economy rule 2)
+        run: python3 template/scripts/check-brief-churn.py --path template/AGENTS.md
+      - name: Compile dashboard app
+        run: python3 -m py_compile template/dashboard/app.py
+
+      - name: Knowledge graph build + traceability smoke
+        run: |
+          python3 template/scripts/knowledge/ingest.py --build
+          python3 template/scripts/knowledge/ingest.py --federated --trace ADR-0001 | python3 -c "import json,sys; d=json.load(sys.stdin); assert d.get('nodes'), 'empty trace chain'; print('trace OK:', len(d.get('nodes')), 'nodes')"
+          python3 template/scripts/knowledge/ingest.py --federated --trace issue:PROJ-1 | python3 -c "import json,sys; d=json.load(sys.stdin); assert d.get('nodes'), 'empty issue trace'; print('issue trace OK:', len(d['nodes']), 'nodes')"

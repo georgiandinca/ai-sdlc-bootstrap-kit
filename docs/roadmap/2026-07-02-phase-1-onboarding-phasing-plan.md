@@ -638,12 +638,12 @@ Create a temporary check that proves the seat-context block is NOT yet emitted. 
 
 ```bash
 cd "$(mktemp -d)" && git init -q && mkdir -p scripts/session
-cp /Users/georgiandinca/ps/AI/SDLC/template/scripts/session/start.sh scripts/session/start.sh
-cp /Users/georgiandinca/ps/AI/SDLC/template/scripts/session/seat-profiles.json scripts/session/seat-profiles.json
+cp $KIT_ROOT/template/scripts/session/start.sh scripts/session/start.sh
+cp $KIT_ROOT/template/scripts/session/seat-profiles.json scripts/session/seat-profiles.json
 printf -- '- **Seat:** Developer\n- **Git comfort:** git-native\n' > USER.md
 bash scripts/session/start.sh 2>/dev/null | grep -c 'seat-context'
 ```
-Expected: `0` (start.sh does not yet emit a seat-context block). Note the temp dir path or just leave it; return to the repo with `cd /Users/georgiandinca/ps/AI/SDLC`.
+Expected: `0` (start.sh does not yet emit a seat-context block). Note the temp dir path or just leave it; return to the repo with `cd $KIT_ROOT`.
 
 - [ ] **Step 2: Add the seat-context block to `start.sh`**
 
@@ -682,11 +682,11 @@ fi
 
 ```bash
 cd "$(mktemp -d)" && git init -q && mkdir -p scripts/session
-cp /Users/georgiandinca/ps/AI/SDLC/template/scripts/session/start.sh scripts/session/start.sh
-cp /Users/georgiandinca/ps/AI/SDLC/template/scripts/session/seat-profiles.json scripts/session/seat-profiles.json
+cp $KIT_ROOT/template/scripts/session/start.sh scripts/session/start.sh
+cp $KIT_ROOT/template/scripts/session/seat-profiles.json scripts/session/seat-profiles.json
 printf -- '- **Seat:** Developer\n- **Git comfort:** git-native\n' > USER.md
 bash scripts/session/start.sh 2>/dev/null | grep 'seat-context'
-cd /Users/georgiandinca/ps/AI/SDLC
+cd $KIT_ROOT
 ```
 Expected: two `[seat-context]` lines — `operating as: Developer (git-comfort: git-native)` and `load skill: playbook-dev | seat connectors: issue-tracker,knowledge,context7`.
 Then verify graceful no-USER.md behavior and syntax:
@@ -778,12 +778,12 @@ echo "[switch-seat] load the ${playbook} skill for this seat. Change git-comfort
 
 ```bash
 cd "$(mktemp -d)" && git init -q && mkdir -p scripts/session
-cp /Users/georgiandinca/ps/AI/SDLC/template/scripts/session/switch-seat.sh scripts/session/switch-seat.sh
-cp /Users/georgiandinca/ps/AI/SDLC/template/scripts/session/seat-profiles.json scripts/session/seat-profiles.json
+cp $KIT_ROOT/template/scripts/session/switch-seat.sh scripts/session/switch-seat.sh
+cp $KIT_ROOT/template/scripts/session/seat-profiles.json scripts/session/seat-profiles.json
 printf -- '- **Seat:** Developer\n- **Git comfort:** git-native\n' > USER.md
 bash scripts/session/switch-seat.sh QA
 echo "--- USER.md now ---"; grep -E 'Seat:|Git comfort:' USER.md
-cd /Users/georgiandinca/ps/AI/SDLC
+cd $KIT_ROOT
 ```
 Expected: output `seat -> QA (git-comfort guided)`; USER.md shows `- **Seat:** QA` and `- **Git comfort:** guided`. Also run `bash -n template/scripts/session/switch-seat.sh` → exit 0.
 

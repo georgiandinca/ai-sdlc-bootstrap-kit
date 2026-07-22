@@ -1,6 +1,7 @@
 # Kit-level ignores. NOTE: template/.gitignore governs files inside template/.
 .DS_Store
 Thumbs.db
+~$*
 
 # Local build/run artifacts
 __pycache__/

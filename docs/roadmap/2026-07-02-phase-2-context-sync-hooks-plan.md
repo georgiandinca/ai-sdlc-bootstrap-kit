@@ -233,15 +233,15 @@ work=$(mktemp -d); rem=$(mktemp -d)
 git init -q --bare "$rem/origin.git"
 ( cd "$work" && git init -q && git remote add origin "$rem/origin.git" && \
   git checkout -q -b main && mkdir -p scripts/session && \
-  cp /Users/georgiandinca/ps/AI/SDLC/template/scripts/session/lib.sh scripts/session/lib.sh && \
-  cp /Users/georgiandinca/ps/AI/SDLC/template/scripts/session/checkpoint.sh scripts/session/checkpoint.sh && \
+  cp $KIT_ROOT/template/scripts/session/lib.sh scripts/session/lib.sh && \
+  cp $KIT_ROOT/template/scripts/session/checkpoint.sh scripts/session/checkpoint.sh && \
   printf -- '- **Seat:** Product\n- **Git comfort:** hidden\n' > USER.md && \
   echo "draft story" > story.md && \
   bash scripts/session/checkpoint.sh "save story" && \
   echo "--- branch ---" && git branch --show-current && \
   echo "--- last commit ---" && git log --oneline -1 && \
   echo "--- not on main? ---" && [ "$(git branch --show-current)" != main ] && echo "OFF-MAIN-OK" )
-bash -n /Users/georgiandinca/ps/AI/SDLC/template/scripts/session/checkpoint.sh && echo "syntax ok"
+bash -n $KIT_ROOT/template/scripts/session/checkpoint.sh && echo "syntax ok"
 rm -rf "$work" "$rem"
 ```
 Expected: branch is `session/product/checkpoint` (not `main`), a commit `save story` exists, `OFF-MAIN-OK`, `syntax ok`.
@@ -339,15 +339,15 @@ echo "[decision] wrote $file and committed on $branch."
 ```bash
 work=$(mktemp -d)
 ( cd "$work" && git init -q && git checkout -q -b work && mkdir -p scripts/session && \
-  cp /Users/georgiandinca/ps/AI/SDLC/template/scripts/session/lib.sh scripts/session/lib.sh && \
-  cp /Users/georgiandinca/ps/AI/SDLC/template/scripts/session/record-decision.sh scripts/session/record-decision.sh && \
+  cp $KIT_ROOT/template/scripts/session/lib.sh scripts/session/lib.sh && \
+  cp $KIT_ROOT/template/scripts/session/record-decision.sh scripts/session/record-decision.sh && \
   printf -- '- **Seat:** Architect\n- **Git comfort:** git-native\n' > USER.md && \
   bash scripts/session/record-decision.sh "Adopt hexagonal architecture" && \
   echo "--- file ---" && ls docs/architecture/decisions/ && \
   echo "--- head of ADR ---" && head -3 docs/architecture/decisions/ADR-0001-*.md && \
   echo "--- committed? ---" && git log --oneline -1 )
-python3 /Users/georgiandinca/ps/AI/SDLC/template/scripts/validate-frontmatter.py "$work"/docs/architecture/decisions/ADR-0001-*.md 2>/dev/null || echo "(frontmatter validator needs repo context; skip)"
-bash -n /Users/georgiandinca/ps/AI/SDLC/template/scripts/session/record-decision.sh && echo "syntax ok"
+python3 $KIT_ROOT/template/scripts/validate-frontmatter.py "$work"/docs/architecture/decisions/ADR-0001-*.md 2>/dev/null || echo "(frontmatter validator needs repo context; skip)"
+bash -n $KIT_ROOT/template/scripts/session/record-decision.sh && echo "syntax ok"
 rm -rf "$work"
 ```
 Expected: an `ADR-0001-adopt-hexagonal-architecture.md` created, frontmatter with `title: "ADR-0001: …"`, a `docs: ADR-0001 …` commit, `syntax ok`. (The frontmatter validator run may be skipped since it scans a fixed root; the ADR template includes all required fields by construction.)
@@ -407,8 +407,8 @@ exit 0
 run() { # comfort -> expect committed? (yes/no)
   local comfort="$1" expect="$2" work; work=$(mktemp -d)
   ( cd "$work" && git init -q && git checkout -q -b main && mkdir -p scripts/session && \
-    cp /Users/georgiandinca/ps/AI/SDLC/template/scripts/session/lib.sh scripts/session/lib.sh && \
-    cp /Users/georgiandinca/ps/AI/SDLC/template/scripts/session/auto-save.sh scripts/session/auto-save.sh && \
+    cp $KIT_ROOT/template/scripts/session/lib.sh scripts/session/lib.sh && \
+    cp $KIT_ROOT/template/scripts/session/auto-save.sh scripts/session/auto-save.sh && \
     printf -- '- **Seat:** Product\n- **Git comfort:** %s\n' "$comfort" > USER.md && \
     echo "unsaved" > wip.md && \
     bash scripts/session/auto-save.sh; \
@@ -418,7 +418,7 @@ run() { # comfort -> expect committed? (yes/no)
 }
 run hidden yes
 run git-native no
-bash -n /Users/georgiandinca/ps/AI/SDLC/template/scripts/session/auto-save.sh && echo "syntax ok"
+bash -n $KIT_ROOT/template/scripts/session/auto-save.sh && echo "syntax ok"
 ```
 Expected: `hidden … PASS` (a commit `auto-save: session end` on `session/product/autosave`), `git-native … PASS` (no commit), `syntax ok`.
 
@@ -480,14 +480,14 @@ exit 0
 ```bash
 work=$(mktemp -d)
 ( cd "$work" && git init -q && git checkout -q -b work && mkdir -p scripts/session && \
-  cp /Users/georgiandinca/ps/AI/SDLC/template/scripts/session/lib.sh scripts/session/lib.sh && \
-  cp /Users/georgiandinca/ps/AI/SDLC/template/scripts/session/stop.sh scripts/session/stop.sh && \
+  cp $KIT_ROOT/template/scripts/session/lib.sh scripts/session/lib.sh && \
+  cp $KIT_ROOT/template/scripts/session/stop.sh scripts/session/stop.sh && \
   printf -- '- **Seat:** QA\n- **Git comfort:** guided\n' > USER.md && \
   echo "wip" > wip.md && \
   echo "--- first call (expect reminder JSON) ---" && bash scripts/session/stop.sh && \
   echo "--- second call within 600s (expect nothing) ---" && out2=$(bash scripts/session/stop.sh) && [ -z "$out2" ] && echo "DEBOUNCED-OK" && \
   echo "--- git-native (expect nothing) ---" && printf -- '- **Seat:** Developer\n- **Git comfort:** git-native\n' > USER.md && rm -f .git/.sdlc-stop-state && out3=$(bash scripts/session/stop.sh) && [ -z "$out3" ] && echo "NATIVE-SKIP-OK" )
-bash -n /Users/georgiandinca/ps/AI/SDLC/template/scripts/session/stop.sh && echo "syntax ok"
+bash -n $KIT_ROOT/template/scripts/session/stop.sh && echo "syntax ok"
 rm -rf "$work"
 ```
 Expected: first call prints the `hookSpecificOutput` JSON reminder; second call prints nothing (`DEBOUNCED-OK`); git-native prints nothing (`NATIVE-SKIP-OK`); `syntax ok`.
@@ -614,8 +614,8 @@ up=$(mktemp -d); work=$(mktemp -d)
 git init -q --bare "$up/origin.git"
 git clone -q "$up/origin.git" "$work" >/dev/null 2>&1
 ( cd "$work" && git checkout -q -b main 2>/dev/null || true; mkdir -p scripts/session
-  cp /Users/georgiandinca/ps/AI/SDLC/template/scripts/session/{lib.sh,start.sh,sync.sh} scripts/session/
-  cp /Users/georgiandinca/ps/AI/SDLC/template/scripts/session/moments.json scripts/session/moments.json
+  cp $KIT_ROOT/template/scripts/session/{lib.sh,start.sh,sync.sh} scripts/session/
+  cp $KIT_ROOT/template/scripts/session/moments.json scripts/session/moments.json
   printf -- '- **Seat:** Product\n- **Git comfort:** hidden\n' > USER.md
   git add -A && git commit -q -m init && git push -q origin HEAD 2>/dev/null || true )
 # create an upstream commit so the clone is behind
@@ -623,7 +623,7 @@ other=$(mktemp -d); git clone -q "$up/origin.git" "$other" >/dev/null 2>&1
 ( cd "$other" && echo x > up.md && git add -A && git commit -q -m upstream && git push -q origin HEAD 2>/dev/null || true )
 echo "--- run start.sh in the behind clone ---"
 ( cd "$work" && bash scripts/session/start.sh 2>/dev/null | grep -E '\[sync\]|\[git-verbs\]' )
-bash -n /Users/georgiandinca/ps/AI/SDLC/template/scripts/session/start.sh && echo "syntax ok"
+bash -n $KIT_ROOT/template/scripts/session/start.sh && echo "syntax ok"
 rm -rf "$up" "$work" "$other"
 ```
 Expected: a `[sync] auto-pulled …` (or a graceful `[sync]` line) and a `[git-verbs] operator is git-'hidden'…` line; `syntax ok`. (If the push/clone plumbing doesn't produce a behind state in this environment, at minimum the `[git-verbs]` line must appear and `bash -n` must pass.)
