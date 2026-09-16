@@ -81,10 +81,12 @@ Refs: ${ticket}-0" 2>/dev/null || git commit -qm "chore: bootstrap $name from AI
 fi
 
 if command -v pre-commit >/dev/null 2>&1; then
-  pre-commit install --hook-type commit-msg >/dev/null 2>&1 || true
+  # Plain `install` honours default_install_hook_types ([pre-commit, commit-msg]);
+  # passing --hook-type would install only that stage and leave the validators ungated.
+  pre-commit install >/dev/null 2>&1 || true
   echo "[bootstrap] installed pre-commit hooks."
 else
-  echo "[bootstrap] pre-commit not found — run: pip install pre-commit && pre-commit install --hook-type commit-msg"
+  echo "[bootstrap] pre-commit not found — run: pip install pre-commit && pre-commit install"
 fi
 
 cat <<EOF
