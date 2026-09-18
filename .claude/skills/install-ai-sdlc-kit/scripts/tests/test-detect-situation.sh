@@ -56,6 +56,7 @@ out=$("$DETECT" --dir "$tmp")
 check E_state    "$(printf '%s' "$out" | jqp kit.state)"         '"present-committed"'
 check E_version  "$(printf '%s' "$out" | jqp kit.manifest.kit.version)" '"1.2.0"'
 check E_user_md  "$(printf '%s' "$out" | jqp user_md)"           "true"
+check E_valid    "$(printf '%s' "$out" | jqp kit.manifest_valid)" "true"
 rm -rf "$tmp"
 
 # --- Case F: kit present but never committed ---------------------------------------
@@ -63,6 +64,18 @@ tmp=$(mktemp -d); ( cd "$tmp" && git_q init && mkdir -p .ai-sdlc && \
   printf '{"kit":{"version":"1.2.0"}}\n' > .ai-sdlc/kit.json )
 out=$("$DETECT" --dir "$tmp")
 check F_state "$(printf '%s' "$out" | jqp kit.state)" '"present-uncommitted"'
+check F_valid "$(printf '%s' "$out" | jqp kit.manifest_valid)" "true"
+rm -rf "$tmp"
+
+# --- Case G: malformed kit manifest (invalid JSON) ---------------------------------
+tmp=$(mktemp -d); ( cd "$tmp" && git_q init && mkdir -p .ai-sdlc && \
+  printf 'not valid json{{{' > .ai-sdlc/kit.json )
+out=$("$DETECT" --dir "$tmp")
+check G_state     "$(printf '%s' "$out" | jqp kit.state)"           '"present-uncommitted"'
+check G_manifest  "$(printf '%s' "$out" | jqp kit.manifest)"        "null"
+check G_valid     "$(printf '%s' "$out" | jqp kit.manifest_valid)"  "false"
+# Most importantly: the emitted document must still parse as valid JSON
+check G_json_valid "$(printf '%s' "$out" | python3 -c 'import json,sys; json.load(sys.stdin); print("true")' 2>/dev/null || printf 'false')" "true"
 rm -rf "$tmp"
 
 echo "---"

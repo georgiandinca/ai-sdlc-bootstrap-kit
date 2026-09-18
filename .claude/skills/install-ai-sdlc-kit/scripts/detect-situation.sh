@@ -38,10 +38,26 @@ if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
 fi
 
 # --- kit ---------------------------------------------------------------------------
-kit_state="absent"; kit_root=""; manifest="null"
+kit_state="absent"; kit_root=""; manifest="null"; manifest_valid=0
 if [ -f "$dir/.ai-sdlc/kit.json" ]; then
   kit_root="$dir"
-  manifest=$(cat "$dir/.ai-sdlc/kit.json")
+  manifest_content=$(cat "$dir/.ai-sdlc/kit.json")
+
+  # Validate manifest JSON. Try python3 first; fall back to shell check.
+  if command -v python3 >/dev/null 2>&1; then
+    if printf '%s' "$manifest_content" | python3 -c 'import json,sys; json.load(sys.stdin)' 2>/dev/null; then
+      manifest="$manifest_content"
+      manifest_valid=1
+    fi
+  else
+    # Minimal shell check: first non-whitespace is {, last is }
+    trimmed=$(printf '%s' "$manifest_content" | sed -e 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    if [ "${trimmed#\{}" != "$trimmed" ] && [ "${trimmed%\}}" != "$trimmed" ]; then
+      manifest="$manifest_content"
+      manifest_valid=1
+    fi
+  fi
+
   if [ "$is_repo" = "1" ] && git ls-files --error-unmatch .ai-sdlc/kit.json >/dev/null 2>&1; then
     kit_state="present-committed"
   else
@@ -109,7 +125,8 @@ cat <<JSON
   "kit": {
     "state": $(json_str "$kit_state"),
     "root": $(json_str "$kit_root"),
-    "manifest": $manifest
+    "manifest": $manifest,
+    "manifest_valid": $(json_bool "$manifest_valid")
   },
   "user_md": $(json_bool "$user_md"),
   "hooks": {
