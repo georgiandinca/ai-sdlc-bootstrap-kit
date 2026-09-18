@@ -212,14 +212,15 @@ cat > "$dir/.ai-sdlc/kit.json" <<JSON
 }
 JSON
 
-# A malformed marker layout in a project-owned file leaves that file
-# byte-identical (kit_merge_block's contract) — surface it in the install
-# report alongside the copy-merge collisions rather than swallowing it.
+# A malformed target (ambiguous kit markers, or — for the Gemini settings
+# JSON — an unparseable/unsupported shape) leaves that file byte-identical —
+# surface it in the install report alongside the copy-merge collisions
+# rather than swallowing it. Defaults to the marker-based reason; callers on
+# a non-marker path (e.g. JSON) pass their own.
 report_malformed() {
-  local rel=$1
+  local rel=$1 reason=${2:-"ambiguous ai-sdlc-kit markers — left untouched, needs a human look"}
   [ -f "$dir/.ai-sdlc/install-report.md" ] || return 0
-  echo "- malformed $rel (ambiguous ai-sdlc-kit markers — left untouched, needs a human look)" \
-    >> "$dir/.ai-sdlc/install-report.md"
+  echo "- malformed $rel ($reason)" >> "$dir/.ai-sdlc/install-report.md"
 }
 
 # AGENTS.md §2 — the repo table, inside the kit's marked block
@@ -258,7 +259,10 @@ case "$pointer_output" in
   *"pointer copilot malformed"*) report_malformed ".github/copilot-instructions.md" ;;
 esac
 case "$pointer_output" in
-  *"pointer gemini malformed"*)  report_malformed ".gemini/settings.json" ;;
+  *"pointer gemini malformed"*)
+    report_malformed ".gemini/settings.json" \
+      "invalid or unsupported JSON — left untouched, needs a human look"
+    ;;
 esac
 
 # --- code-repo pointers (sidecar / parent layouts) ----------------------------------

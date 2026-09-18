@@ -24,14 +24,29 @@ kit_write_tool_pointers "$tmp" "claude" >/dev/null     # idempotent
 check claude_block_once "$(grep -c -- '<!-- ai-sdlc-kit:begin -->' "$tmp/CLAUDE.md")" "1"
 rm -rf "$tmp"
 
+# A well-formed pointer line is "pointer gemini <action>" with a non-empty
+# action — check this holds for every gemini case below, not just the
+# specific expected value, so a regression can never silently echo an
+# empty/garbled action (Finding 3, review round 2).
+check_gemini_shape() {
+  if printf '%s' "$1" | grep -qE '^pointer gemini (created|updated|malformed)$'; then
+    echo "ok   $2"
+  else
+    echo "FAIL $2: '$1' does not match 'pointer gemini <action>'"
+    fails=$((fails+1))
+  fi
+}
+
 # --- 3. gemini settings: created, then merged without losing existing keys ---------
 tmp=$(mktemp -d)
 gemini_out=$(kit_write_tool_pointers "$tmp" "gemini")
 check gemini_created_action "$gemini_out" "pointer gemini created"
+check_gemini_shape "$gemini_out" gemini_created_shape_ok
 check gemini_created "$(python3 -c 'import json,sys;print("AGENTS.md" in json.load(open(sys.argv[1]))["context"]["fileName"])' "$tmp/.gemini/settings.json")" "True"
 mkdir -p "$tmp/g2/.gemini"; printf '{"theme":"dark","context":{"fileName":["GEMINI.md"]}}\n' > "$tmp/g2/.gemini/settings.json"
 gemini_out2=$(kit_write_tool_pointers "$tmp/g2" "gemini")
 check gemini_updated_action "$gemini_out2" "pointer gemini updated"
+check_gemini_shape "$gemini_out2" gemini_updated_shape_ok
 check gemini_kept_theme "$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["theme"])' "$tmp/g2/.gemini/settings.json")" "dark"
 check gemini_added "$(python3 -c 'import json,sys;print(",".join(json.load(open(sys.argv[1]))["context"]["fileName"]))' "$tmp/g2/.gemini/settings.json")" "AGENTS.md,GEMINI.md"
 kit_write_tool_pointers "$tmp/g2" "gemini" >/dev/null  # idempotent, no duplicate entry
@@ -44,6 +59,7 @@ printf '{"theme":"dark","custom_api_keys":["SECRET-123"], invalid syntax here' >
 cp "$tmp/.gemini/settings.json" "$tmp/gemini-before"
 gemini_out3=$(kit_write_tool_pointers "$tmp" "gemini")
 check gemini_invalid_json_action    "$gemini_out3" "pointer gemini malformed"
+check_gemini_shape "$gemini_out3" gemini_invalid_json_shape_ok
 check gemini_invalid_json_unchanged "$(cmp -s "$tmp/gemini-before" "$tmp/.gemini/settings.json" && echo same)" "same"
 rm -rf "$tmp"
 
@@ -53,8 +69,29 @@ printf '{"context":"nope"}' > "$tmp/.gemini/settings.json"
 cp "$tmp/.gemini/settings.json" "$tmp/gemini-before"
 gemini_out4=$(kit_write_tool_pointers "$tmp" "gemini")
 check gemini_bad_context_action    "$gemini_out4" "pointer gemini malformed"
+check_gemini_shape "$gemini_out4" gemini_bad_context_shape_ok
 check gemini_bad_context_unchanged "$(cmp -s "$tmp/gemini-before" "$tmp/.gemini/settings.json" && echo same)" "same"
 rm -rf "$tmp"
+
+# --- 3d. a syntactically valid but non-object top level is malformed too, and -------
+# never crashes: array / number / string all reported malformed, byte-identical,
+# exit 0, and no Python traceback on stderr (the review-round-2 regression: these
+# shapes used to raise an uncaught AttributeError from data.get("context")).
+for shape_case in "array [1,2,3]" "scalar 42" "string \"hello\""; do
+  shape_label=${shape_case%% *}
+  shape_json=${shape_case#* }
+  tmp=$(mktemp -d); mkdir -p "$tmp/.gemini"
+  printf '%s' "$shape_json" > "$tmp/.gemini/settings.json"
+  cp "$tmp/.gemini/settings.json" "$tmp/gemini-before"
+  gemini_out_shape=$(kit_write_tool_pointers "$tmp" "gemini" 2>"$tmp/stderr.log")
+  shape_rc=$?
+  check "gemini_${shape_label}_exit"        "$shape_rc" "0"
+  check "gemini_${shape_label}_action"      "$gemini_out_shape" "pointer gemini malformed"
+  check_gemini_shape "$gemini_out_shape" "gemini_${shape_label}_shape_ok"
+  check "gemini_${shape_label}_unchanged"   "$(cmp -s "$tmp/gemini-before" "$tmp/.gemini/settings.json" && echo same)" "same"
+  check "gemini_${shape_label}_no_traceback" "$(grep -c 'Traceback' "$tmp/stderr.log")" "0"
+  rm -rf "$tmp"
+done
 
 # --- 4. a tool that needs nothing reports "none" ------------------------------------
 tmp=$(mktemp -d)

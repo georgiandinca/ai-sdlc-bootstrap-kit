@@ -136,6 +136,7 @@ mal_claude_rc=$?
 check mal_claude_exit      "$mal_claude_rc" "0"
 check mal_claude_unchanged "$(grep -c 'stray CLAUDE content' "$proj/CLAUDE.md")" "1"
 check mal_claude_reported  "$(grep -c 'malformed CLAUDE.md' "$proj/.ai-sdlc/install-report.md")" "1"
+check mal_claude_reason    "$(grep -c 'ambiguous ai-sdlc-kit markers' "$proj/.ai-sdlc/install-report.md")" "1"
 rm -rf "$tmp"
 
 # Root .github/copilot-instructions.md, same shape.
@@ -163,6 +164,25 @@ mal_gemini_rc=$?
 check mal_gemini_exit      "$mal_gemini_rc" "0"
 check mal_gemini_unchanged "$(cmp -s "$tmp/gemini-before" "$proj/.gemini/settings.json" && echo same)" "same"
 check mal_gemini_reported  "$(grep -c 'malformed .gemini/settings.json' "$proj/.ai-sdlc/install-report.md")" "1"
+# Cosmetic fix (review round 2): the JSON path's reported reason must not
+# claim ambiguous markers — JSON has no markers.
+check mal_gemini_reason_ok  "$(grep 'malformed .gemini/settings.json' "$proj/.ai-sdlc/install-report.md" | grep -c 'invalid or unsupported JSON')" "1"
+check mal_gemini_no_marker_text "$(grep 'malformed .gemini/settings.json' "$proj/.ai-sdlc/install-report.md" | grep -c 'ambiguous ai-sdlc-kit markers')" "0"
+rm -rf "$tmp"
+
+# A syntactically valid but non-object .gemini/settings.json (the review-
+# round-2 regression: used to crash with an uncaught AttributeError,
+# corrupting the pointer line and never reaching the install report).
+tmp=$(mktemp -d); proj="$tmp/malg2"; mkdir -p "$proj/.gemini"
+printf '[1,2,3]' > "$proj/.gemini/settings.json"
+cp "$proj/.gemini/settings.json" "$tmp/gemini-before"
+( cd "$proj" && git init -q && git add -A && git commit -qm init )
+"$BOOT" --name "Malformed Gemini Array" --slug malformed-gemini-array --dir "$proj" --desc "d" --ticket ACME \
+        --layout embedded --tools "gemini" --merge --non-interactive >"$tmp/boot.log" 2>&1
+mal_gemini_array_rc=$?
+check mal_gemini_array_exit       "$mal_gemini_array_rc" "0"
+check mal_gemini_array_unchanged  "$(cmp -s "$tmp/gemini-before" "$proj/.gemini/settings.json" && echo same)" "same"
+check mal_gemini_array_reported   "$(grep -c 'malformed .gemini/settings.json' "$proj/.ai-sdlc/install-report.md")" "1"
 rm -rf "$tmp"
 
 echo "---"

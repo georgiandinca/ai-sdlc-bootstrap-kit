@@ -29,47 +29,60 @@ kit_write_tool_pointers() {
         gemini_action=$(python3 - "$dir/.gemini/settings.json" <<'PY'
 import json, os, sys
 
-# Never clobber: a file that fails to parse, can't be read, or has a
-# "context" that isn't a mapping we can merge into is reported malformed
+# Never clobber, never crash: a file that fails to parse, can't be read,
+# whose top level isn't a JSON object, or whose "context" (or
+# context.fileName) isn't a shape we can merge into is reported malformed
 # and left completely untouched — no write happens on any of those paths.
+# Fail SAFE rather than fail open: anything unexpected also reports
+# malformed instead of letting an exception escape (which would corrupt the
+# "pointer gemini <action>" line every caller parses and leak a traceback).
+def fail():
+    print("malformed")
+    sys.exit(0)
+
 path = sys.argv[1]
 existed = os.path.exists(path)
 data = {}
 
-if existed:
-    try:
-        with open(path, encoding="utf-8") as fh:
-            data = json.load(fh)
-    except (ValueError, OSError):
-        print("malformed")
-        sys.exit(0)
+try:
+    if existed:
+        try:
+            with open(path, encoding="utf-8") as fh:
+                data = json.load(fh)
+        except (ValueError, OSError):
+            fail()
 
-    ctx = data.get("context")
-    if ctx is not None and not isinstance(ctx, dict):
-        print("malformed")
-        sys.exit(0)
-    names_probe = ctx.get("fileName") if isinstance(ctx, dict) else None
-    if names_probe is not None and not isinstance(names_probe, (list, str)):
-        print("malformed")
-        sys.exit(0)
+        if not isinstance(data, dict):
+            fail()
 
-ctx = data.setdefault("context", {})
-names = ctx.get("fileName")
-if isinstance(names, str):
-    names = [names]
-elif not isinstance(names, list):
-    names = []
-if "AGENTS.md" not in names:
-    names.insert(0, "AGENTS.md")
-if "GEMINI.md" not in names:
-    names.append("GEMINI.md")
-ctx["fileName"] = names
+        ctx = data.get("context")
+        if ctx is not None and not isinstance(ctx, dict):
+            fail()
+        names_probe = ctx.get("fileName") if isinstance(ctx, dict) else None
+        if names_probe is not None and not isinstance(names_probe, (list, str)):
+            fail()
 
-with open(path, "w", encoding="utf-8") as fh:
-    json.dump(data, fh, indent=2)
-    fh.write("\n")
+    ctx = data.setdefault("context", {})
+    names = ctx.get("fileName")
+    if isinstance(names, str):
+        names = [names]
+    elif not isinstance(names, list):
+        names = []
+    if "AGENTS.md" not in names:
+        names.insert(0, "AGENTS.md")
+    if "GEMINI.md" not in names:
+        names.append("GEMINI.md")
+    ctx["fileName"] = names
 
-print("created" if not existed else "updated")
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(data, fh, indent=2)
+        fh.write("\n")
+
+    print("created" if not existed else "updated")
+except SystemExit:
+    raise
+except Exception:
+    fail()
 PY
 )
         echo "pointer gemini $gemini_action"
