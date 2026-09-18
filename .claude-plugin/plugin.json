@@ -1,0 +1,12 @@
+{
+  "name": "ai-sdlc-kit",
+  "displayName": "AI-SDLC Bootstrap Kit",
+  "description": "Install the AI-SDLC Bootstrap Kit into any project and onboard people to it.",
+  "version": "0.1.0",
+  "author": { "name": "Georgian Dinca" },
+  "homepage": "https://github.com/georgiandinca/ai-sdlc-bootstrap-kit",
+  "repository": "https://github.com/georgiandinca/ai-sdlc-bootstrap-kit",
+  "license": "MIT",
+  "keywords": ["sdlc", "governance", "bootstrap", "onboarding", "agents-md"],
+  "skills": ["./.claude/skills/"]
+}
