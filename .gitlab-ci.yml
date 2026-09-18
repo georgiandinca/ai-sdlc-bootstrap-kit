@@ -45,6 +45,8 @@ ai-governance:
   - python3 template/scripts/validate-seat-profiles.py
   - echo "Running seat-profiles validator unit tests…"
   - python3 template/scripts/tests/test_validate_seat_profiles.py
+  - echo "Merge-engine unit tests…"
+  - bash template/scripts/tests/test_kit_merge.sh
   - echo "Running knowledge-graph unit tests…"
   - python3 template/scripts/knowledge/tests/test_graph_store.py
   - python3 template/scripts/knowledge/tests/test_manifest.py

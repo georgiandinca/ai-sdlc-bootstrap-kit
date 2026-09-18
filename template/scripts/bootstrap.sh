@@ -15,6 +15,9 @@ set -euo pipefail
 
 TEMPLATE_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
+# shellcheck source=/dev/null
+. "$TEMPLATE_ROOT/scripts/lib/kit-merge.sh"
+
 name=""; slug=""; dir=""; desc="<ONE_LINE_DESCRIPTION>"; ticket="<TICKET>"; host="github"; force=0
 while [ "$#" -gt 0 ]; do
   case "$1" in

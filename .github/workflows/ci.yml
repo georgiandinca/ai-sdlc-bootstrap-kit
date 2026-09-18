@@ -37,6 +37,9 @@ jobs:
       - name: Seat-profiles validator unit tests
         run: python3 template/scripts/tests/test_validate_seat_profiles.py
 
+      - name: Merge-engine unit tests
+        run: bash template/scripts/tests/test_kit_merge.sh
+
       - name: Knowledge-graph unit tests
         run: |
           python3 template/scripts/knowledge/tests/test_graph_store.py
