@@ -88,6 +88,39 @@ result=$(kit_merge_block "$tmp/no_newline_target.md" "$tmp/changed.txt")
 check no_newline_second_call "$(echo "$result")" "updated"
 check no_newline_block_count "$(grep -c -- '<!-- ai-sdlc-kit:begin -->' "$tmp/no_newline_target.md")" "1"
 
+# --- 10. content with line equal to END marker: update with sanitisation
+printf '# Project\n' > "$tmp/project.md"
+printf 'initial content\n' > "$tmp/initial.txt"
+kit_merge_block "$tmp/project.md" "$tmp/initial.txt" >/dev/null
+# Now update with content containing a line equal to the end marker
+printf 'block content\n<!-- ai-sdlc-kit:end -->\nmore block\n' > "$tmp/marker_lookalike.txt"
+kit_merge_block "$tmp/project.md" "$tmp/marker_lookalike.txt" >/dev/null
+count_begin=$(grep -c -- '<!-- ai-sdlc-kit:begin -->' "$tmp/project.md")
+count_end=$(grep -c -- '<!-- ai-sdlc-kit:end -->' "$tmp/project.md")
+check end_lookalike_one_begin "$(grep -cx -- '<!-- ai-sdlc-kit:begin -->' "$tmp/project.md")" "1"
+check end_lookalike_one_end "$(grep -cx -- '<!-- ai-sdlc-kit:end -->' "$tmp/project.md")" "1"
+check end_lookalike_project_preserved "$(grep -c '^# Project$' "$tmp/project.md")" "1"
+check end_lookalike_content_present "$(grep -c 'block content' "$tmp/project.md")" "1"
+# "more block" is content that should be preserved
+check end_lookalike_more_block_present "$(grep -c '^more block$' "$tmp/project.md")" "1"
+# The sanitised line should be present with trailing space
+check end_lookalike_sanitised_present "$(grep -c '^<!-- ai-sdlc-kit:end --> $' "$tmp/project.md")" "1"
+
+# --- 11. content with lines equal to BOTH markers: sanitisation preserves both
+printf '# Project2\n' > "$tmp/project2.md"
+printf 'first\n' > "$tmp/first.txt"
+kit_merge_block "$tmp/project2.md" "$tmp/first.txt" >/dev/null
+# Update with content containing both markers
+printf '<!-- ai-sdlc-kit:begin -->\nmiddle content\n<!-- ai-sdlc-kit:end -->\nafter block\n' > "$tmp/both_markers.txt"
+kit_merge_block "$tmp/project2.md" "$tmp/both_markers.txt" >/dev/null
+count_begin2=$(grep -cx -- '<!-- ai-sdlc-kit:begin -->' "$tmp/project2.md")
+count_end2=$(grep -cx -- '<!-- ai-sdlc-kit:end -->' "$tmp/project2.md")
+check both_one_begin "$(echo "$count_begin2")" "1"
+check both_one_end "$(echo "$count_end2")" "1"
+check both_project_preserved "$(grep -c '^# Project2$' "$tmp/project2.md")" "1"
+check both_marker_begin_sanitised "$(grep -c '^<!-- ai-sdlc-kit:begin --> $' "$tmp/project2.md")" "1"
+check both_marker_end_sanitised "$(grep -c '^<!-- ai-sdlc-kit:end --> $' "$tmp/project2.md")" "1"
+
 rm -rf "$tmp"
 echo "---"
 [ "$fails" -eq 0 ] && echo "all kit-merge tests passed" || echo "$fails test(s) failed"

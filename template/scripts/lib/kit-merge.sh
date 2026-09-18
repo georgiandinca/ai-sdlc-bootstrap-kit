@@ -13,6 +13,11 @@
 #   appended  — file exists without markers, block appended at end
 #   updated   — file has begin and end markers, block replaced in-place
 #   malformed — file has begin marker but no matching end marker, file left unchanged
+#
+# Content sanitisation: lines in the block that are exactly equal to a marker
+# are written with a trailing space appended, preventing false marker detection
+# on future reads. The trailing space is invisible in rendered Markdown/HTML;
+# markers themselves are byte-exact.
 
 kit_begin_marker() {
   case "$1" in
@@ -28,10 +33,25 @@ kit_end_marker() {
   esac
 }
 
+# Sanitise content: append trailing space to any line that equals a marker.
+# This prevents those lines from being mistaken for the actual markers on
+# future reads. Reads from a file, writes to stdout with sanitised content.
+_sanitise_content() {
+  local content=$1 begin=$2 end=$3
+  awk -v b="$begin" -v e="$end" '{
+    if ($0 == b || $0 == e) {
+      print $0 " "
+    } else {
+      print
+    }
+  }' "$content"
+}
+
 # kit_merge_block <target> <content_file>
 # Uses positional state machine: locates first begin marker and first end marker
 # after it. Only that range is the block; lines inside are replaced by position,
 # not re-matched. If begin exists without matching end, file is malformed.
+# Block content is sanitised to prevent marker lookalikes.
 kit_merge_block() {
   local target=$1 content=$2
   local begin end tmp marker_line end_line
@@ -39,11 +59,12 @@ kit_merge_block() {
   begin=$(kit_begin_marker "$target")
   end=$(kit_end_marker "$target")
 
-  # Normalize content: add trailing newline if missing.
-  # Use a temp file to handle this safely.
+  # Normalize and sanitise content: ensure trailing newline, escape marker lookalikes
   norm_content=$(mktemp)
-  cat "$content" >> "$norm_content"
-  [ -s "$norm_content" ] && [ -z "$(tail -c 1 "$norm_content")" ] || printf '\n' >> "$norm_content"
+  {
+    _sanitise_content "$content" "$begin" "$end"
+    [ -z "$(tail -c 1 "$content")" ] || printf '\n'
+  } >> "$norm_content"
 
   if [ ! -f "$target" ]; then
     mkdir -p "$(dirname "$target")"
@@ -53,17 +74,17 @@ kit_merge_block() {
     return 0
   fi
 
-  if grep -qF -- "$begin" "$target"; then
-    # Find line numbers of first begin and first end marker after it
-    marker_line=$(grep -nF -- "$begin" "$target" | head -1 | cut -d: -f1)
+  if grep -qFx -- "$begin" "$target"; then
+    # Find line numbers of first begin and first end marker after it (exact line match)
+    marker_line=$(grep -nFx -- "$begin" "$target" | head -1 | cut -d: -f1)
     if [ -z "$marker_line" ]; then
       rm -f "$norm_content"
       echo appended
       return 0
     fi
 
-    # Find first end marker after the begin marker
-    end_line=$(tail -n +"$marker_line" "$target" | grep -nF -- "$end" | head -1 | cut -d: -f1)
+    # Find first end marker after the begin marker (exact line match)
+    end_line=$(tail -n +"$marker_line" "$target" | grep -nFx -- "$end" | head -1 | cut -d: -f1)
     if [ -z "$end_line" ]; then
       # Begin marker exists but no end marker found
       rm -f "$norm_content"
@@ -80,14 +101,15 @@ kit_merge_block() {
       NR < begin_line { print; next }
       NR == begin_line {
         print b
-        system("cat " f)
+        while ((getline line < f) > 0) print line
+        close(f)
         print e
         next
       }
       NR > end_line { print; next }
     ' "$target" > "$tmp" && mv "$tmp" "$target"
 
-    rm -f "$norm_content"
+    rm -f "$norm_content" "$tmp"
     echo updated
     return 0
   fi
