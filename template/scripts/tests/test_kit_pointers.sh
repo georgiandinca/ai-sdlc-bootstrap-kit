@@ -153,8 +153,36 @@ rm -rf "$tmp"
 block=$(kit_readme_block "Acme Wallet" "sidecar" "| \`../acme-api\` | backend |" "1.2.0" "https://example.com/kit")
 check readme_name   "$(printf '%s' "$block" | grep -c 'Acme Wallet')" "1"
 check readme_layout "$(printf '%s' "$block" | grep -c 'sidecar')" "1"
-check readme_repo   "$(printf '%s' "$block" | grep -c 'acme-api')" "1"
+# The repo now appears twice: once in the layout diagram (finding 10) and
+# once in the repo table.
+check readme_repo       "$(printf '%s' "$block" | grep -c 'acme-api')" "2"
+check readme_repo_table "$(printf '%s\n' "$block" | grep -c '^| `../acme-api` | backend |$')" "1"
 check readme_start  "$(printf '%s' "$block" | grep -c 'ONBOARDING.md')" "1"
+
+# --- 6b. fix-round 2, finding 10: a layout diagram, one per layout -----------------
+# Spec §7 promises "a diagram of where the kit sits relative to the repos"; the
+# block used to carry only the layout name and the repo table.
+sidecar_block=$(kit_readme_block "Acme" "sidecar" "| \`../acme-api\` | backend |
+| \`../acme-web\` | frontend |" "1.2.0" "https://example.com/kit" "acme-sdlc")
+check diag_sidecar_fence  "$(printf '%s\n' "$sidecar_block" | grep -c '^```$')" "2"
+check diag_sidecar_kit    "$(printf '%s\n' "$sidecar_block" | grep -c '^├── acme-sdlc/   ← the kit')" "1"
+check diag_sidecar_api    "$(printf '%s\n' "$sidecar_block" | grep -c '^├── acme-api/   ← backend repo')" "1"
+check diag_sidecar_web    "$(printf '%s\n' "$sidecar_block" | grep -c '^├── acme-web/   ← frontend repo')" "1"
+
+parent_block=$(kit_readme_block "Acme" "parent" "| \`acme-api\` | backend |" "1.0" "u" "acme")
+check diag_parent_root "$(printf '%s\n' "$parent_block" | grep -c '^acme/   ← the kit lives here')" "1"
+check diag_parent_repo "$(printf '%s\n' "$parent_block" | grep -c '^├── acme-api/   ← backend repo')" "1"
+
+emb_block=$(kit_readme_block "Acme" "embedded" "" "1.0" "u" "acme-api")
+check diag_embedded_root "$(printf '%s\n' "$emb_block" | grep -c "^acme-api/$")" "1"
+check diag_embedded_src  "$(printf '%s\n' "$emb_block" | grep -c "own code, untouched")" "1"
+
+mono_block=$(kit_readme_block "Acme" "monorepo" "| \`apps/web\` | frontend |" "1.0" "u" "acme")
+check diag_mono_root "$(printf '%s\n' "$mono_block" | grep -c '^acme/   ← the workspace root')" "1"
+check diag_mono_pkg  "$(printf '%s\n' "$mono_block" | grep -c '^├── web/   ← frontend package')" "1"
+
+# The five-argument form still works — the kit dir name defaults, nothing breaks.
+check diag_five_args "$(kit_readme_block "Acme" "embedded" "" "1.0" "u" | grep -c '^```$')" "2"
 
 echo "---"
 [ "$fails" -eq 0 ] && echo "all kit-pointers tests passed" || echo "$fails test(s) failed"

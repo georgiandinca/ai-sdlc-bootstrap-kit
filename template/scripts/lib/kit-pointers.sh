@@ -153,13 +153,68 @@ kit_write_repo_pointer() {
   echo "repo-pointer-claude $repo $claude_action"
 }
 
-# kit_readme_block <name> <layout> <repos_table> <kit_version> <kit_source>
+# _kit_repo_tree_rows <repos_table> <fallback_role_label>
+# Turn the AGENTS.md §2 Markdown rows back into tree entries, so the diagram
+# names this project's real repos rather than made-up ones. Prints nothing when
+# there are no repos.
+_kit_repo_tree_rows() {
+  local repos_table=$1 suffix=$2 line path role
+  printf '%s\n' "$repos_table" | sed -n 's/^| `\([^`]*\)` | \(.*\) |$/\1	\2/p' \
+  | while IFS='	' read -r path role; do
+      [ -n "$path" ] || continue
+      printf '├── %s/   ← %s %s\n' "$(basename "$path")" "$role" "$suffix"
+    done
+}
+
+# kit_layout_diagram <layout> <kit_dir_name> <repos_table>
+# The ASCII tree spec §7 asks the generated README to carry — one per layout,
+# matching the trees in the skill's references/layouts.md.
+kit_layout_diagram() {
+  local layout=$1 here=$2 repos_table=${3:-} rows
+  echo '```'
+  case "$layout" in
+    embedded)
+      echo "$here/"
+      echo '├── AGENTS.md  CLAUDE.md  ONBOARDING.md  WORKING-AGREEMENT.md'
+      echo '├── .claude/skills/   .github/workflows/   scripts/   docs/'
+      echo '├── .ai-sdlc/kit.json'
+      echo '└── src/   ← this project'"'"'s own code, untouched'
+      ;;
+    monorepo)
+      echo "$here/   ← the workspace root, and the kit"
+      echo '├── AGENTS.md  CLAUDE.md  ONBOARDING.md  WORKING-AGREEMENT.md'
+      echo '├── .claude/skills/   scripts/   docs/   .ai-sdlc/kit.json'
+      rows=$(_kit_repo_tree_rows "$repos_table" "package, untouched")
+      if [ -n "$rows" ]; then printf '%s\n' "$rows"; fi
+      echo '└── …'
+      ;;
+    sidecar)
+      echo '../   ← the folder that holds them all'
+      echo "├── $here/   ← the kit, its own git repo (you are here)"
+      rows=$(_kit_repo_tree_rows "$repos_table" "repo + pointer block")
+      if [ -n "$rows" ]; then printf '%s\n' "$rows"; fi
+      echo '└── …'
+      ;;
+    parent)
+      echo "$here/   ← the kit lives here (you are here)"
+      echo '├── AGENTS.md  CLAUDE.md  ONBOARDING.md  .ai-sdlc/kit.json …'
+      rows=$(_kit_repo_tree_rows "$repos_table" "repo + pointer block")
+      if [ -n "$rows" ]; then printf '%s\n' "$rows"; fi
+      echo '└── …'
+      ;;
+  esac
+  echo '```'
+}
+
+# kit_readme_block <name> <layout> <repos_table> <kit_version> <kit_source> [kit_dir_name]
 kit_readme_block() {
-  local name=$1 layout=$2 repos_table=$3 version=$4 source=$5
+  local name=$1 layout=$2 repos_table=$3 version=$4 source=$5 here=${6:-.}
   echo "## $name — how we work with AI here"
   echo
   echo "This project is governed by the **AI-SDLC Bootstrap Kit** (\`$version\`, from $source),"
   echo "installed in the **\`$layout\`** layout."
+  echo
+  kit_layout_diagram "$layout" "$here" "$repos_table"
   echo
   if [ -n "$repos_table" ]; then
     echo "| Repository | Role |"
