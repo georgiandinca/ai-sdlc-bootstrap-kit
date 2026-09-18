@@ -33,9 +33,21 @@ exists but is not a plain JSON object — or whose `context`/`context.fileName` 
 shape the merger understands — is left byte-identical and reported `malformed` in the
 install report rather than guessed at or overwritten.
 
+A target that leaves the project through a symlink — its own, or a parent directory's —
+is never followed: nothing is written and the install report says `escaped`. A target that
+cannot be written (read-only, or a path the project owns as a regular file where the kit
+needs a directory) is reported `unwritable`. Both leave the file byte-identical, like
+`collision` and `malformed`. An existing symlink *inside* the project is written through,
+so the link survives instead of being replaced by a regular file.
+
 ## Pointers into code repos (`sidecar` / `parent`)
 
-Each code repo gets both:
+Ask per repo; the default is yes. A "no" is expressed as a `:nopointer` suffix on that
+repo's role in `--repos` (`../acme-web=frontend:nopointer`) — the repo stays in
+`AGENTS.md` §2 and in the manifest, nothing is written into it, and the manifest records
+`"pointer": false`. Dropping the repo from `--repos` instead would also drop it from §2.
+
+Each code repo that gets a pointer gets both:
 
 - `AGENTS.md` — names the kit's relative path **and** its clone URL, so a fresh clone that
   lacks the sibling folder knows how to get it.

@@ -43,11 +43,11 @@ manifest; if it isn't valid, say so and stop there instead of comparing against 
 Ask these, in this order, proposing the detected answer first so the common case is one confirmation:
 
 1. **Layout** — propose from `layout_signals`, in this order: `embedded` (kit inside this repo) → `monorepo` (kit at the workspace root; `workspace_files` non-empty) → `sidecar` (kit beside the code repos; `sibling_repos` non-empty) → `parent` (kit above the code repos; `child_repos` non-empty). `references/layouts.md` describes what each one writes where, and their trade-offs.
-2. **Project facts** — name, one-line description, ticket prefix, host (`github`/`gitlab`).
+2. **Project facts** — name, one-line description, ticket prefix, host (`github`/`gitlab`). The host is recorded in the manifest as `host`.
 3. **Repos and roles** — for `monorepo`/`sidecar`/`parent`, e.g. `../acme-api=backend`.
 4. **Hooks** — `kit` (governance hooks on the kit's own repo), `repo` (fold them into a code repo's existing `.pre-commit-config.yaml`; requires `--hooks-target <dir>` pointing at that repo), or `none` (no versioning, or the team does not want them). If `repo`, warn up front: the merge is done with PyYAML, which does not preserve comments in the target's `.pre-commit-config.yaml`. The pre-merge original is backed up automatically under the kit's own `.ai-sdlc/` directory (a filename derived from the target repo's path), so it can always be recovered, but the live file in the code repo loses its comments.
 5. **AI tools** — which the team uses. Most read `AGENTS.md` natively and need nothing; see `references/pointer-blocks.md`.
-6. **Pointers into code repos** — ask per repo, default yes.
+6. **Pointers into code repos** — ask per repo, default yes. A repo the user says **no** to keeps its `--repos` entry with a `:nopointer` suffix on the role (`../acme-web=frontend:nopointer`): it is still listed in `AGENTS.md` §2 and the manifest, no pointer block is written into it, and the manifest records `"pointer": false` for it. Never drop the repo from `--repos` to express a "no" — that would also drop it from §2.
 
 Then clone the kit and install:
 
@@ -56,7 +56,7 @@ KIT=$(mktemp -d)
 git clone --depth 1 https://github.com/georgiandinca/ai-sdlc-bootstrap-kit "$KIT"
 "$KIT/template/scripts/bootstrap.sh" --name "<name>" --slug "<slug>" --dir "<target>" \
   --desc "<desc>" --ticket "<TICKET>" --host "<host>" --layout "<layout>" \
-  --repos "<path=role,…>" --tools "<ids>" --hooks "<mode>" [--merge] \
+  --repos "<path=role[:nopointer],…>" --tools "<ids>" --hooks "<mode>" [--merge] \
   [--hooks-target <dir>] [--kit-version <v>] [--kit-commit <sha>]
 ```
 
@@ -75,7 +75,10 @@ Use `--merge` whenever the target already has files. Without it, `bootstrap.sh` 
 - **If the target repo already has commits, work on a branch** (`chore/ai-sdlc-kit`) so the install can be reviewed.
 - **If the working tree is dirty** (`git.dirty`), say so and let the user decide before touching anything.
 - **Never commit without showing what will be committed.**
-- After installing, read `.ai-sdlc/install-report.md` (written whenever `--merge` was used) and tell the user what was created, what was merged, and what was skipped. Relay **every** `collision` and `malformed` line in it by name — those are the files the installer left byte-identical (an ambiguous marker layout, or, for `.gemini/settings.json`, a file that isn't a plain JSON object) and that only the user can resolve by hand. Do not summarise them away as "some files were skipped."
+- After installing, read `.ai-sdlc/install-report.md` (written whenever `--merge` was used) and tell the user what was created, what was merged, and what was skipped. It is written at the **end** of the run and reports each path's final state, so a file listed as `merged` really did receive the kit's block, and one listed `collision` really was left alone.
+  - `created` / `identical` / `merged` — the kit's content is in place; summarise these.
+  - Relay **every** `collision`, `malformed`, `unwritable` and `escaped` line by name — those are the files the installer left byte-identical and that only the user can resolve by hand. Do not summarise them away as "some files were skipped."
+  - `malformed` = an ambiguous kit-marker layout (or, for `.gemini/settings.json`, a file that isn't a plain JSON object). `unwritable` = a read-only file, or a path the kit needs as a directory that the project owns as a regular file. `escaped` = the path resolves outside the install target through a symlink, so nothing was written there.
 
 ## Step 3 — Onboarding
 
@@ -88,6 +91,7 @@ The kit is installed and this person is onboarded. Report, with a fix offered fo
 - **Version drift** — only when `kit.manifest_valid` is `true`: compare `kit.manifest.kit.version` with the latest tag of the public repo (`git ls-remote --tags`). Report the gap and what changed. **Do not update any files** — safe propagation is a separate piece of work. When `kit.manifest_valid` is `false`, report the manifest itself as malformed (absent or unparsable `.ai-sdlc/kit.json`) instead of guessing at a version.
 - **Hooks not installed** (`hooks.config` true, `hooks.installed` false) — offer `pre-commit install`.
 - **Repos missing from the manifest** — a sibling or child repo that appeared since install; offer to add it and write its pointer.
+- **A code repo without a pointer block** — a `repos[]` entry whose `"pointer"` is `false`. The field records what actually happened at install, so `false` means either the repo was not on disk or the user declined with `:nopointer`. Offer to add it; take a second "no" as final.
 - **Unfilled placeholders** — `grep -roIn -- '<[A-Z_/]\{3,\}>' .` and list them.
 
 ## What this skill does not do

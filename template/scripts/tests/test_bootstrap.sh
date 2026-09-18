@@ -307,6 +307,153 @@ else
   echo "skip hooks_notgit_* (pre-commit not installed)"
 fi
 
+# --- 10. fix-round 2, finding 3: the install report reflects the FINAL state -------
+# It used to be written BEFORE the marker merges ran, so every file that was
+# successfully merged was reported as a `collision` — which SKILL.md tells the
+# agent to relay as a file "only the user can resolve by hand".
+tmp=$(mktemp -d); proj="$tmp/api"; mkdir -p "$proj"
+printf '# Acme API\n\nOurs.\n' > "$proj/README.md"
+printf '# ours\n'              > "$proj/CLAUDE.md"
+printf 'keepme\n'              > "$proj/AGENTS.md"
+printf 'dist/\n'               > "$proj/.gitignore"
+( cd "$proj" && git init -q && git add -A && git commit -qm init )
+"$BOOT" --name "Acme API" --slug acme-api --dir "$proj" --desc "d" --ticket ACME \
+        --layout embedded --tools "claude" --merge --non-interactive >/dev/null 2>&1
+rep="$proj/.ai-sdlc/install-report.md"
+check report_readme_merged     "$(grep -c '^- merged README.md' "$rep")" "1"
+check report_readme_no_coll    "$(grep -c '^- collision README.md$' "$rep")" "0"
+check report_claude_merged     "$(grep -c '^- merged CLAUDE.md' "$rep")" "1"
+check report_claude_no_coll    "$(grep -c '^- collision CLAUDE.md$' "$rep")" "0"
+check report_agents_merged     "$(grep -c '^- merged AGENTS.md' "$rep")" "1"
+check report_gitignore_merged  "$(grep -c '^- merged .gitignore' "$rep")" "1"
+# The project's own content survived every one of those merges.
+check report_readme_kept       "$(head -1 "$proj/README.md")" "# Acme API"
+check report_agents_kept       "$(head -1 "$proj/AGENTS.md")" "keepme"
+# The report is committed with the rest of the install (it is written before
+# the initial commit, not after it).
+rm -rf "$tmp"
+
+tmp=$(mktemp -d)
+"$BOOT" --name "Fresh" --slug fresh --dir "$tmp/f" --desc "d" --ticket F \
+        --layout embedded --merge --non-interactive >/dev/null 2>&1
+check report_committed "$(cd "$tmp/f" && git ls-files .ai-sdlc/install-report.md)" ".ai-sdlc/install-report.md"
+check manifest_committed "$(cd "$tmp/f" && git ls-files .ai-sdlc/kit.json)" ".ai-sdlc/kit.json"
+rm -rf "$tmp"
+
+# --- 11. fix-round 2, finding 2: .gitignore is marker-merged ------------------------
+# A project with its own .gitignore used to get `- collision .gitignore` and
+# nothing else, so USER.md / .env / .env.* were never ignored and the identity
+# file created at onboarding was committable.
+tmp=$(mktemp -d); proj="$tmp/api"; mkdir -p "$proj"
+printf 'dist/\nbuild/\n' > "$proj/.gitignore"
+( cd "$proj" && git init -q && git add -A && git commit -qm init )
+"$BOOT" --name "Acme" --slug acme --dir "$proj" --desc "d" --ticket ACME \
+        --layout embedded --merge --non-interactive >/dev/null 2>&1
+check gi_kept_theirs   "$(head -1 "$proj/.gitignore")" "dist/"
+check gi_kept_theirs2  "$(grep -c '^build/$' "$proj/.gitignore")" "1"
+check gi_hash_marker   "$(grep -cx '# ai-sdlc-kit:begin' "$proj/.gitignore")" "1"
+check gi_no_html       "$(grep -c -- '<!-- ai-sdlc-kit:begin -->' "$proj/.gitignore")" "0"
+check gi_user_md       "$(grep -cx 'USER.md' "$proj/.gitignore")" "1"
+check gi_env           "$(grep -cx '\.env' "$proj/.gitignore")" "1"
+check gi_env_star      "$(grep -cx '\.env\.\*' "$proj/.gitignore")" "1"
+# git itself now ignores the per-person identity file.
+printf 'me\n' > "$proj/USER.md"
+check gi_git_ignores   "$(cd "$proj" && git status --porcelain USER.md | wc -l | tr -d ' ')" "0"
+# Idempotent: a second run updates the block in place, no second copy.
+"$BOOT" --name "Acme" --slug acme --dir "$proj" --desc "d" --ticket ACME \
+        --layout embedded --merge --non-interactive >/dev/null 2>&1
+check gi_one_block     "$(grep -cx '# ai-sdlc-kit:begin' "$proj/.gitignore")" "1"
+check gi_user_md_once  "$(grep -cx 'USER.md' "$proj/.gitignore")" "1"
+rm -rf "$tmp"
+
+# A project with NO .gitignore gets the kit's file whole — and no second,
+# block-wrapped copy of the same lines inside it.
+tmp=$(mktemp -d); proj="$tmp/bare"; mkdir -p "$proj"
+printf 'x\n' > "$proj/keep.txt"
+( cd "$proj" && git init -q && git add -A && git commit -qm init )
+"$BOOT" --name "Bare" --slug bare --dir "$proj" --desc "d" --ticket B \
+        --layout embedded --merge --non-interactive >/dev/null 2>&1
+check gi_fresh_no_block "$(grep -cx '# ai-sdlc-kit:begin' "$proj/.gitignore")" "0"
+check gi_fresh_user_md  "$(grep -cx 'USER.md' "$proj/.gitignore")" "1"
+rm -rf "$tmp"
+
+# --- 12. fix-round 2, finding 7: the manifest records the REAL pointer outcome -----
+# `"pointer":false` was hard-coded even when pointers were written, so spec §6's
+# "a code repo without a pointer block" status check was a false positive on
+# every installed project. `:nopointer` makes a user's "no" expressible.
+tmp=$(mktemp -d); mkdir -p "$tmp/acme-api" "$tmp/acme-web"
+"$BOOT" --name "Acme" --slug acme --dir "$tmp/acme-sdlc" --desc "d" --ticket ACME \
+        --layout sidecar --repos "../acme-api=backend,../acme-web=frontend:nopointer" \
+        --non-interactive >"$tmp/log.txt" 2>&1
+man="$tmp/acme-sdlc/.ai-sdlc/kit.json"
+ptr() { python3 -c 'import json,sys;print(json.dumps(json.load(open(sys.argv[1]))["repos"][int(sys.argv[2])][sys.argv[3]]))' "$man" "$1" "$2"; }
+check ptr_true_recorded  "$(ptr 0 pointer)" "true"
+check ptr_false_recorded "$(ptr 1 pointer)" "false"
+check ptr_role_clean     "$(ptr 1 role)"    '"frontend"'
+check ptr_written        "$([ -f "$tmp/acme-api/AGENTS.md" ] && echo yes || echo no)" "yes"
+check ptr_declined       "$([ -f "$tmp/acme-web/AGENTS.md" ] && echo yes || echo no)" "no"
+check ptr_declined_said  "$(grep -c 'pointer declined (:nopointer)' "$tmp/log.txt")" "1"
+# The declined repo is still listed in AGENTS.md §2 — decision 4 lists it, it
+# just carries no pointer.
+check ptr_declined_listed "$(grep -c 'acme-web' "$tmp/acme-sdlc/AGENTS.md")" "1"
+# A repo named in --repos that is not on disk stays "pointer": false.
+mkdir -p "$tmp/two"
+"$BOOT" --name "Acme2" --slug acme2 --dir "$tmp/two/sdlc" --desc "d" --ticket A \
+        --layout sidecar --repos "../ghost=backend" --non-interactive >/dev/null 2>&1
+check ptr_missing_repo "$(python3 -c 'import json,sys;print(json.dumps(json.load(open(sys.argv[1]))["repos"][0]["pointer"]))' "$tmp/two/sdlc/.ai-sdlc/kit.json")" "false"
+# --help documents the syntax.
+check ptr_help_documented "$([ "$("$BOOT" --help | grep -c ':nopointer')" -gt 0 ] && echo yes || echo no)" "yes"
+rm -rf "$tmp"
+
+# --- 13. fix-round 2, finding 8: .ai-sdlc/kit.json is not clobbered -----------------
+# The manifest was the only unguarded `>` in --merge mode.
+tmp=$(mktemp -d); proj="$tmp/api"; mkdir -p "$proj/.ai-sdlc"
+printf '{"ourOwnTool": {"secret": "keep-me"}}\n' > "$proj/.ai-sdlc/kit.json"
+cp "$proj/.ai-sdlc/kit.json" "$tmp/before.json"
+( cd "$proj" && git init -q && git add -A && git commit -qm init )
+"$BOOT" --name "Acme" --slug acme --dir "$proj" --desc "d" --ticket ACME \
+        --layout embedded --merge --non-interactive >"$tmp/log.txt" 2>&1
+check manifest_guard_exit      "$?" "0"
+check manifest_guard_unchanged "$(cmp -s "$tmp/before.json" "$proj/.ai-sdlc/kit.json" && echo same)" "same"
+check manifest_guard_reported  "$(grep -c '^- collision .ai-sdlc/kit.json' "$proj/.ai-sdlc/install-report.md")" "1"
+check manifest_guard_said      "$(grep -c 'kit.json already exists and is not the kit' "$tmp/log.txt")" "1"
+rm -rf "$tmp"
+
+# The kit's OWN manifest is still rewritten on a repeat run (it carries a
+# top-level "kit" object), so version/commit stay current.
+tmp=$(mktemp -d); proj="$tmp/api"; mkdir -p "$proj"; printf 'x\n' > "$proj/keep.txt"
+"$BOOT" --name "Acme" --slug acme --dir "$proj" --desc "d" --ticket ACME --layout embedded \
+        --merge --kit-version 1.0.0 --non-interactive >/dev/null 2>&1
+"$BOOT" --name "Acme" --slug acme --dir "$proj" --desc "d" --ticket ACME --layout embedded \
+        --merge --kit-version 2.0.0 --non-interactive >/dev/null 2>&1
+check manifest_own_updated "$(jqp "$proj/.ai-sdlc/kit.json" kit.version)" '"2.0.0"'
+rm -rf "$tmp"
+
+# --- 14. fix-round 2, finding 9: --host is recorded in the manifest ------------------
+# It used to be parsed, echoed once and discarded, while SKILL.md asked for it.
+tmp=$(mktemp -d)
+"$BOOT" --name "Acme" --slug acme --dir "$tmp/k" --desc "d" --ticket A \
+        --host gitlab --layout embedded --non-interactive >/dev/null 2>&1
+check host_recorded "$(jqp "$tmp/k/.ai-sdlc/kit.json" host)" '"gitlab"'
+"$BOOT" --name "Acme" --slug acme --dir "$tmp/k2" --desc "d" --ticket A \
+        --layout embedded --non-interactive >/dev/null 2>&1
+check host_default  "$(jqp "$tmp/k2/.ai-sdlc/kit.json" host)" '"github"'
+rm -rf "$tmp"
+
+# --- 15. fix-round 2, finding 10: the generated README carries a layout diagram -----
+tmp=$(mktemp -d); mkdir -p "$tmp/acme-api"
+"$BOOT" --name "Acme" --slug acme --dir "$tmp/acme-sdlc" --desc "d" --ticket A \
+        --layout sidecar --repos "../acme-api=backend" --non-interactive >/dev/null 2>&1
+check diagram_present "$(grep -c 'the folder that holds them all' "$tmp/acme-sdlc/README.md")" "1"
+check diagram_kit_dir "$(grep -c '├── acme-sdlc/   ← the kit' "$tmp/acme-sdlc/README.md")" "1"
+check diagram_repo    "$(grep -c '├── acme-api/   ← backend repo' "$tmp/acme-sdlc/README.md")" "1"
+rm -rf "$tmp"
+tmp=$(mktemp -d)
+"$BOOT" --name "Acme" --slug acme --dir "$tmp/emb" --desc "d" --ticket A \
+        --layout embedded --non-interactive >/dev/null 2>&1
+check diagram_embedded "$(grep -c "project's own code, untouched" "$tmp/emb/README.md")" "1"
+rm -rf "$tmp"
+
 echo "---"
 [ "$fails" -eq 0 ] && echo "all bootstrap tests passed" || echo "$fails test(s) failed"
 exit "$fails"
