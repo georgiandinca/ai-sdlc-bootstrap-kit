@@ -29,7 +29,7 @@ rm -rf "$tmp"
 # specific expected value, so a regression can never silently echo an
 # empty/garbled action (Finding 3, review round 2).
 check_gemini_shape() {
-  if printf '%s' "$1" | grep -qE '^pointer gemini (created|updated|malformed)$'; then
+  if printf '%s' "$1" | grep -qE '^pointer gemini (created|updated|malformed|escaped)$'; then
     echo "ok   $2"
   else
     echo "FAIL $2: '$1' does not match 'pointer gemini <action>'"
@@ -120,6 +120,33 @@ check repo_claude_malformed  "$(printf '%s\n' "$repo_out2" | grep -c -- "^repo-p
 check repo_claude_unchanged  "$(cmp -s "$tmp/claude-before" "$tmp/acme-api2/CLAUDE.md" && echo same)" "same"
 check repo_agents_still_written "$([ -f "$tmp/acme-api2/AGENTS.md" ] && echo yes)" "yes"
 check repo_agents_action_ok  "$(printf '%s\n' "$repo_out2" | grep -c -- "^repo-pointer $tmp/acme-api2 created\$")" "1"
+rm -rf "$tmp"
+
+# --- 5c. fix-round 2, finding 4: pointers never write outside the target -----------
+# A CLAUDE.md / .gemini that leaves the tree through a symlink is refused, not
+# followed: the file outside the target stays byte-identical.
+tmp=$(mktemp -d); mkdir -p "$tmp/outside" "$tmp/proj" "$tmp/outside/gemini"
+printf 'their claude notes\n' > "$tmp/outside/CLAUDE.md"
+ln -s ../outside/CLAUDE.md "$tmp/proj/CLAUDE.md"
+ln -s ../outside/gemini    "$tmp/proj/.gemini"
+outside_before=$(cat "$tmp/outside/CLAUDE.md")
+esc_out=$(kit_write_tool_pointers "$tmp/proj" "claude,gemini")
+check ptr_claude_escaped    "$(printf '%s\n' "$esc_out" | grep -c '^pointer claude escaped$')" "1"
+check ptr_gemini_escaped    "$(printf '%s\n' "$esc_out" | grep -c '^pointer gemini escaped$')" "1"
+check ptr_outside_untouched "$(cat "$tmp/outside/CLAUDE.md")" "$outside_before"
+check ptr_outside_no_gemini "$([ -e "$tmp/outside/gemini/settings.json" ] && echo written || echo none)" "none"
+check ptr_claude_still_link "$([ -L "$tmp/proj/CLAUDE.md" ] && echo link || echo file)" "link"
+rm -rf "$tmp"
+
+# A code-repo pointer is contained the same way, against the CODE REPO's root.
+tmp=$(mktemp -d); mkdir -p "$tmp/outside" "$tmp/acme-api"
+printf 'their agents brief\n' > "$tmp/outside/AGENTS.md"
+ln -s ../outside/AGENTS.md "$tmp/acme-api/AGENTS.md"
+agents_before=$(cat "$tmp/outside/AGENTS.md")
+esc_repo=$(kit_write_repo_pointer "$tmp/acme-api" "../acme-sdlc" "https://example.com/kit.git")
+check repo_ptr_escaped    "$(printf '%s\n' "$esc_repo" | grep -c -- "^repo-pointer $tmp/acme-api escaped\$")" "1"
+check repo_ptr_untouched  "$(cat "$tmp/outside/AGENTS.md")" "$agents_before"
+check repo_ptr_claude_ok  "$(printf '%s\n' "$esc_repo" | grep -c -- "^repo-pointer-claude $tmp/acme-api created\$")" "1"
 rm -rf "$tmp"
 
 # --- 6. README block carries the project's own facts -------------------------------

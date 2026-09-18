@@ -20,11 +20,19 @@ kit_write_tool_pointers() {
           echo
           echo "\`AGENTS.md\` is the canonical brief for this project. This file only points at it."
         } > "$block"
-        action=$(kit_merge_block "$dir/CLAUDE.md" "$block")
+        action=$(kit_merge_block "$dir/CLAUDE.md" "$block" "$dir")
         rm -f "$block"
         echo "pointer claude $action"
         ;;
       gemini)
+        # Same containment rule as every marker merge: a `.gemini/` or
+        # `settings.json` that leaves the target tree through a symlink is
+        # refused, not followed.
+        if _kit_escapes_root "$dir/.gemini/settings.json" "$dir"; then
+          echo "pointer gemini escaped"
+          old_ifs=$IFS; IFS=','
+          continue
+        fi
         mkdir -p "$dir/.gemini"
         gemini_action=$(python3 - "$dir/.gemini/settings.json" <<'PY'
 import json, os, sys
@@ -93,7 +101,7 @@ PY
           echo "Read [\`AGENTS.md\`](../AGENTS.md) at the repository root first — it is the canonical"
           echo "brief for this project. These instructions add nothing of their own."
         } > "$block"
-        action=$(kit_merge_block "$dir/.github/copilot-instructions.md" "$block")
+        action=$(kit_merge_block "$dir/.github/copilot-instructions.md" "$block" "$dir")
         rm -f "$block"
         echo "pointer copilot $action"
         ;;
@@ -128,7 +136,7 @@ kit_write_repo_pointer() {
     echo "git clone $url $rel"
     echo '```'
   } > "$block"
-  agents_action=$(kit_merge_block "$repo/AGENTS.md" "$block")
+  agents_action=$(kit_merge_block "$repo/AGENTS.md" "$block" "$repo")
   rm -f "$block"
 
   block=$(mktemp)
@@ -138,7 +146,7 @@ kit_write_repo_pointer() {
     echo "The canonical brief lives in the AI-SDLC kit at \`$rel\`. See \`AGENTS.md\` in this"
     echo "repository for what to do when that path is missing."
   } > "$block"
-  claude_action=$(kit_merge_block "$repo/CLAUDE.md" "$block")
+  claude_action=$(kit_merge_block "$repo/CLAUDE.md" "$block" "$repo")
   rm -f "$block"
 
   echo "repo-pointer $repo $agents_action"

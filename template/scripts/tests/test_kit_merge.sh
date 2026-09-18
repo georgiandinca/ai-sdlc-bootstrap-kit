@@ -152,6 +152,101 @@ check idempotent_update "$(echo "$result1")" "updated"
 check idempotent_one_begin "$(grep -cx -- '<!-- ai-sdlc-kit:begin -->' "$tmp/normal.md")" "1"
 check idempotent_one_end "$(grep -cx -- '<!-- ai-sdlc-kit:end -->' "$tmp/normal.md")" "1"
 
+# --- 16. fix-round 2, finding 4: never write outside the destination root -----------
+# A project whose `docs/` is a symlink to somewhere else used to receive the
+# whole kit `docs/` tree into that other place, and a symlinked README.md used
+# to get the kit block appended to a file outside the project.
+tmp2=$(mktemp -d)
+mkdir -p "$tmp2/outside/docs" "$tmp2/proj" "$tmp2/src/docs"
+printf 'their file\n' > "$tmp2/outside/README.md"
+printf 'kit guide\n'  > "$tmp2/src/docs/guide.md"
+printf 'kit readme\n' > "$tmp2/src/README.md"
+ln -s ../outside/docs      "$tmp2/proj/docs"
+ln -s ../outside/README.md "$tmp2/proj/README.md"
+outside_before=$(cat "$tmp2/outside/README.md")
+esc_report=$(kit_copy_merge "$tmp2/src" "$tmp2/proj")
+check escape_dir_reported   "$(printf '%s\n' "$esc_report" | grep -c '^escaped docs/guide.md$')" "1"
+check escape_dir_not_written "$([ -e "$tmp2/outside/docs/guide.md" ] && echo written || echo none)" "none"
+check escape_file_reported  "$(printf '%s\n' "$esc_report" | grep -c '^escaped README.md$')" "1"
+check escape_file_untouched "$(cat "$tmp2/outside/README.md")" "$outside_before"
+# kit_merge_block must refuse the same symlinked target …
+printf 'kit block\n' > "$tmp2/blk.txt"
+check escape_block_result  "$(kit_merge_block "$tmp2/proj/README.md" "$tmp2/blk.txt" "$tmp2/proj")" "escaped"
+check escape_block_untouched "$(cat "$tmp2/outside/README.md")" "$outside_before"
+check escape_block_still_link "$([ -L "$tmp2/proj/README.md" ] && echo link || echo file)" "link"
+# … and a symlinked path under a symlinked directory component too.
+check escape_nested_result "$(kit_merge_block "$tmp2/proj/docs/NOTES.md" "$tmp2/blk.txt" "$tmp2/proj")" "escaped"
+check escape_nested_none   "$([ -e "$tmp2/outside/docs/NOTES.md" ] && echo written || echo none)" "none"
+# With no root given the check is off — the old two-argument callers still work.
+check escape_no_root_ok "$(kit_merge_block "$tmp2/proj/plain.md" "$tmp2/blk.txt")" "created"
+rm -rf "$tmp2"
+
+# --- 17. fix-round 2, finding 4 (part 3): an in-tree symlink is written THROUGH -----
+# A second run used to `mv` a regular file over the symlink, destroying the link
+# and forking the content away from whatever else pointed at it.
+tmp2=$(mktemp -d)
+printf '# Real\n' > "$tmp2/real.md"
+ln -s real.md "$tmp2/link.md"
+printf 'v1\n' > "$tmp2/v1.txt"
+printf 'v2\n' > "$tmp2/v2.txt"
+check inlink_append "$(kit_merge_block "$tmp2/link.md" "$tmp2/v1.txt" "$tmp2")" "appended"
+check inlink_update "$(kit_merge_block "$tmp2/link.md" "$tmp2/v2.txt" "$tmp2")" "updated"
+check inlink_still_link "$([ -L "$tmp2/link.md" ] && echo link || echo file)" "link"
+check inlink_target_got_it "$(grep -c '^v2$' "$tmp2/real.md")" "1"
+check inlink_one_block "$(grep -cx -- '<!-- ai-sdlc-kit:begin -->' "$tmp2/real.md")" "1"
+rm -rf "$tmp2"
+
+# --- 18. fix-round 2, finding 5: a read-only mergeable file is a known outcome ------
+# The append used to fail the redirect, skip the `echo`, and hand the caller an
+# EMPTY result while two "Permission denied" lines went to stderr and the run
+# exited 0 saying "Done."
+if [ "$(id -u)" != "0" ]; then
+  tmp2=$(mktemp -d)
+  printf '# Theirs\n' > "$tmp2/ro.md"
+  ro_before=$(cat "$tmp2/ro.md")
+  chmod 444 "$tmp2/ro.md"
+  printf 'kit block\n' > "$tmp2/blk.txt"
+  ro_result=$(kit_merge_block "$tmp2/ro.md" "$tmp2/blk.txt" "$tmp2" 2>"$tmp2/stderr.log")
+  check readonly_result     "$ro_result" "unwritable"
+  check readonly_not_empty  "$([ -n "$ro_result" ] && echo nonempty || echo EMPTY)" "nonempty"
+  check readonly_unchanged  "$(cat "$tmp2/ro.md")" "$ro_before"
+  check readonly_silent     "$(grep -c 'Permission denied' "$tmp2/stderr.log")" "0"
+  # …and on the update path too (an existing block in a now read-only file).
+  printf '# Theirs2\n' > "$tmp2/ro2.md"
+  kit_merge_block "$tmp2/ro2.md" "$tmp2/blk.txt" "$tmp2" >/dev/null
+  ro2_before=$(cat "$tmp2/ro2.md")
+  chmod 444 "$tmp2/ro2.md"
+  printf 'changed\n' > "$tmp2/blk2.txt"
+  check readonly_update_result    "$(kit_merge_block "$tmp2/ro2.md" "$tmp2/blk2.txt" "$tmp2" 2>/dev/null)" "unwritable"
+  check readonly_update_unchanged "$(cat "$tmp2/ro2.md")" "$ro2_before"
+  chmod 644 "$tmp2/ro.md" "$tmp2/ro2.md"
+  rm -rf "$tmp2"
+else
+  echo "skip readonly_* (running as root: mode 0444 is still writable)"
+fi
+
+# --- 19. fix-round 2, finding 6: a needed directory that exists as a file -----------
+# `mkdir -p` failed and `set -e` killed bootstrap mid-install. It is now a
+# per-file outcome: skip that file, report it, keep copying the rest.
+tmp2=$(mktemp -d)
+mkdir -p "$tmp2/src/docs" "$tmp2/dst"
+printf 'kit guide\n' > "$tmp2/src/docs/guide.md"
+printf 'kit top\n'   > "$tmp2/src/TOP.md"
+printf 'their notes, not a directory\n' > "$tmp2/dst/docs"
+docs_before=$(cat "$tmp2/dst/docs")
+blocked_report=$(kit_copy_merge "$tmp2/src" "$tmp2/dst")
+blocked_rc=$?
+check blocked_rc_zero     "$blocked_rc" "0"
+check blocked_reported    "$(printf '%s\n' "$blocked_report" | grep -c '^unwritable docs/guide.md$')" "1"
+check blocked_theirs_kept "$(cat "$tmp2/dst/docs")" "$docs_before"
+check blocked_kept_going  "$(printf '%s\n' "$blocked_report" | grep -c '^created TOP.md$')" "1"
+check blocked_other_file  "$([ -f "$tmp2/dst/TOP.md" ] && echo yes || echo no)" "yes"
+# kit_merge_block reports the same condition rather than aborting.
+printf 'kit block\n' > "$tmp2/blk.txt"
+check blocked_merge_result "$(kit_merge_block "$tmp2/dst/docs/NEW.md" "$tmp2/blk.txt" "$tmp2/dst" 2>/dev/null)" "unwritable"
+check blocked_merge_kept   "$(cat "$tmp2/dst/docs")" "$docs_before"
+rm -rf "$tmp2"
+
 rm -rf "$tmp"
 echo "---"
 [ "$fails" -eq 0 ] && echo "all kit-merge tests passed" || echo "$fails test(s) failed"
