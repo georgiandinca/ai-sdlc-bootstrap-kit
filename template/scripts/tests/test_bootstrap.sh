@@ -123,6 +123,48 @@ check claude_ptr    "$(grep -c '@AGENTS.md' "$tmp/acme/CLAUDE.md")" "1"
 check gemini_ptr    "$([ -f "$tmp/acme/.gemini/settings.json" ] && echo yes)" "yes"
 rm -rf "$tmp"
 
+# --- 8. malformed pointer targets are reported, never silently accepted ------------
+# Root CLAUDE.md with an ambiguous marker layout (begin, no end): the run
+# must still exit 0, the file must stay byte-identical, and the install
+# report must name it.
+tmp=$(mktemp -d); proj="$tmp/mal"; mkdir -p "$proj"
+printf '<!-- ai-sdlc-kit:begin -->\nstray CLAUDE content, no end marker\n' > "$proj/CLAUDE.md"
+( cd "$proj" && git init -q && git add -A && git commit -qm init )
+"$BOOT" --name "Malformed Proj" --slug malformed-proj --dir "$proj" --desc "d" --ticket ACME \
+        --layout embedded --tools "claude" --merge --non-interactive >/dev/null 2>&1
+mal_claude_rc=$?
+check mal_claude_exit      "$mal_claude_rc" "0"
+check mal_claude_unchanged "$(grep -c 'stray CLAUDE content' "$proj/CLAUDE.md")" "1"
+check mal_claude_reported  "$(grep -c 'malformed CLAUDE.md' "$proj/.ai-sdlc/install-report.md")" "1"
+rm -rf "$tmp"
+
+# Root .github/copilot-instructions.md, same shape.
+tmp=$(mktemp -d); proj="$tmp/malc"; mkdir -p "$proj/.github"
+printf '<!-- ai-sdlc-kit:begin -->\nstray copilot content, no end marker\n' > "$proj/.github/copilot-instructions.md"
+( cd "$proj" && git init -q && git add -A && git commit -qm init )
+"$BOOT" --name "Malformed Copilot" --slug malformed-copilot --dir "$proj" --desc "d" --ticket ACME \
+        --layout embedded --tools "copilot" --merge --non-interactive >/dev/null 2>&1
+mal_copilot_rc=$?
+check mal_copilot_exit      "$mal_copilot_rc" "0"
+check mal_copilot_unchanged "$(grep -c 'stray copilot content' "$proj/.github/copilot-instructions.md")" "1"
+check mal_copilot_reported  "$(grep -c 'malformed .github/copilot-instructions.md' "$proj/.ai-sdlc/install-report.md")" "1"
+rm -rf "$tmp"
+
+# .gemini/settings.json with invalid JSON: never clobbered, reported instead
+# of silently rewritten (the Critical fix — was previously destroyed and
+# reported as a success).
+tmp=$(mktemp -d); proj="$tmp/malg"; mkdir -p "$proj/.gemini"
+printf '{"theme":"dark","custom_api_keys":["SECRET-123"], invalid syntax here' > "$proj/.gemini/settings.json"
+cp "$proj/.gemini/settings.json" "$tmp/gemini-before"
+( cd "$proj" && git init -q && git add -A && git commit -qm init )
+"$BOOT" --name "Malformed Gemini" --slug malformed-gemini --dir "$proj" --desc "d" --ticket ACME \
+        --layout embedded --tools "gemini" --merge --non-interactive >/dev/null 2>&1
+mal_gemini_rc=$?
+check mal_gemini_exit      "$mal_gemini_rc" "0"
+check mal_gemini_unchanged "$(cmp -s "$tmp/gemini-before" "$proj/.gemini/settings.json" && echo same)" "same"
+check mal_gemini_reported  "$(grep -c 'malformed .gemini/settings.json' "$proj/.ai-sdlc/install-report.md")" "1"
+rm -rf "$tmp"
+
 echo "---"
 [ "$fails" -eq 0 ] && echo "all bootstrap tests passed" || echo "$fails test(s) failed"
 exit "$fails"

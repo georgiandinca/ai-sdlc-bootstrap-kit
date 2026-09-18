@@ -26,14 +26,34 @@ rm -rf "$tmp"
 
 # --- 3. gemini settings: created, then merged without losing existing keys ---------
 tmp=$(mktemp -d)
-kit_write_tool_pointers "$tmp" "gemini" >/dev/null
+gemini_out=$(kit_write_tool_pointers "$tmp" "gemini")
+check gemini_created_action "$gemini_out" "pointer gemini created"
 check gemini_created "$(python3 -c 'import json,sys;print("AGENTS.md" in json.load(open(sys.argv[1]))["context"]["fileName"])' "$tmp/.gemini/settings.json")" "True"
 mkdir -p "$tmp/g2/.gemini"; printf '{"theme":"dark","context":{"fileName":["GEMINI.md"]}}\n' > "$tmp/g2/.gemini/settings.json"
-kit_write_tool_pointers "$tmp/g2" "gemini" >/dev/null
+gemini_out2=$(kit_write_tool_pointers "$tmp/g2" "gemini")
+check gemini_updated_action "$gemini_out2" "pointer gemini updated"
 check gemini_kept_theme "$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["theme"])' "$tmp/g2/.gemini/settings.json")" "dark"
 check gemini_added "$(python3 -c 'import json,sys;print(",".join(json.load(open(sys.argv[1]))["context"]["fileName"]))' "$tmp/g2/.gemini/settings.json")" "AGENTS.md,GEMINI.md"
 kit_write_tool_pointers "$tmp/g2" "gemini" >/dev/null  # idempotent, no duplicate entry
 check gemini_no_dupe "$(python3 -c 'import json,sys;f=json.load(open(sys.argv[1]))["context"]["fileName"];print(len(f))' "$tmp/g2/.gemini/settings.json")" "2"
+rm -rf "$tmp"
+
+# --- 3b. malformed (invalid JSON) .gemini/settings.json is reported, never clobbered --
+tmp=$(mktemp -d); mkdir -p "$tmp/.gemini"
+printf '{"theme":"dark","custom_api_keys":["SECRET-123"], invalid syntax here' > "$tmp/.gemini/settings.json"
+cp "$tmp/.gemini/settings.json" "$tmp/gemini-before"
+gemini_out3=$(kit_write_tool_pointers "$tmp" "gemini")
+check gemini_invalid_json_action    "$gemini_out3" "pointer gemini malformed"
+check gemini_invalid_json_unchanged "$(cmp -s "$tmp/gemini-before" "$tmp/.gemini/settings.json" && echo same)" "same"
+rm -rf "$tmp"
+
+# --- 3c. .gemini/settings.json whose "context" isn't a mapping is also malformed -----
+tmp=$(mktemp -d); mkdir -p "$tmp/.gemini"
+printf '{"context":"nope"}' > "$tmp/.gemini/settings.json"
+cp "$tmp/.gemini/settings.json" "$tmp/gemini-before"
+gemini_out4=$(kit_write_tool_pointers "$tmp" "gemini")
+check gemini_bad_context_action    "$gemini_out4" "pointer gemini malformed"
+check gemini_bad_context_unchanged "$(cmp -s "$tmp/gemini-before" "$tmp/.gemini/settings.json" && echo same)" "same"
 rm -rf "$tmp"
 
 # --- 4. a tool that needs nothing reports "none" ------------------------------------

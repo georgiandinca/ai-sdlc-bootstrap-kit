@@ -257,6 +257,9 @@ esac
 case "$pointer_output" in
   *"pointer copilot malformed"*) report_malformed ".github/copilot-instructions.md" ;;
 esac
+case "$pointer_output" in
+  *"pointer gemini malformed"*)  report_malformed ".gemini/settings.json" ;;
+esac
 
 # --- code-repo pointers (sidecar / parent layouts) ----------------------------------
 if [ -n "$repos" ] && { [ "$layout" = "sidecar" ] || [ "$layout" = "parent" ]; }; then

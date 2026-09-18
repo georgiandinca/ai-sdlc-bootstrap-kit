@@ -8,7 +8,7 @@
 
 # kit_write_tool_pointers <dir> <tools_csv>
 kit_write_tool_pointers() {
-  local dir=$1 tools=$2 t block action old_ifs
+  local dir=$1 tools=$2 t block action old_ifs gemini_action
   old_ifs=$IFS; IFS=','
   for t in $tools; do
     IFS=$old_ifs
@@ -26,16 +26,33 @@ kit_write_tool_pointers() {
         ;;
       gemini)
         mkdir -p "$dir/.gemini"
-        python3 - "$dir/.gemini/settings.json" <<'PY'
+        gemini_action=$(python3 - "$dir/.gemini/settings.json" <<'PY'
 import json, os, sys
+
+# Never clobber: a file that fails to parse, can't be read, or has a
+# "context" that isn't a mapping we can merge into is reported malformed
+# and left completely untouched — no write happens on any of those paths.
 path = sys.argv[1]
+existed = os.path.exists(path)
 data = {}
-if os.path.exists(path):
+
+if existed:
     try:
         with open(path, encoding="utf-8") as fh:
             data = json.load(fh)
     except (ValueError, OSError):
-        data = {}
+        print("malformed")
+        sys.exit(0)
+
+    ctx = data.get("context")
+    if ctx is not None and not isinstance(ctx, dict):
+        print("malformed")
+        sys.exit(0)
+    names_probe = ctx.get("fileName") if isinstance(ctx, dict) else None
+    if names_probe is not None and not isinstance(names_probe, (list, str)):
+        print("malformed")
+        sys.exit(0)
+
 ctx = data.setdefault("context", {})
 names = ctx.get("fileName")
 if isinstance(names, str):
@@ -47,11 +64,15 @@ if "AGENTS.md" not in names:
 if "GEMINI.md" not in names:
     names.append("GEMINI.md")
 ctx["fileName"] = names
+
 with open(path, "w", encoding="utf-8") as fh:
     json.dump(data, fh, indent=2)
     fh.write("\n")
+
+print("created" if not existed else "updated")
 PY
-        echo "pointer gemini updated"
+)
+        echo "pointer gemini $gemini_action"
         ;;
       copilot)
         block=$(mktemp)
