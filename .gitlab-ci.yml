@@ -32,6 +32,9 @@ ai-governance:
   script:
   - echo "Validating Agent Skills (agentskills.io)…"
   - python3 template/scripts/validate-skills.py
+  - python3 template/scripts/validate-skills.py .claude/skills
+  - echo "Installer skill — situation-check tests…"
+  - bash .claude/skills/install-ai-sdlc-kit/scripts/tests/test-detect-situation.sh
   - echo "Validating doc frontmatter contract (AGENTS.md §4.2)…"
   - python3 template/scripts/validate-frontmatter.py
   - echo "Validating session lifecycle-moments manifest…"

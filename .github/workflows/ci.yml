@@ -21,7 +21,11 @@ jobs:
         run: pip install --quiet "pyyaml>=6"
 
       - name: Validate Agent Skills (agentskills.io)
-        run: python3 template/scripts/validate-skills.py
+        run: |
+          python3 template/scripts/validate-skills.py
+          python3 template/scripts/validate-skills.py .claude/skills
+      - name: Installer skill — situation-check tests
+        run: bash .claude/skills/install-ai-sdlc-kit/scripts/tests/test-detect-situation.sh
       - name: Validate doc frontmatter contract (AGENTS.md §4.2)
         run: python3 template/scripts/validate-frontmatter.py
       - name: Validate session lifecycle-moments manifest
