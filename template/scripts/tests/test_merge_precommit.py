@@ -99,6 +99,58 @@ class TestMergePreCommit(unittest.TestCase):
         )
         self.assertEqual(proc.returncode, 2)
 
+    # --- fix-round 1, finding 1: a target with a valid-YAML but wrong shape
+    # (not the AttributeError-then-traceback it used to raise) --------------
+    def _assert_malformed_shape_exits_2(self, target_text):
+        before = target_text
+        self.dst.write_text(target_text, encoding="utf-8")
+        proc = subprocess.run(
+            [sys.executable, str(Path(merge.__file__)), str(self.dst), str(self.src)],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(proc.returncode, 2)
+        self.assertNotIn("Traceback", proc.stderr)
+        self.assertEqual(self.dst.read_text(encoding="utf-8"), before)
+        return proc
+
+    def test_repos_as_string_exits_2(self):
+        self._assert_malformed_shape_exits_2("repos: not-a-list\n")
+
+    def test_repos_as_mapping_exits_2(self):
+        self._assert_malformed_shape_exits_2("repos:\n  foo: bar\n")
+
+    def test_hooks_not_a_list_exits_2(self):
+        self._assert_malformed_shape_exits_2(
+            "repos:\n  - repo: local\n    hooks: not-a-list\n"
+        )
+
+    def test_hook_entry_not_a_mapping_exits_2(self):
+        self._assert_malformed_shape_exits_2(
+            "repos:\n  - repo: local\n    hooks:\n      - just-a-string\n"
+        )
+
+    # --- fix-round 1, finding 2: a backup already on disk holds the
+    # pre-merge original and must never be replaced by a later merge --------
+    def test_second_merge_does_not_overwrite_existing_backup(self):
+        backup = self.d / "backup.yaml"
+        merge.merge(self.dst, self.src, prefix="../acme-sdlc", backup=backup)
+        first_backup_content = backup.read_text(encoding="utf-8")
+        self.assertEqual(first_backup_content, TARGET)
+
+        # Simulate the kit gaining a brand-new hook after the first merge —
+        # this run has something new to add, so it would try to back up
+        # again if the guard were missing.
+        extra_source = self.d / "source2.yaml"
+        extra_source.write_text(
+            SOURCE + "      - id: brand-new-hook\n        entry: python scripts/new.py\n"
+                     "        language: python\n",
+            encoding="utf-8",
+        )
+        merge.merge(self.dst, extra_source, prefix="../acme-sdlc", backup=backup)
+        self.assertEqual(backup.read_text(encoding="utf-8"), first_backup_content)
+        self.assertNotEqual(backup.read_text(encoding="utf-8"),
+                             self.dst.read_text(encoding="utf-8"))
+
 
 if __name__ == "__main__":
     unittest.main()

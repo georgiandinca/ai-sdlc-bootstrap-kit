@@ -197,9 +197,89 @@ check hooks_kept_mine  "$(grep -c 'id: mine' "$tmp/acme-api/.pre-commit-config.y
 # validate-skills in its `entry:` line (script path), so a bare substring
 # count would over-count.
 check hooks_added_kit  "$(grep -c '^[[:space:]]*- id: validate-skills$' "$tmp/acme-api/.pre-commit-config.yaml")" "1"
-check hooks_backup     "$([ -f "$tmp/acme-sdlc/.ai-sdlc/pre-commit-config.backup.yaml" ] && echo yes)" "yes"
-check hooks_manifest   "$(jqp "$tmp/acme-sdlc/.ai-sdlc/kit.json" hooks)" '"repo"'
+# fix-round 1, finding 2: the backup filename is now derived from
+# $hooks_target (basename + checksum of its absolute path), not a fixed
+# per-kit-install name — match it with a glob instead of an exact name.
+hooks_backup_glob="$tmp/acme-sdlc/.ai-sdlc/pre-commit-config.backup.acme-api-"*".yaml"
+check hooks_backup      "$(ls $hooks_backup_glob 2>/dev/null | wc -l | tr -d ' ')" "1"
+check hooks_backup_orig "$(grep -c 'id: mine' $hooks_backup_glob 2>/dev/null)" "1"
+check hooks_manifest    "$(jqp "$tmp/acme-sdlc/.ai-sdlc/kit.json" hooks)" '"repo"'
 rm -rf "$tmp"
+
+# --- 9. fix-round 1 findings: shape-safety, per-target backups, early
+#        --hooks-target validation, truthful pre-commit-install reporting ---
+
+# finding 3: a --hooks-target that does not exist is rejected up front, with
+# no partial work (the kit --dir itself is never created).
+tmp=$(mktemp -d)
+"$BOOT" --name "Acme" --slug acme --dir "$tmp/acme-sdlc" --desc "d" --ticket ACME \
+        --layout sidecar --hooks repo --hooks-target "$tmp/does-not-exist" \
+        --non-interactive >"$tmp/log.txt" 2>&1
+missing_target_rc=$?
+check hooks_missing_target_exit   "$missing_target_rc" "2"
+check hooks_missing_target_msg    "$(grep -c -- '--hooks-target .* does not exist' "$tmp/log.txt")" "1"
+check hooks_missing_target_no_dir "$([ -d "$tmp/acme-sdlc" ] && echo made || echo none)" "none"
+rm -rf "$tmp"
+
+# finding 2 (bootstrap-level): two different --hooks-target repos folded from
+# the SAME kit install get two distinct, non-colliding backups, each holding
+# its own repo's original content.
+tmp=$(mktemp -d); mkdir -p "$tmp/repo-a" "$tmp/repo-b"
+printf 'repos:\n  - repo: local\n    hooks:\n      - id: a-own\n        name: a\n        entry: echo\n        language: system\n' \
+  > "$tmp/repo-a/.pre-commit-config.yaml"
+printf 'repos:\n  - repo: local\n    hooks:\n      - id: b-own\n        name: b\n        entry: echo\n        language: system\n' \
+  > "$tmp/repo-b/.pre-commit-config.yaml"
+"$BOOT" --name "Acme" --slug acme --dir "$tmp/acme-sdlc" --desc "d" --ticket ACME \
+        --layout sidecar --hooks repo --hooks-target "$tmp/repo-a" \
+        --non-interactive >/dev/null 2>&1
+"$BOOT" --name "Acme" --slug acme --dir "$tmp/acme-sdlc" --desc "d" --ticket ACME \
+        --layout sidecar --merge --hooks repo --hooks-target "$tmp/repo-b" \
+        --non-interactive >/dev/null 2>&1
+backup_a_glob="$tmp/acme-sdlc/.ai-sdlc/pre-commit-config.backup.repo-a-"*".yaml"
+backup_b_glob="$tmp/acme-sdlc/.ai-sdlc/pre-commit-config.backup.repo-b-"*".yaml"
+check hooks_two_targets_backup_a       "$(ls $backup_a_glob 2>/dev/null | wc -l | tr -d ' ')" "1"
+check hooks_two_targets_backup_b       "$(ls $backup_b_glob 2>/dev/null | wc -l | tr -d ' ')" "1"
+check hooks_two_targets_backup_a_owns  "$(grep -c 'id: a-own' $backup_a_glob 2>/dev/null)" "1"
+check hooks_two_targets_backup_b_owns  "$(grep -c 'id: b-own' $backup_b_glob 2>/dev/null)" "1"
+rm -rf "$tmp"
+
+# finding 2 (repeat-run): a second run against the SAME target (the kit
+# gained new hooks in between, simulated by re-running against its own
+# already-merged config having more ids present than the first pass) must
+# not replace the backup with post-merge content — it still holds the
+# original "mine"-only file from before the first merge ever ran.
+tmp=$(mktemp -d); mkdir -p "$tmp/acme-api"
+printf 'repos:\n  - repo: local\n    hooks:\n      - id: mine\n        name: mine\n        entry: echo\n        language: system\n' \
+  > "$tmp/acme-api/.pre-commit-config.yaml"
+"$BOOT" --name "Acme" --slug acme --dir "$tmp/acme-sdlc" --desc "d" --ticket ACME \
+        --layout sidecar --hooks repo --hooks-target "$tmp/acme-api" \
+        --non-interactive >/dev/null 2>&1
+"$BOOT" --name "Acme" --slug acme --dir "$tmp/acme-sdlc" --desc "d" --ticket ACME \
+        --layout sidecar --merge --hooks repo --hooks-target "$tmp/acme-api" \
+        --non-interactive >/dev/null 2>&1
+repeat_backup_glob="$tmp/acme-sdlc/.ai-sdlc/pre-commit-config.backup.acme-api-"*".yaml"
+check hooks_repeat_backup_still_orig     "$(grep -c 'id: mine' $repeat_backup_glob 2>/dev/null)" "1"
+check hooks_repeat_backup_no_kit_hooks   "$(grep -c '^[[:space:]]*- id: validate-skills$' $repeat_backup_glob 2>/dev/null)" "0"
+check hooks_repeat_target_has_kit_hooks  "$(grep -c '^[[:space:]]*- id: validate-skills$' "$tmp/acme-api/.pre-commit-config.yaml")" "1"
+rm -rf "$tmp"
+
+# finding 4: a --hooks-target that exists but is not a git repo — bootstrap
+# completes (non-fatal), and the message reports the failed install rather
+# than a false "installed" claim.
+if command -v pre-commit >/dev/null 2>&1; then
+  tmp=$(mktemp -d); mkdir -p "$tmp/not-a-git-repo"
+  printf 'repos:\n  - repo: local\n    hooks: []\n' > "$tmp/not-a-git-repo/.pre-commit-config.yaml"
+  "$BOOT" --name "Acme" --slug acme --dir "$tmp/acme-sdlc" --desc "d" --ticket ACME \
+          --layout sidecar --hooks repo --hooks-target "$tmp/not-a-git-repo" \
+          --non-interactive >"$tmp/log.txt" 2>&1
+  notgit_rc=$?
+  check hooks_notgit_exit        "$notgit_rc" "0"
+  check hooks_notgit_failed_msg  "$(grep -c 'pre-commit hook install FAILED' "$tmp/log.txt")" "1"
+  check hooks_notgit_no_false_ok "$(grep -c 'installed pre-commit hooks in' "$tmp/log.txt")" "0"
+  rm -rf "$tmp"
+else
+  echo "skip hooks_notgit_* (pre-commit not installed)"
+fi
 
 echo "---"
 [ "$fails" -eq 0 ] && echo "all bootstrap tests passed" || echo "$fails test(s) failed"

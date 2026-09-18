@@ -85,6 +85,17 @@ case "$hooks" in
   kit|repo|none) ;;
   *) echo "bootstrap: --hooks must be kit|repo|none (got '$hooks')" >&2; exit 2 ;;
 esac
+# Validated up front, before any work (mkdir/tar/git init) happens: a bad
+# --hooks-target used to fail deep into the run (a raw `cp` error after the
+# initial commit), leaving a half-bootstrapped kit directory behind.
+if [ "$hooks" = "repo" ]; then
+  if [ -z "$hooks_target" ]; then
+    echo "bootstrap: --hooks repo requires --hooks-target <dir>" >&2; exit 2
+  fi
+  if [ ! -d "$hooks_target" ]; then
+    echo "bootstrap: --hooks-target '$hooks_target' does not exist" >&2; exit 2
+  fi
+fi
 
 missing=""
 [ -n "$name" ] || missing="$missing --name"
@@ -312,9 +323,7 @@ if [ "$hooks" = "kit" ] && command -v pre-commit >/dev/null 2>&1; then
   pre-commit install >/dev/null 2>&1 || true
   echo "[bootstrap] installed pre-commit hooks."
 elif [ "$hooks" = "repo" ]; then
-  if [ -z "$hooks_target" ]; then
-    echo "bootstrap: --hooks repo requires --hooks-target <dir>" >&2; exit 2
-  fi
+  # --hooks-target's presence and existence are already validated up front.
   # Prefix so a rewritten hook `entry` resolves from $hooks_target back to the
   # kit. sidecar/parent are cross-repo (mirrors Task 4's rel_to_kit); embedded/
   # monorepo run the hooks inside the kit's own repo, so no rewrite is needed.
@@ -328,8 +337,18 @@ elif [ "$hooks" = "repo" ]; then
     cp "$dir/.pre-commit-config.yaml" "$hooks_target/.pre-commit-config.yaml"
   else
     mkdir -p "$dir/.ai-sdlc"
+    # Name the backup from $hooks_target's own absolute path (basename +
+    # checksum), not a fixed per-kit-install name: two different code repos
+    # folding hooks from the same kit install must get two different backup
+    # files, or the second run would overwrite the first repo's only
+    # pre-merge recovery copy.
+    hooks_target_abs=$(cd "$hooks_target" && pwd)
+    hooks_backup_slug="$(basename "$hooks_target_abs")-$(printf '%s' "$hooks_target_abs" | cksum | awk '{print $1}')"
+    hooks_backup="$dir/.ai-sdlc/pre-commit-config.backup.${hooks_backup_slug}.yaml"
+    hooks_backup_existed=0
+    [ -f "$hooks_backup" ] && hooks_backup_existed=1
     merge_args=("$hooks_target/.pre-commit-config.yaml" "$dir/.pre-commit-config.yaml" \
-                --backup "$dir/.ai-sdlc/pre-commit-config.backup.yaml")
+                --backup "$hooks_backup")
     # Only pass --prefix when non-empty, so an embedded/monorepo layout never
     # sends a literal "" through to the merger.
     [ -n "$hooks_prefix" ] && merge_args+=(--prefix "$hooks_prefix")
@@ -337,7 +356,16 @@ elif [ "$hooks" = "repo" ]; then
     merge_output=$(python3 "$dir/scripts/merge-precommit.py" "${merge_args[@]}" 2>&1) || merge_rc=$?
     printf '%s\n' "$merge_output" | sed 's/^/[bootstrap] hook /'
     if [ "$merge_rc" -eq 0 ]; then
-      echo "[bootstrap] original config backed up to .ai-sdlc/pre-commit-config.backup.yaml (comments are not preserved by the merge)."
+      # merge-precommit.py never overwrites a backup that's already on disk,
+      # so on a repeat run it still holds the ORIGINAL, pre-merge file even
+      # though this run may have added more hooks on top of the first merge.
+      if [ -f "$hooks_backup" ]; then
+        if [ "$hooks_backup_existed" -eq 1 ]; then
+          echo "[bootstrap] original config already backed up at .ai-sdlc/$(basename "$hooks_backup") (kept from the first merge; comments are not preserved by the merge)."
+        else
+          echo "[bootstrap] original config backed up to .ai-sdlc/$(basename "$hooks_backup") (comments are not preserved by the merge)."
+        fi
+      fi
     else
       # Refuse-rather-than-guess: the merger exits 2 when it cannot safely
       # parse the target, so the target is left untouched — surface that the
@@ -348,8 +376,11 @@ elif [ "$hooks" = "repo" ]; then
     fi
   fi
   if command -v pre-commit >/dev/null 2>&1; then
-    ( cd "$hooks_target" && pre-commit install --hook-type pre-commit --hook-type commit-msg >/dev/null 2>&1 ) || true
-    echo "[bootstrap] installed pre-commit hooks in $hooks_target (both stages)."
+    if ( cd "$hooks_target" && pre-commit install --hook-type pre-commit --hook-type commit-msg >/dev/null 2>&1 ); then
+      echo "[bootstrap] installed pre-commit hooks in $hooks_target (both stages)."
+    else
+      echo "[bootstrap] pre-commit hook install FAILED in $hooks_target (not a git repo? run it yourself: cd $hooks_target && pre-commit install --hook-type pre-commit --hook-type commit-msg)"
+    fi
   fi
 elif [ "$hooks" = "none" ]; then
   echo "[bootstrap] hooks skipped (--hooks none)."

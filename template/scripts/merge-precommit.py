@@ -14,7 +14,8 @@ Usage:
   merge-precommit.py <target_config> <source_config> [--prefix <rel>]
                      [--dry-run] [--backup <path>]
 
-Exit code 0 on success, 2 if the target file cannot be parsed.
+Exit code 0 on success, 2 if the target file cannot be parsed (invalid YAML,
+not a mapping, or a `repos`/`hooks` shape we can't safely merge into).
 """
 from __future__ import annotations
 
@@ -27,6 +28,29 @@ try:
     import yaml
 except ImportError:  # pragma: no cover - environment guard
     sys.exit("error: PyYAML is required (pip install pyyaml)")
+
+
+def _validate_shape(doc: dict, label: str) -> None:
+    """Raise ValueError if `repos`/`hooks` don't have a shape we can safely
+    merge into. Called on the target before anything is read from it or
+    written to it, so a malformed target is refused rather than guessed at
+    (and never raises an uncaught AttributeError/TypeError out of `merge`)."""
+    repos = doc.get("repos")
+    if repos is None:
+        return
+    if not isinstance(repos, list):
+        raise ValueError(f"{label} 'repos' must be a list")
+    for repo in repos:
+        if not isinstance(repo, dict):
+            raise ValueError(f"{label} 'repos' entries must be mappings")
+        hooks = repo.get("hooks")
+        if hooks is None:
+            continue
+        if not isinstance(hooks, list):
+            raise ValueError(f"{label} repo 'hooks' must be a list")
+        for hook in hooks:
+            if not isinstance(hook, dict):
+                raise ValueError(f"{label} hook entries must be mappings")
 
 
 def _existing_ids(doc: dict) -> set[str]:
@@ -57,6 +81,7 @@ def merge(target: Path, source: Path, prefix: str = "", dry_run: bool = False,
         raise ValueError(f"target is not valid YAML: {exc}") from exc
     if not isinstance(target_doc, dict):
         raise ValueError("target must be a YAML mapping")
+    _validate_shape(target_doc, "target")
 
     source_doc = yaml.safe_load(source.read_text(encoding="utf-8")) or {}
     present = _existing_ids(target_doc)
@@ -85,7 +110,12 @@ def merge(target: Path, source: Path, prefix: str = "", dry_run: bool = False,
 
     if backup is not None:
         backup.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(target, backup)
+        # Never overwrite an existing backup: it holds the state from BEFORE
+        # the first merge ever ran against this target. A later run (e.g. the
+        # kit gained a new hook) must not replace that recovery copy with an
+        # already-merged file, which would make the backup worthless.
+        if not backup.exists():
+            shutil.copyfile(target, backup)
 
     repos = target_doc.setdefault("repos", [])
     local = next((r for r in repos if r.get("repo") == "local"), None)
