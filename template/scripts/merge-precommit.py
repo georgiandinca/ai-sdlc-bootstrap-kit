@@ -10,6 +10,12 @@ already present is left alone, so re-running changes nothing. Script paths in
 kit. NOTE: PyYAML does not preserve comments — pass `--backup` (bootstrap.sh does)
 so the original file is recoverable.
 
+A target that does not exist yet is treated as an empty config and created by
+the merge. That keeps "the repo has no config" and "the repo has one" on a
+SINGLE path: copying the kit's file instead would skip the `entry:` rewriting
+entirely and leave every hook pointing at `scripts/…` paths that do not resolve
+from the code repo, blocking the repo's next commit.
+
 Usage:
   merge-precommit.py <target_config> <source_config> [--prefix <rel>]
                      [--dry-run] [--backup <path>]
@@ -75,8 +81,13 @@ def _reprefix(entry: str, prefix: str) -> str:
 def merge(target: Path, source: Path, prefix: str = "", dry_run: bool = False,
           backup: Path | None = None) -> list[str]:
     """Merge source's local hooks into target. Returns the log lines."""
+    target_existed = target.exists()
     try:
-        target_doc = yaml.safe_load(target.read_text(encoding="utf-8")) or {}
+        target_doc = (
+            yaml.safe_load(target.read_text(encoding="utf-8")) or {}
+            if target_existed
+            else {}
+        )
     except yaml.YAMLError as exc:
         raise ValueError(f"target is not valid YAML: {exc}") from exc
     if not isinstance(target_doc, dict):
@@ -108,7 +119,7 @@ def merge(target: Path, source: Path, prefix: str = "", dry_run: bool = False,
     if dry_run:
         return log
 
-    if backup is not None:
+    if backup is not None and target_existed:
         backup.parent.mkdir(parents=True, exist_ok=True)
         # Never overwrite an existing backup: it holds the state from BEFORE
         # the first merge ever ran against this target. A later run (e.g. the
@@ -128,6 +139,7 @@ def merge(target: Path, source: Path, prefix: str = "", dry_run: bool = False,
     if src_types and "default_install_hook_types" not in target_doc:
         target_doc["default_install_hook_types"] = src_types
 
+    target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(
         yaml.safe_dump(target_doc, sort_keys=False, default_flow_style=False),
         encoding="utf-8",

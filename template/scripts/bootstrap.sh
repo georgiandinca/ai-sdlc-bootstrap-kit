@@ -332,48 +332,54 @@ elif [ "$hooks" = "repo" ]; then
     parent)             hooks_prefix=".." ;;
     embedded|monorepo)  hooks_prefix="" ;;
   esac
+  # ONE path, whether or not the code repo already has a config. Copying the
+  # kit's file when the target is absent used to bypass the `entry:` rewriting
+  # entirely: every hook kept `python scripts/…`, unresolvable from the code
+  # repo, and the repo's next commit was blocked by commit-msg-ticket failing
+  # to find its script. merge-precommit.py treats a missing target as an empty
+  # config and creates it with the prefix applied.
   if [ ! -f "$hooks_target/.pre-commit-config.yaml" ]; then
-    echo "[bootstrap] no .pre-commit-config.yaml in $hooks_target — copying the kit's."
-    cp "$dir/.pre-commit-config.yaml" "$hooks_target/.pre-commit-config.yaml"
-  else
-    mkdir -p "$dir/.ai-sdlc"
-    # Name the backup from $hooks_target's own absolute path (basename +
-    # checksum), not a fixed per-kit-install name: two different code repos
-    # folding hooks from the same kit install must get two different backup
-    # files, or the second run would overwrite the first repo's only
-    # pre-merge recovery copy.
-    hooks_target_abs=$(cd "$hooks_target" && pwd)
-    hooks_backup_slug="$(basename "$hooks_target_abs")-$(printf '%s' "$hooks_target_abs" | cksum | awk '{print $1}')"
-    hooks_backup="$dir/.ai-sdlc/pre-commit-config.backup.${hooks_backup_slug}.yaml"
-    hooks_backup_existed=0
-    [ -f "$hooks_backup" ] && hooks_backup_existed=1
-    merge_args=("$hooks_target/.pre-commit-config.yaml" "$dir/.pre-commit-config.yaml" \
-                --backup "$hooks_backup")
-    # Only pass --prefix when non-empty, so an embedded/monorepo layout never
-    # sends a literal "" through to the merger.
-    [ -n "$hooks_prefix" ] && merge_args+=(--prefix "$hooks_prefix")
-    merge_rc=0
-    merge_output=$(python3 "$dir/scripts/merge-precommit.py" "${merge_args[@]}" 2>&1) || merge_rc=$?
-    printf '%s\n' "$merge_output" | sed 's/^/[bootstrap] hook /'
-    if [ "$merge_rc" -eq 0 ]; then
-      # merge-precommit.py never overwrites a backup that's already on disk,
-      # so on a repeat run it still holds the ORIGINAL, pre-merge file even
-      # though this run may have added more hooks on top of the first merge.
-      if [ -f "$hooks_backup" ]; then
-        if [ "$hooks_backup_existed" -eq 1 ]; then
-          echo "[bootstrap] original config already backed up at .ai-sdlc/$(basename "$hooks_backup") (kept from the first merge; comments are not preserved by the merge)."
-        else
-          echo "[bootstrap] original config backed up to .ai-sdlc/$(basename "$hooks_backup") (comments are not preserved by the merge)."
-        fi
+    echo "[bootstrap] no .pre-commit-config.yaml in $hooks_target — creating it from the kit's (paths rewritten for this repo)."
+  fi
+  mkdir -p "$dir/.ai-sdlc"
+  # Name the backup from $hooks_target's own absolute path (basename +
+  # checksum), not a fixed per-kit-install name: two different code repos
+  # folding hooks from the same kit install must get two different backup
+  # files, or the second run would overwrite the first repo's only
+  # pre-merge recovery copy.
+  hooks_target_abs=$(cd "$hooks_target" && pwd)
+  hooks_backup_slug="$(basename "$hooks_target_abs")-$(printf '%s' "$hooks_target_abs" | cksum | awk '{print $1}')"
+  hooks_backup="$dir/.ai-sdlc/pre-commit-config.backup.${hooks_backup_slug}.yaml"
+  hooks_backup_existed=0
+  [ -f "$hooks_backup" ] && hooks_backup_existed=1
+  merge_args=("$hooks_target/.pre-commit-config.yaml" "$dir/.pre-commit-config.yaml" \
+              --backup "$hooks_backup")
+  # Only pass --prefix when non-empty, so an embedded/monorepo layout never
+  # sends a literal "" through to the merger.
+  [ -n "$hooks_prefix" ] && merge_args+=(--prefix "$hooks_prefix")
+  merge_rc=0
+  merge_output=$(python3 "$dir/scripts/merge-precommit.py" "${merge_args[@]}" 2>&1) || merge_rc=$?
+  printf '%s\n' "$merge_output" | sed 's/^/[bootstrap] hook /'
+  if [ "$merge_rc" -eq 0 ]; then
+    # merge-precommit.py never overwrites a backup that's already on disk,
+    # so on a repeat run it still holds the ORIGINAL, pre-merge file even
+    # though this run may have added more hooks on top of the first merge.
+    # No backup is taken when the target did not exist — there is nothing to
+    # recover to.
+    if [ -f "$hooks_backup" ]; then
+      if [ "$hooks_backup_existed" -eq 1 ]; then
+        echo "[bootstrap] original config already backed up at .ai-sdlc/$(basename "$hooks_backup") (kept from the first merge; comments are not preserved by the merge)."
+      else
+        echo "[bootstrap] original config backed up to .ai-sdlc/$(basename "$hooks_backup") (comments are not preserved by the merge)."
       fi
-    else
-      # Refuse-rather-than-guess: the merger exits 2 when it cannot safely
-      # parse the target, so the target is left untouched — surface that the
-      # same way the other non-clobber outcomes are surfaced.
-      report_malformed "$hooks_target/.pre-commit-config.yaml" \
-        "could not be safely merged — left untouched, needs a human look"
-      echo "[bootstrap] $hooks_target/.pre-commit-config.yaml left untouched (merge failed); see install report."
     fi
+  else
+    # Refuse-rather-than-guess: the merger exits 2 when it cannot safely
+    # parse the target, so the target is left untouched — surface that the
+    # same way the other non-clobber outcomes are surfaced.
+    report_malformed "$hooks_target/.pre-commit-config.yaml" \
+      "could not be safely merged — left untouched, needs a human look"
+    echo "[bootstrap] $hooks_target/.pre-commit-config.yaml left untouched (merge failed); see install report."
   fi
   if command -v pre-commit >/dev/null 2>&1; then
     if ( cd "$hooks_target" && pre-commit install --hook-type pre-commit --hook-type commit-msg >/dev/null 2>&1 ); then

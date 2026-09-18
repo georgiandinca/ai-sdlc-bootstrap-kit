@@ -206,6 +206,32 @@ check hooks_backup_orig "$(grep -c 'id: mine' $hooks_backup_glob 2>/dev/null)" "
 check hooks_manifest    "$(jqp "$tmp/acme-sdlc/.ai-sdlc/kit.json" hooks)" '"repo"'
 rm -rf "$tmp"
 
+# --- 8b. fix-round 2, finding 1: --hooks repo against a repo with NO existing
+#         config still rewrites the entry paths -----------------------------------
+# The copy branch used to bypass the prefix rewriting entirely: every `entry:`
+# stayed `python scripts/validate-skills.py`, unresolvable from the code repo,
+# and the repo's next commit was blocked by commit-msg-ticket.
+tmp=$(mktemp -d); mkdir -p "$tmp/acme-api"
+"$BOOT" --name "Acme" --slug acme --dir "$tmp/acme-sdlc" --desc "d" --ticket ACME \
+        --layout sidecar --hooks repo --hooks-target "$tmp/acme-api" \
+        --non-interactive >/dev/null 2>&1
+check hooks_new_config_made    "$([ -f "$tmp/acme-api/.pre-commit-config.yaml" ] && echo yes)" "yes"
+check hooks_new_config_prefix  "$(grep -c 'entry: python ../acme-sdlc/scripts/validate-skills.py' "$tmp/acme-api/.pre-commit-config.yaml")" "1"
+check hooks_new_config_ticket  "$(grep -c 'entry: python ../acme-sdlc/scripts/git/commit_msg_ticket.py --mode warn' "$tmp/acme-api/.pre-commit-config.yaml")" "1"
+check hooks_new_config_unprefixed "$(grep -c 'entry: python scripts/' "$tmp/acme-api/.pre-commit-config.yaml")" "0"
+# The rewritten path actually resolves from the code repo back to the kit.
+check hooks_new_config_resolves "$([ -f "$tmp/acme-api/../acme-sdlc/scripts/validate-skills.py" ] && echo yes || echo no)" "yes"
+check hooks_new_config_stages  "$(grep -c 'default_install_hook_types' "$tmp/acme-api/.pre-commit-config.yaml")" "1"
+# Nothing to recover to, so no backup is written for a config that did not exist.
+check hooks_new_config_nobackup "$(ls "$tmp/acme-sdlc/.ai-sdlc/pre-commit-config.backup."*.yaml 2>/dev/null | wc -l | tr -d ' ')" "0"
+# An embedded layout needs no prefix and must not gain one.
+mkdir -p "$tmp/emb-code"
+"$BOOT" --name "Emb" --slug emb --dir "$tmp/emb" --desc "d" --ticket E \
+        --layout embedded --hooks repo --hooks-target "$tmp/emb-code" \
+        --non-interactive >/dev/null 2>&1
+check hooks_embedded_no_prefix "$(grep -c 'entry: python scripts/validate-skills.py' "$tmp/emb-code/.pre-commit-config.yaml")" "1"
+rm -rf "$tmp"
+
 # --- 9. fix-round 1 findings: shape-safety, per-target backups, early
 #        --hooks-target validation, truthful pre-commit-install reporting ---
 

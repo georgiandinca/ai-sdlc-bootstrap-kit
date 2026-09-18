@@ -152,5 +152,39 @@ class TestMergePreCommit(unittest.TestCase):
                              self.dst.read_text(encoding="utf-8"))
 
 
+    # --- fix-round 2, finding 1: a target that does not exist yet is created
+    # BY THE MERGE, so its entries get the same --prefix rewriting the merge
+    # path applies. Copying the kit's file instead left every `entry:` as
+    # `python scripts/…`, unresolvable from the code repo. ------------------
+    def test_absent_target_is_created_with_prefix(self):
+        absent = self.d / "nope" / "new-config.yaml"
+        self.assertFalse(absent.exists())
+        log = merge.merge(absent, self.src, prefix="../acme-sdlc")
+        self.assertIn("added validate-skills", log)
+        doc = yaml.safe_load(absent.read_text(encoding="utf-8"))
+        entries = [h.get("entry", "") for r in doc["repos"] for h in r["hooks"]]
+        self.assertIn("python ../acme-sdlc/scripts/validate-skills.py", entries)
+        self.assertIn("python ../acme-sdlc/scripts/git/commit_msg_ticket.py --mode warn",
+                      entries)
+        self.assertNotIn("python scripts/validate-skills.py", entries)
+        self.assertEqual(doc.get("default_install_hook_types"),
+                         ["pre-commit", "commit-msg"])
+
+    def test_absent_target_writes_no_backup(self):
+        absent = self.d / "new-config.yaml"
+        backup = self.d / "backup.yaml"
+        merge.merge(absent, self.src, prefix="../acme-sdlc", backup=backup)
+        self.assertTrue(absent.exists())
+        self.assertFalse(backup.exists())
+
+    def test_absent_target_second_run_is_idempotent(self):
+        absent = self.d / "new-config.yaml"
+        merge.merge(absent, self.src, prefix="../acme-sdlc")
+        first = absent.read_text(encoding="utf-8")
+        log = merge.merge(absent, self.src, prefix="../acme-sdlc")
+        self.assertEqual(first, absent.read_text(encoding="utf-8"))
+        self.assertTrue(all(line.startswith("present ") for line in log), log)
+
+
 if __name__ == "__main__":
     unittest.main()
