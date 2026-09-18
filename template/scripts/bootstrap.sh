@@ -44,6 +44,8 @@ TEMPLATE_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 # shellcheck source=/dev/null
 . "$TEMPLATE_ROOT/scripts/lib/kit-merge.sh"
+# shellcheck source=/dev/null
+. "$TEMPLATE_ROOT/scripts/lib/kit-pointers.sh"
 
 name=""; slug=""; dir=""; desc="<ONE_LINE_DESCRIPTION>"; ticket="<TICKET>"; host="github"; force=0
 layout="embedded"; merge=0; repos=""; tools="claude"; hooks="kit"; no_git=0; non_interactive=0
@@ -219,15 +221,50 @@ if [ -f "$dir/AGENTS.md" ]; then
   rm -f "$block"
 fi
 
-# README.md — a minimal kit-owned marker so a project's own README is never
-# clobbered but still carries a pointer back to the brief. Task 4 replaces
-# this with a fuller generated block (pointers, links) via the same anchor.
+# --- README block with this project's own facts ------------------------------------
 if [ -f "$dir/README.md" ]; then
   block=$(mktemp)
-  echo "_Installed by the [AI-SDLC Bootstrap Kit]($kit_source) — layout: \`$layout\`. See \`AGENTS.md\` for the full brief._" > "$block"
+  kit_readme_block "$name" "$layout" "$repos_table" "$kit_version" "$kit_source" > "$block"
   readme_merge_result=$(kit_merge_block "$dir/README.md" "$block")
   [ "$readme_merge_result" = "malformed" ] && report_malformed "README.md"
   rm -f "$block"
+fi
+
+# --- tool pointers -------------------------------------------------------------------
+pointer_output=$(kit_write_tool_pointers "$dir" "$tools")
+printf '%s\n' "$pointer_output" | sed 's/^/[bootstrap] /'
+case "$pointer_output" in
+  *"pointer claude malformed"*)  report_malformed "CLAUDE.md" ;;
+esac
+case "$pointer_output" in
+  *"pointer copilot malformed"*) report_malformed ".github/copilot-instructions.md" ;;
+esac
+
+# --- code-repo pointers (sidecar / parent layouts) ----------------------------------
+if [ -n "$repos" ] && { [ "$layout" = "sidecar" ] || [ "$layout" = "parent" ]; }; then
+  kit_rel=$(basename "$dir")
+  old_ifs=$IFS; IFS=','
+  for pair in $repos; do
+    IFS=$old_ifs
+    p=${pair%%=*}
+    target="$dir/$p"
+    [ -d "$target" ] || target="$p"
+    if [ -d "$target" ]; then
+      case "$layout" in
+        sidecar) rel_to_kit="../$kit_rel" ;;
+        parent)  rel_to_kit=".." ;;
+      esac
+      repo_pointer_output=$(kit_write_repo_pointer "$target" "$rel_to_kit" "$kit_source")
+      printf '%s\n' "$repo_pointer_output" | sed 's/^/[bootstrap] /'
+      case "$repo_pointer_output" in
+        *" malformed"*) report_malformed "$p/AGENTS.md" ;;
+      esac
+    else
+      echo "[bootstrap] repo not found on disk, pointer skipped: $p"
+    fi
+    old_ifs=$IFS; IFS=','
+  done
+  IFS=$old_ifs
 fi
 
 # Initialise git + hooks.

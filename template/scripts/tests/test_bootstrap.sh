@@ -86,6 +86,18 @@ tmp=$(mktemp -d)
 check ni_exit "$?" "2"
 rm -rf "$tmp"
 
+# --- 7. README block and pointers land in a real install ---------------------------
+tmp=$(mktemp -d)
+"$BOOT" --name "Acme Wallet" --slug acme-wallet --dir "$tmp/acme" --desc "d" --ticket ACME \
+        --layout embedded --tools "claude,gemini" --non-interactive >/dev/null 2>&1
+check readme_block  "$(grep -c 'how we work with AI here' "$tmp/acme/README.md")" "1"
+check readme_layout "$(grep -c 'embedded' "$tmp/acme/README.md")" "1"
+check readme_one_block  "$(grep -c -- '<!-- ai-sdlc-kit:begin -->' "$tmp/acme/README.md")" "1"
+check readme_no_placeholder "$(grep -c 'Installed by the' "$tmp/acme/README.md")" "0"
+check claude_ptr    "$(grep -c '@AGENTS.md' "$tmp/acme/CLAUDE.md")" "1"
+check gemini_ptr    "$([ -f "$tmp/acme/.gemini/settings.json" ] && echo yes)" "yes"
+rm -rf "$tmp"
+
 echo "---"
 [ "$fails" -eq 0 ] && echo "all bootstrap tests passed" || echo "$fails test(s) failed"
 exit "$fails"
