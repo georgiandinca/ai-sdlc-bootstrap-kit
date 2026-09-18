@@ -23,7 +23,7 @@ ai-trust: working
 ## Global Constraints
 
 - **Branch:** all work lands on `feat/kit-installer-skill` (already created off `main`).
-- **Shell portability:** every script starts `#!/usr/bin/env bash` + `set -euo pipefail`. No GNU-only flags. In-place edits use the kit's existing portable idiom: `sed -i.bak … && rm -f "$f.bak"`.
+- **Shell portability:** every script starts `#!/usr/bin/env bash` + `set -uo pipefail` (not `-e`: these scripts probe deliberately for absent tools and read non-zero exits as findings; this matches every code sample below and the existing `template/scripts/tests/test_session_lib.sh`). No GNU-only flags. In-place edits use the kit's existing portable idiom: `sed -i.bak … && rm -f "$f.bak"`.
 - **Marker strings are exact and never change:** HTML-comment files use `<!-- ai-sdlc-kit:begin -->` / `<!-- ai-sdlc-kit:end -->`; hash-comment files (`.gitignore`, YAML) use `# ai-sdlc-kit:begin` / `# ai-sdlc-kit:end`.
 - **Never clobber:** no existing file is overwritten by any code in this plan. Files are created, or merged inside markers, or reported as collisions and left byte-identical.
 - **Layout ids are exactly:** `embedded`, `monorepo`, `sidecar`, `parent`.
