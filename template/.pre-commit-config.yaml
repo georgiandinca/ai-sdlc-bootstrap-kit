@@ -1,5 +1,7 @@
 # Pre-commit hooks — the fast, local half of the AI-governance gate.
-# Install once per machine:  pip install pre-commit && pre-commit install --hook-type commit-msg
+# Install once per machine:  pip install pre-commit && pre-commit install
+# (plain `install` honours default_install_hook_types below and wires up BOTH stages;
+#  passing --hook-type commit-msg overrides it and leaves the validators ungated.)
 # Run on demand:             pre-commit run --all-files
 #
 # These mirror the CI gate in .github/workflows/ai-governance.yml. Local runs are

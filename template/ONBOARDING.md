@@ -114,7 +114,7 @@ If any tool reports a PATH issue, **fix it** — find where it lives (`which <to
 
 ```bash
 pip install pre-commit
-pre-commit install --hook-type commit-msg   # also installs the pre-commit stage
+pre-commit install   # installs BOTH stages per default_install_hook_types
 ```
 
 This wires up the **SKILL.md / frontmatter validators** and the **commit-message ticket check** (`scripts/git/commit_msg_ticket.py`). See `AGENTS.md` and `WORKING-AGREEMENT.md` §5.

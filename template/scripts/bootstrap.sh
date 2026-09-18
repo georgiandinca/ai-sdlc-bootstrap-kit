@@ -446,9 +446,15 @@ if [ "$no_git" -eq 0 ] && [ ! -d .git ]; then
   git_initialised=1
 fi
 
-if [ "$hooks" = "kit" ] && command -v pre-commit >/dev/null 2>&1; then
-  pre-commit install >/dev/null 2>&1 || true
-  echo "[bootstrap] installed pre-commit hooks."
+if [ "$hooks" = "kit" ]; then
+  if command -v pre-commit >/dev/null 2>&1; then
+    # Plain `install` honours default_install_hook_types ([pre-commit, commit-msg]);
+    # passing --hook-type would install only that stage and leave the validators ungated.
+    pre-commit install >/dev/null 2>&1 || true
+    echo "[bootstrap] installed pre-commit hooks."
+  else
+    echo "[bootstrap] pre-commit not found — run: pip install pre-commit && pre-commit install"
+  fi
 elif [ "$hooks" = "repo" ]; then
   # --hooks-target's presence and existence are already validated up front.
   # Prefix so a rewritten hook `entry` resolves from $hooks_target back to the

@@ -11,7 +11,7 @@ This repository is an **AI-augmented SDLC** workspace, bootstrapped from the [AI
 ```bash
 # 1. First-run setup (installs tooling, creates your per-user USER.md)
 #    Open this folder in Claude Code and let it run ONBOARDING.md, or do it manually:
-pip install pre-commit && pre-commit install --hook-type commit-msg
+pip install pre-commit && pre-commit install
 
 # 2. (optional) Build the knowledge index so agents can ground on project sources
 python3 scripts/knowledge/ingest.py --build
