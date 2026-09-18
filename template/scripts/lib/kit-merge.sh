@@ -10,9 +10,11 @@
 #
 # Outcomes for kit_merge_block:
 #   created   — file did not exist, created with block and markers
-#   appended  — file exists without markers, block appended at end
-#   updated   — file has begin and end markers, block replaced in-place
-#   malformed — file has begin marker but no matching end marker, file left unchanged
+#   appended  — file exists without begin marker, block appended at end
+#   updated   — file has exactly one begin marker, exactly one end marker (in order),
+#               and no begin marker exists (or a single clean block), replaced in-place
+#   malformed — file has ambiguous marker layout (no end marker, multiple markers,
+#               end before begin, or more than one complete block) file left unchanged
 #
 # Content sanitisation: lines in the block that are exactly equal to a marker
 # are written with a trailing space appended, preventing false marker detection
@@ -75,25 +77,27 @@ kit_merge_block() {
   fi
 
   if grep -qFx -- "$begin" "$target"; then
-    # Find line numbers of first begin and first end marker after it (exact line match)
-    marker_line=$(grep -nFx -- "$begin" "$target" | head -1 | cut -d: -f1)
-    if [ -z "$marker_line" ]; then
-      rm -f "$norm_content"
-      echo appended
-      return 0
-    fi
+    # Ambiguity check: count markers to ensure unambiguous layout
+    begin_count=$(grep -cFx -- "$begin" "$target")
+    end_count=$(grep -cFx -- "$end" "$target")
 
-    # Find first end marker after the begin marker (exact line match)
-    end_line=$(tail -n +"$marker_line" "$target" | grep -nFx -- "$end" | head -1 | cut -d: -f1)
-    if [ -z "$end_line" ]; then
-      # Begin marker exists but no end marker found
+    # Require exactly one of each marker
+    if [ "$begin_count" != "1" ] || [ "$end_count" != "1" ]; then
       rm -f "$norm_content"
       echo malformed
       return 0
     fi
 
-    # Convert end_line to absolute line number
-    end_line=$((marker_line + end_line - 1))
+    # Find line numbers of the markers (exact line match)
+    marker_line=$(grep -nFx -- "$begin" "$target" | cut -d: -f1)
+    end_line=$(grep -nFx -- "$end" "$target" | cut -d: -f1)
+
+    # Require end marker to come after begin marker
+    if [ "$end_line" -le "$marker_line" ]; then
+      rm -f "$norm_content"
+      echo malformed
+      return 0
+    fi
 
     # Rebuild the file using line numbers
     tmp=$(mktemp)
@@ -111,6 +115,13 @@ kit_merge_block() {
 
     rm -f "$norm_content" "$tmp"
     echo updated
+    return 0
+  fi
+
+  # No begin marker found. Check if there's an orphaned end marker (malformed)
+  if grep -qFx -- "$end" "$target"; then
+    rm -f "$norm_content"
+    echo malformed
     return 0
   fi
 

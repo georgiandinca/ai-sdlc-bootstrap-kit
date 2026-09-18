@@ -121,6 +121,37 @@ check both_project_preserved "$(grep -c '^# Project2$' "$tmp/project2.md")" "1"
 check both_marker_begin_sanitised "$(grep -c '^<!-- ai-sdlc-kit:begin --> $' "$tmp/project2.md")" "1"
 check both_marker_end_sanitised "$(grep -c '^<!-- ai-sdlc-kit:end --> $' "$tmp/project2.md")" "1"
 
+# --- 12. unsanitised marker lookalike in existing block: ambiguous layout -> malformed
+printf '# Header\n<!-- ai-sdlc-kit:begin -->\nold content\n<!-- ai-sdlc-kit:end -->\n<!-- ai-sdlc-kit:end -->\n## Project footer\n' > "$tmp/ambig.md"
+ambig_before=$(cat "$tmp/ambig.md")
+result=$(kit_merge_block "$tmp/ambig.md" "$tmp/update1.txt")
+check ambig_unsanitised_malformed "$(echo "$result")" "malformed"
+check ambig_unsanitised_unchanged "$(cat "$tmp/ambig.md")" "$ambig_before"
+check ambig_unsanitised_project_intact "$(grep -c '^## Project footer$' "$tmp/ambig.md")" "1"
+
+# --- 13. file with two complete kit blocks: ambiguous -> malformed
+printf '# Header\n<!-- ai-sdlc-kit:begin -->\nblock 1\n<!-- ai-sdlc-kit:end -->\n# Middle\n<!-- ai-sdlc-kit:begin -->\nblock 2\n<!-- ai-sdlc-kit:end -->\n# Footer\n' > "$tmp/two_blocks.md"
+two_before=$(cat "$tmp/two_blocks.md")
+result=$(kit_merge_block "$tmp/two_blocks.md" "$tmp/update1.txt")
+check two_blocks_malformed "$(echo "$result")" "malformed"
+check two_blocks_unchanged "$(cat "$tmp/two_blocks.md")" "$two_before"
+
+# --- 14. file with end marker but no begin marker: ambiguous -> malformed
+printf '# Header\nContent line\n<!-- ai-sdlc-kit:end -->\nFooter\n' > "$tmp/end_only.md"
+end_before=$(cat "$tmp/end_only.md")
+result=$(kit_merge_block "$tmp/end_only.md" "$tmp/update1.txt")
+check end_only_malformed "$(echo "$result")" "malformed"
+check end_only_unchanged "$(cat "$tmp/end_only.md")" "$end_before"
+
+# --- 15. normal single-block update still works (idempotence check)
+printf '# Test\n' > "$tmp/normal.md"
+printf 'content\n' > "$tmp/c1.txt"
+kit_merge_block "$tmp/normal.md" "$tmp/c1.txt" >/dev/null
+result1=$(kit_merge_block "$tmp/normal.md" "$tmp/c1.txt")
+check idempotent_update "$(echo "$result1")" "updated"
+check idempotent_one_begin "$(grep -cx -- '<!-- ai-sdlc-kit:begin -->' "$tmp/normal.md")" "1"
+check idempotent_one_end "$(grep -cx -- '<!-- ai-sdlc-kit:end -->' "$tmp/normal.md")" "1"
+
 rm -rf "$tmp"
 echo "---"
 [ "$fails" -eq 0 ] && echo "all kit-merge tests passed" || echo "$fails test(s) failed"
