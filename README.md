@@ -38,7 +38,28 @@ The kit operationalises an AI-augmented SDLC as seven pillars — see [`template
 | 6 | **Roles × Skills × MCP** | `.claude/skills/playbook-*`, `.mcp.json` |
 | 7 | **Human methodology & continuous improvement** | `docs/methodology/continuous-improvement.md`, `dashboard/` |
 
-## Bootstrap a new project
+## Install the kit into a project
+
+Three routes, pick whichever fits your setup.
+
+**Claude Code plugin.** In any project, install the kit's marketplace once, then the plugin:
+
+```bash
+claude plugin marketplace add georgiandinca/ai-sdlc-bootstrap-kit
+claude plugin install ai-sdlc-kit@ai-sdlc-bootstrap-kit
+```
+
+Then, in that project, ask the agent to set up the kit — for example `/ai-sdlc-kit:install-ai-sdlc-kit` — and it drives detection, layout choice and merge for you.
+
+**Other coding agents (not Claude Code).** Clone the kit alongside or into your project, then point your agent at the skill's instructions:
+
+```bash
+git clone https://github.com/georgiandinca/ai-sdlc-bootstrap-kit /tmp/ai-sdlc-kit
+```
+
+Point the agent at `/tmp/ai-sdlc-kit/.claude/skills/install-ai-sdlc-kit/SKILL.md` and ask it to follow those instructions for your project.
+
+**Terminal, no agent.** Run `bootstrap.sh` directly. `--layout` picks where the kit sits relative to the project's code — `embedded` (default), `monorepo`, `sidecar` or `parent`; run `--help` for what each means. `--merge` makes the install non-destructive: on a non-empty target it merges file-by-file / block-by-block instead of clobbering, and the pre-existing files stay untouched wherever the kit has nothing to add.
 
 ```bash
 # From the kit root:
@@ -48,7 +69,9 @@ template/scripts/bootstrap.sh \
   --dir ../acme-wallet \
   --desc "A consumer payments wallet" \
   --ticket ACME \
-  --host github
+  --host github \
+  --layout embedded \
+  --merge
 ```
 
 This copies the template, substitutes `<PLACEHOLDERS>`, initialises git, and installs the hooks. Then open the new repo in Claude Code — it runs `ONBOARDING.md` to create your per-user `USER.md`, and you fill the remaining placeholders (`AGENTS.md` §1 mission, §3 constraints, §4 connectors).

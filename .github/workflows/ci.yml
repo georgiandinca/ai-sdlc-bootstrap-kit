@@ -21,7 +21,11 @@ jobs:
         run: pip install --quiet "pyyaml>=6"
 
       - name: Validate Agent Skills (agentskills.io)
-        run: python3 template/scripts/validate-skills.py
+        run: |
+          python3 template/scripts/validate-skills.py
+          python3 template/scripts/validate-skills.py .claude/skills
+      - name: Installer skill — situation-check tests
+        run: bash .claude/skills/install-ai-sdlc-kit/scripts/tests/test-detect-situation.sh
       - name: Validate doc frontmatter contract (AGENTS.md §4.2)
         run: python3 template/scripts/validate-frontmatter.py
       - name: Validate session lifecycle-moments manifest
@@ -32,6 +36,15 @@ jobs:
         run: python3 template/scripts/validate-seat-profiles.py
       - name: Seat-profiles validator unit tests
         run: python3 template/scripts/tests/test_validate_seat_profiles.py
+
+      - name: Merge-engine unit tests
+        run: bash template/scripts/tests/test_kit_merge.sh
+      - name: Pointer-writer unit tests
+        run: bash template/scripts/tests/test_kit_pointers.sh
+      - name: Bootstrap unit tests
+        run: bash template/scripts/tests/test_bootstrap.sh
+      - name: Pre-commit merger unit tests
+        run: python3 template/scripts/tests/test_merge_precommit.py
 
       - name: Knowledge-graph unit tests
         run: |

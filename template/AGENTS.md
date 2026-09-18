@@ -82,6 +82,9 @@ This repository is bootstrapped from the **AI-SDLC Bootstrap Kit**. The kit enco
 
 > If your project also holds application code (frontend, backend, services), add those folders/repos here and describe their stack. The brief governs all of them.
 
+<!-- ai-sdlc-kit:begin -->
+<!-- ai-sdlc-kit:end -->
+
 ### 2.1 The knowledge tree (`docs/`)
 
 The `docs/` tree is **additive and demand-driven** — roles create topic folders as needs arise, following the lifecycle ritual (`WORKING-AGREEMENT.md` §4). Durable, shared knowledge lives here:

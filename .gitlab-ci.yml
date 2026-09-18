@@ -32,6 +32,9 @@ ai-governance:
   script:
   - echo "Validating Agent Skills (agentskills.io)…"
   - python3 template/scripts/validate-skills.py
+  - python3 template/scripts/validate-skills.py .claude/skills
+  - echo "Installer skill — situation-check tests…"
+  - bash .claude/skills/install-ai-sdlc-kit/scripts/tests/test-detect-situation.sh
   - echo "Validating doc frontmatter contract (AGENTS.md §4.2)…"
   - python3 template/scripts/validate-frontmatter.py
   - echo "Validating session lifecycle-moments manifest…"
@@ -42,6 +45,14 @@ ai-governance:
   - python3 template/scripts/validate-seat-profiles.py
   - echo "Running seat-profiles validator unit tests…"
   - python3 template/scripts/tests/test_validate_seat_profiles.py
+  - echo "Merge-engine unit tests…"
+  - bash template/scripts/tests/test_kit_merge.sh
+  - echo "Pointer-writer unit tests…"
+  - bash template/scripts/tests/test_kit_pointers.sh
+  - echo "Bootstrap unit tests…"
+  - bash template/scripts/tests/test_bootstrap.sh
+  - echo "Pre-commit merger unit tests…"
+  - python3 template/scripts/tests/test_merge_precommit.py
   - echo "Running knowledge-graph unit tests…"
   - python3 template/scripts/knowledge/tests/test_graph_store.py
   - python3 template/scripts/knowledge/tests/test_manifest.py
