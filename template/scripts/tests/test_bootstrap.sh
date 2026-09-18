@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+# Functional test for bootstrap.sh (no framework). Exits non-zero on any failure.
+set -uo pipefail
+SRC_ROOT=$(cd "$(dirname "$0")/../.." && pwd)     # …/template
+BOOT="$SRC_ROOT/scripts/bootstrap.sh"
+fails=0
+check() { if [ "$2" = "$3" ]; then echo "ok   $1"; else echo "FAIL $1: got '$2' want '$3'"; fails=$((fails+1)); fi; }
+jqp() { python3 -c '
+import json,sys
+d=json.load(open(sys.argv[1]))
+for k in sys.argv[2].split("."):
+    d = d[k] if isinstance(d, dict) else None
+print(json.dumps(d))' "$1" "$2"; }
+
+export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
+
+# --- 1. fresh embedded install -----------------------------------------------------
+tmp=$(mktemp -d)
+"$BOOT" --name "Acme Wallet" --slug acme-wallet --dir "$tmp/acme" --desc "wallet" \
+        --ticket ACME --layout embedded --kit-version 1.2.0 --kit-commit abc1234 \
+        --non-interactive >/dev/null 2>&1
+check fresh_agents   "$([ -f "$tmp/acme/AGENTS.md" ] && echo yes)" "yes"
+check fresh_manifest "$([ -f "$tmp/acme/.ai-sdlc/kit.json" ] && echo yes)" "yes"
+check fresh_layout   "$(jqp "$tmp/acme/.ai-sdlc/kit.json" layout)"        '"embedded"'
+check fresh_version  "$(jqp "$tmp/acme/.ai-sdlc/kit.json" kit.version)"   '"1.2.0"'
+check fresh_name     "$(jqp "$tmp/acme/.ai-sdlc/kit.json" project.name)"  '"Acme Wallet"'
+check fresh_hooks    "$(jqp "$tmp/acme/.ai-sdlc/kit.json" hooks)"         '"kit"'
+rm -rf "$tmp"
+
+# --- 2. merge into a populated project ---------------------------------------------
+tmp=$(mktemp -d); proj="$tmp/api"; mkdir -p "$proj/src"
+printf '# Acme API\n\nOur own readme.\n' > "$proj/README.md"
+printf 'dist/\n' > "$proj/.gitignore"
+printf 'console.log(1)\n' > "$proj/src/index.js"
+( cd "$proj" && git init -q && git add -A && git commit -qm init )
+"$BOOT" --name "Acme API" --slug acme-api --dir "$proj" --desc "api" --ticket ACME \
+        --layout embedded --merge --non-interactive >/dev/null 2>&1
+check merge_kept_readme "$(head -1 "$proj/README.md")" "# Acme API"
+check merge_block_once  "$(grep -c -- '<!-- ai-sdlc-kit:begin -->' "$proj/README.md")" "1"
+check merge_kept_ignore "$(head -1 "$proj/.gitignore")" "dist/"
+check merge_kept_src    "$(cat "$proj/src/index.js")" "console.log(1)"
+check merge_added_kit   "$([ -f "$proj/AGENTS.md" ] && echo yes)" "yes"
+check merge_report      "$([ -f "$proj/.ai-sdlc/install-report.md" ] && echo yes)" "yes"
+
+# --- 3. idempotence: a second run changes nothing structurally ----------------------
+sum_before=$(cat "$proj/README.md" | wc -l | tr -d ' ')
+"$BOOT" --name "Acme API" --slug acme-api --dir "$proj" --desc "api" --ticket ACME \
+        --layout embedded --merge --non-interactive >/dev/null 2>&1
+check idem_block_once "$(grep -c -- '<!-- ai-sdlc-kit:begin -->' "$proj/README.md")" "1"
+check idem_same_lines "$(cat "$proj/README.md" | wc -l | tr -d ' ')" "$sum_before"
+rm -rf "$tmp"
+
+# --- 4. repos + layout are recorded ------------------------------------------------
+tmp=$(mktemp -d)
+"$BOOT" --name "Acme" --slug acme --dir "$tmp/sdlc" --desc "d" --ticket ACME \
+        --layout sidecar --repos "../acme-api=backend,../acme-web=frontend" \
+        --tools "claude,copilot" --non-interactive >/dev/null 2>&1
+check repos_layout "$(jqp "$tmp/sdlc/.ai-sdlc/kit.json" layout)" '"sidecar"'
+check repos_count  "$(python3 -c 'import json,sys;print(len(json.load(open(sys.argv[1]))["repos"]))' "$tmp/sdlc/.ai-sdlc/kit.json")" "2"
+check repos_role   "$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["repos"][0]["role"])' "$tmp/sdlc/.ai-sdlc/kit.json")" "backend"
+check repos_tools  "$(python3 -c 'import json,sys;print(",".join(json.load(open(sys.argv[1]))["tools"]))' "$tmp/sdlc/.ai-sdlc/kit.json")" "claude,copilot"
+check agents_table "$(grep -c 'acme-api' "$tmp/sdlc/AGENTS.md")" "1"
+rm -rf "$tmp"
+
+# --- 5. --no-git and --hooks none ---------------------------------------------------
+tmp=$(mktemp -d)
+"$BOOT" --name "NoGit" --slug nogit --dir "$tmp/ng" --desc "d" --ticket NG \
+        --no-git --hooks none --non-interactive >/dev/null 2>&1
+check nogit_no_repo "$([ -d "$tmp/ng/.git" ] && echo yes || echo no)" "no"
+check nogit_hooks   "$(jqp "$tmp/ng/.ai-sdlc/kit.json" hooks)" '"none"'
+rm -rf "$tmp"
+
+# --- 5b. every layout installs and is recorded -------------------------------------
+for lay in embedded monorepo sidecar parent; do
+  tmp=$(mktemp -d)
+  "$BOOT" --name "L $lay" --slug "l-$lay" --dir "$tmp/k" --desc "d" --ticket L \
+          --layout "$lay" --non-interactive >/dev/null 2>&1
+  check "layout_${lay}_agents"   "$([ -f "$tmp/k/AGENTS.md" ] && echo yes)" "yes"
+  check "layout_${lay}_manifest" "$(jqp "$tmp/k/.ai-sdlc/kit.json" layout)" "\"$lay\""
+  rm -rf "$tmp"
+done
+
+# --- 6. --non-interactive with a missing required value fails loudly ----------------
+tmp=$(mktemp -d)
+"$BOOT" --slug x --dir "$tmp/x" --non-interactive >/dev/null 2>&1
+check ni_exit "$?" "2"
+rm -rf "$tmp"
+
+echo "---"
+[ "$fails" -eq 0 ] && echo "all bootstrap tests passed" || echo "$fails test(s) failed"
+exit "$fails"

@@ -39,6 +39,8 @@ jobs:
 
       - name: Merge-engine unit tests
         run: bash template/scripts/tests/test_kit_merge.sh
+      - name: Bootstrap unit tests
+        run: bash template/scripts/tests/test_bootstrap.sh
 
       - name: Knowledge-graph unit tests
         run: |
