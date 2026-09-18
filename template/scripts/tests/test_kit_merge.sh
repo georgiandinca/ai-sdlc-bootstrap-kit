@@ -51,6 +51,43 @@ check copy_collision "$(printf '%s\n' "$report" | grep -c '^collision AGENTS.md$
 check copy_identical "$(printf '%s\n' "$report" | grep -c '^identical SAME.md$')"     "1"
 check copy_untouched "$(cat "$tmp/dst/AGENTS.md")" "project version"
 
+# --- 6. malformed file: begin marker without end marker -> returns malformed, file byte-identical
+printf '# Start\n\n<!-- ai-sdlc-kit:begin -->\nold block\n## Our project section\n' > "$tmp/malformed.md"
+malformed_before=$(cat "$tmp/malformed.md")
+result=$(kit_merge_block "$tmp/malformed.md" "$tmp/block.txt")
+check malformed "$(echo "$result")" "malformed"
+check malformed_unchanged "$(cat "$tmp/malformed.md")" "$malformed_before"
+check malformed_content_preserved "$(grep -c 'Our project section' "$tmp/malformed.md")" "1"
+
+# --- 7. multiple updates maintain single block: idempotence test
+printf 'first update content\n' > "$tmp/update1.txt"
+printf 'second update content\n' > "$tmp/update2.txt"
+kit_merge_block "$tmp/multi_update.md" "$tmp/update1.txt" >/dev/null
+count_after_first=$(grep -c -- '<!-- ai-sdlc-kit:begin -->' "$tmp/multi_update.md")
+kit_merge_block "$tmp/multi_update.md" "$tmp/update2.txt" >/dev/null
+count_after_second=$(grep -c -- '<!-- ai-sdlc-kit:begin -->' "$tmp/multi_update.md")
+check multi_update_consistent "$([ "$count_after_first" = "$count_after_second" ] && echo same || echo diff)" "same"
+check multi_update_one_block "$(grep -c -- '<!-- ai-sdlc-kit:begin -->' "$tmp/multi_update.md")" "1"
+
+# --- 8. symlinks in source tree: copied as symlinks, reported with own line
+mkdir -p "$tmp/symlink_src" "$tmp/symlink_dst"
+printf 'regular file\n' > "$tmp/symlink_src/regular.txt"
+ln -s regular.txt "$tmp/symlink_src/link_to_regular.txt"
+symlink_report=$(kit_copy_merge "$tmp/symlink_src" "$tmp/symlink_dst")
+check symlink_reported "$(printf '%s\n' "$symlink_report" | grep -c '^created link_to_regular.txt$')" "1"
+check symlink_is_link "$([ -L "$tmp/symlink_dst/link_to_regular.txt" ] && echo yes || echo no)" "yes"
+check symlink_regular_also_copied "$([ -f "$tmp/symlink_dst/regular.txt" ] && echo yes || echo no)" "yes"
+
+# --- 9. content without trailing newline: end marker lands on own line, idempotent
+printf 'no newline at end' > "$tmp/no_newline.txt"
+kit_merge_block "$tmp/no_newline_target.md" "$tmp/no_newline.txt" >/dev/null
+check no_newline_marker_on_own_line "$(tail -1 "$tmp/no_newline_target.md")" "<!-- ai-sdlc-kit:end -->"
+# Second call with different content
+printf 'changed content' > "$tmp/changed.txt"
+result=$(kit_merge_block "$tmp/no_newline_target.md" "$tmp/changed.txt")
+check no_newline_second_call "$(echo "$result")" "updated"
+check no_newline_block_count "$(grep -c -- '<!-- ai-sdlc-kit:begin -->' "$tmp/no_newline_target.md")" "1"
+
 rm -rf "$tmp"
 echo "---"
 [ "$fails" -eq 0 ] && echo "all kit-merge tests passed" || echo "$fails test(s) failed"
