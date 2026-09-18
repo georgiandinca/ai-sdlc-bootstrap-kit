@@ -74,8 +74,13 @@ PY
 }
 
 # kit_write_repo_pointer <repo_dir> <rel_kit_path> <kit_url>
+# Writes both an AGENTS.md pointer block and a CLAUDE.md pointer block into a
+# code repo. Echoes one line per file so a malformed marker layout in either
+# file is reported rather than silently discarded:
+#   repo-pointer <dir> <action>          — AGENTS.md
+#   repo-pointer-claude <dir> <action>   — CLAUDE.md
 kit_write_repo_pointer() {
-  local repo=$1 rel=$2 url=$3 block action
+  local repo=$1 rel=$2 url=$3 block agents_action claude_action
   block=$(mktemp)
   {
     echo "**This repository is governed by the AI-SDLC kit at \`$rel\`.**"
@@ -89,7 +94,7 @@ kit_write_repo_pointer() {
     echo "git clone $url $rel"
     echo '```'
   } > "$block"
-  action=$(kit_merge_block "$repo/AGENTS.md" "$block")
+  agents_action=$(kit_merge_block "$repo/AGENTS.md" "$block")
   rm -f "$block"
 
   block=$(mktemp)
@@ -99,9 +104,11 @@ kit_write_repo_pointer() {
     echo "The canonical brief lives in the AI-SDLC kit at \`$rel\`. See \`AGENTS.md\` in this"
     echo "repository for what to do when that path is missing."
   } > "$block"
-  kit_merge_block "$repo/CLAUDE.md" "$block" >/dev/null
+  claude_action=$(kit_merge_block "$repo/CLAUDE.md" "$block")
   rm -f "$block"
-  echo "repo-pointer $repo $action"
+
+  echo "repo-pointer $repo $agents_action"
+  echo "repo-pointer-claude $repo $claude_action"
 }
 
 # kit_readme_block <name> <layout> <repos_table> <kit_version> <kit_source>

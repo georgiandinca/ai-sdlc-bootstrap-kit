@@ -131,13 +131,31 @@ cd "$dir"
 [ -f USER.md.example ] && echo "[bootstrap] kept USER.md.example (real USER.md is created at onboarding)"
 
 # Placeholder substitution across text files (skip binaries / vcs / deps).
+# grep exits 1 when a placeholder isn't found anywhere — expected and benign
+# on a repeat --merge run once an earlier run has already replaced it, so
+# that alone must not trip `set -e`/`pipefail`. Only a real grep failure
+# (bad pattern, unreadable path, exit > 1) is treated as an error. The grep
+# call sits inside an `if` (not piped into the loop) specifically so its
+# non-zero status never reaches `set -e` or `pipefail`.
 substitute() {
-  local find_str="$1" repl="$2"
-  grep -rlI --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=.venv \
-       --exclude-dir=__pycache__ -- "$find_str" . 2>/dev/null | while read -r f; do
+  local find_str="$1" repl="$2" matches grep_rc=0
+  if matches=$(grep -rlI --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=.venv \
+       --exclude-dir=__pycache__ -- "$find_str" . 2>/dev/null); then
+    :
+  else
+    grep_rc=$?
+  fi
+  if [ "$grep_rc" -gt 1 ]; then
+    echo "bootstrap: grep failed while scanning for '$find_str' (exit $grep_rc)" >&2
+    return "$grep_rc"
+  fi
+  [ -z "$matches" ] && return 0
+  while IFS= read -r f; do
     # portable in-place sed (BSD/GNU)
     sed -i.bak "s|${find_str}|${repl}|g" "$f" && rm -f "$f.bak"
-  done
+  done <<EOF
+$matches
+EOF
 }
 substitute "<PROJECT_NAME>" "$name"
 substitute "<ONE_LINE_DESCRIPTION>" "$desc"
@@ -257,7 +275,10 @@ if [ -n "$repos" ] && { [ "$layout" = "sidecar" ] || [ "$layout" = "parent" ]; }
       repo_pointer_output=$(kit_write_repo_pointer "$target" "$rel_to_kit" "$kit_source")
       printf '%s\n' "$repo_pointer_output" | sed 's/^/[bootstrap] /'
       case "$repo_pointer_output" in
-        *" malformed"*) report_malformed "$p/AGENTS.md" ;;
+        *"repo-pointer $target malformed"*) report_malformed "$p/AGENTS.md" ;;
+      esac
+      case "$repo_pointer_output" in
+        *"repo-pointer-claude $target malformed"*) report_malformed "$p/CLAUDE.md" ;;
       esac
     else
       echo "[bootstrap] repo not found on disk, pointer skipped: $p"

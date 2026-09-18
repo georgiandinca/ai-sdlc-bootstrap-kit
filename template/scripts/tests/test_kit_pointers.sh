@@ -44,10 +44,25 @@ rm -rf "$tmp"
 
 # --- 5. code-repo pointer names both the path and the clone URL --------------------
 tmp=$(mktemp -d); mkdir -p "$tmp/acme-api"
-kit_write_repo_pointer "$tmp/acme-api" "../acme-sdlc" "https://example.com/acme-sdlc.git" >/dev/null
+repo_out=$(kit_write_repo_pointer "$tmp/acme-api" "../acme-sdlc" "https://example.com/acme-sdlc.git")
 check repo_agents "$(grep -c '\.\./acme-sdlc/AGENTS.md' "$tmp/acme-api/AGENTS.md")" "1"
 check repo_url    "$(grep -c 'example.com/acme-sdlc.git' "$tmp/acme-api/AGENTS.md")" "1"
 check repo_claude "$(grep -c '@\.\./acme-sdlc/AGENTS.md' "$tmp/acme-api/CLAUDE.md")" "1"
+check repo_agents_line "$(printf '%s\n' "$repo_out" | grep -c -- "^repo-pointer $tmp/acme-api created\$")" "1"
+check repo_claude_line "$(printf '%s\n' "$repo_out" | grep -c -- "^repo-pointer-claude $tmp/acme-api created\$")" "1"
+rm -rf "$tmp"
+
+# --- 5b. a malformed CLAUDE.md in a code repo is reported, not swallowed -----------
+# AGENTS.md still gets its pointer even though CLAUDE.md's marker layout is
+# ambiguous (begin marker present, no end marker).
+tmp=$(mktemp -d); mkdir -p "$tmp/acme-api2"
+printf '<!-- ai-sdlc-kit:begin -->\nstray content, no end marker\n' > "$tmp/acme-api2/CLAUDE.md"
+cp "$tmp/acme-api2/CLAUDE.md" "$tmp/claude-before"
+repo_out2=$(kit_write_repo_pointer "$tmp/acme-api2" "../acme-sdlc" "https://example.com/acme-sdlc.git")
+check repo_claude_malformed  "$(printf '%s\n' "$repo_out2" | grep -c -- "^repo-pointer-claude $tmp/acme-api2 malformed\$")" "1"
+check repo_claude_unchanged  "$(cmp -s "$tmp/claude-before" "$tmp/acme-api2/CLAUDE.md" && echo same)" "same"
+check repo_agents_still_written "$([ -f "$tmp/acme-api2/AGENTS.md" ] && echo yes)" "yes"
+check repo_agents_action_ok  "$(printf '%s\n' "$repo_out2" | grep -c -- "^repo-pointer $tmp/acme-api2 created\$")" "1"
 rm -rf "$tmp"
 
 # --- 6. README block carries the project's own facts -------------------------------

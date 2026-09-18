@@ -46,8 +46,33 @@ check merge_report      "$([ -f "$proj/.ai-sdlc/install-report.md" ] && echo yes
 sum_before=$(cat "$proj/README.md" | wc -l | tr -d ' ')
 "$BOOT" --name "Acme API" --slug acme-api --dir "$proj" --desc "api" --ticket ACME \
         --layout embedded --merge --non-interactive >/dev/null 2>&1
+idem_rc=$?
+check idem_exit_zero "$idem_rc" "0"
 check idem_block_once "$(grep -c -- '<!-- ai-sdlc-kit:begin -->' "$proj/README.md")" "1"
 check idem_same_lines "$(cat "$proj/README.md" | wc -l | tr -d ' ')" "$sum_before"
+rm -rf "$tmp"
+
+# --- 3b. a full --merge install run twice end to end reaches completion ------------
+# Regression guard: bootstrap.sh must not abort partway through a repeat
+# --merge run (see substitute()'s "no placeholders left to replace" case) —
+# it must reach the manifest, README block, pointers and install report both
+# times, with README.md still carrying exactly one kit block.
+tmp=$(mktemp -d); proj2="$tmp/api2"; mkdir -p "$proj2/src"
+printf '# Acme API 2\n\nOur own readme.\n' > "$proj2/README.md"
+printf 'dist/\n' > "$proj2/.gitignore"
+( cd "$proj2" && git init -q && git add -A && git commit -qm init )
+"$BOOT" --name "Acme API 2" --slug acme-api-2 --dir "$proj2" --desc "api" --ticket ACME \
+        --layout embedded --tools "claude,gemini" --merge --non-interactive >/dev/null 2>&1
+check e2e_run1_exit "$?" "0"
+"$BOOT" --name "Acme API 2" --slug acme-api-2 --dir "$proj2" --desc "api" --ticket ACME \
+        --layout embedded --tools "claude,gemini" --merge --non-interactive >/dev/null 2>&1
+check e2e_run2_exit "$?" "0"
+check e2e_manifest         "$([ -f "$proj2/.ai-sdlc/kit.json" ] && echo yes)" "yes"
+check e2e_report           "$([ -f "$proj2/.ai-sdlc/install-report.md" ] && echo yes)" "yes"
+check e2e_readme_block     "$(grep -c 'how we work with AI here' "$proj2/README.md")" "1"
+check e2e_readme_one_block "$(grep -c -- '<!-- ai-sdlc-kit:begin -->' "$proj2/README.md")" "1"
+check e2e_claude_ptr       "$(grep -c '@AGENTS.md' "$proj2/CLAUDE.md")" "1"
+check e2e_gemini_ptr       "$([ -f "$proj2/.gemini/settings.json" ] && echo yes)" "yes"
 rm -rf "$tmp"
 
 # --- 4. repos + layout are recorded ------------------------------------------------
