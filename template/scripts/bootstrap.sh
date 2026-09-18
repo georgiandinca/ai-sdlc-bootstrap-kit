@@ -10,7 +10,7 @@
 #       [--desc "one line"] [--ticket PROJ] [--host github] [--force] \
 #       [--layout embedded|monorepo|sidecar|parent] [--merge] \
 #       [--repos "path=role,path=role"] [--tools "id,id"] \
-#       [--hooks kit|repo|none] [--no-git] [--non-interactive] \
+#       [--hooks kit|repo|none] [--hooks-target <dir>] [--no-git] [--non-interactive] \
 #       [--kit-version <v>] [--kit-commit <sha>]
 #
 # Flags:
@@ -28,6 +28,8 @@
 #   --repos             "path=role,path=role,…" — other repos this kit governs
 #   --tools             "id,id,…" AI tools in use (default: claude)
 #   --hooks             kit|repo|none (default: kit) — which git hooks to install
+#   --hooks-target      code-repo dir to fold hooks into — required when
+#                        --hooks repo is used
 #   --no-git            skip git init / initial commit
 #   --non-interactive   fail loudly (exit 2) instead of prompting when a
 #                        required value is missing
@@ -48,7 +50,7 @@ TEMPLATE_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 . "$TEMPLATE_ROOT/scripts/lib/kit-pointers.sh"
 
 name=""; slug=""; dir=""; desc="<ONE_LINE_DESCRIPTION>"; ticket="<TICKET>"; host="github"; force=0
-layout="embedded"; merge=0; repos=""; tools="claude"; hooks="kit"; no_git=0; non_interactive=0
+layout="embedded"; merge=0; repos=""; tools="claude"; hooks="kit"; hooks_target=""; no_git=0; non_interactive=0
 kit_version=""; kit_commit=""
 kit_source="https://github.com/georgiandinca/ai-sdlc-bootstrap-kit"
 while [ "$#" -gt 0 ]; do
@@ -65,6 +67,7 @@ while [ "$#" -gt 0 ]; do
     --repos)  repos=${2:?}; shift 2 ;;
     --tools)  tools=${2:?}; shift 2 ;;
     --hooks)  hooks=${2:?}; shift 2 ;;
+    --hooks-target) hooks_target=${2:?}; shift 2 ;;
     --no-git) no_git=1; shift ;;
     --non-interactive) non_interactive=1; shift ;;
     --kit-version) kit_version=${2:?}; shift 2 ;;
@@ -309,9 +312,45 @@ if [ "$hooks" = "kit" ] && command -v pre-commit >/dev/null 2>&1; then
   pre-commit install >/dev/null 2>&1 || true
   echo "[bootstrap] installed pre-commit hooks."
 elif [ "$hooks" = "repo" ]; then
-  # TODO(Task 5): --hooks repo will point at a project-owned hook config via
-  # --hooks-target. For now it is a placeholder and behaves like "none".
-  echo "[bootstrap] --hooks repo handled separately"
+  if [ -z "$hooks_target" ]; then
+    echo "bootstrap: --hooks repo requires --hooks-target <dir>" >&2; exit 2
+  fi
+  # Prefix so a rewritten hook `entry` resolves from $hooks_target back to the
+  # kit. sidecar/parent are cross-repo (mirrors Task 4's rel_to_kit); embedded/
+  # monorepo run the hooks inside the kit's own repo, so no rewrite is needed.
+  case "$layout" in
+    sidecar)           hooks_prefix="../$(basename "$dir")" ;;
+    parent)             hooks_prefix=".." ;;
+    embedded|monorepo)  hooks_prefix="" ;;
+  esac
+  if [ ! -f "$hooks_target/.pre-commit-config.yaml" ]; then
+    echo "[bootstrap] no .pre-commit-config.yaml in $hooks_target — copying the kit's."
+    cp "$dir/.pre-commit-config.yaml" "$hooks_target/.pre-commit-config.yaml"
+  else
+    mkdir -p "$dir/.ai-sdlc"
+    merge_args=("$hooks_target/.pre-commit-config.yaml" "$dir/.pre-commit-config.yaml" \
+                --backup "$dir/.ai-sdlc/pre-commit-config.backup.yaml")
+    # Only pass --prefix when non-empty, so an embedded/monorepo layout never
+    # sends a literal "" through to the merger.
+    [ -n "$hooks_prefix" ] && merge_args+=(--prefix "$hooks_prefix")
+    merge_rc=0
+    merge_output=$(python3 "$dir/scripts/merge-precommit.py" "${merge_args[@]}" 2>&1) || merge_rc=$?
+    printf '%s\n' "$merge_output" | sed 's/^/[bootstrap] hook /'
+    if [ "$merge_rc" -eq 0 ]; then
+      echo "[bootstrap] original config backed up to .ai-sdlc/pre-commit-config.backup.yaml (comments are not preserved by the merge)."
+    else
+      # Refuse-rather-than-guess: the merger exits 2 when it cannot safely
+      # parse the target, so the target is left untouched — surface that the
+      # same way the other non-clobber outcomes are surfaced.
+      report_malformed "$hooks_target/.pre-commit-config.yaml" \
+        "could not be safely merged — left untouched, needs a human look"
+      echo "[bootstrap] $hooks_target/.pre-commit-config.yaml left untouched (merge failed); see install report."
+    fi
+  fi
+  if command -v pre-commit >/dev/null 2>&1; then
+    ( cd "$hooks_target" && pre-commit install --hook-type pre-commit --hook-type commit-msg >/dev/null 2>&1 ) || true
+    echo "[bootstrap] installed pre-commit hooks in $hooks_target (both stages)."
+  fi
 elif [ "$hooks" = "none" ]; then
   echo "[bootstrap] hooks skipped (--hooks none)."
 fi

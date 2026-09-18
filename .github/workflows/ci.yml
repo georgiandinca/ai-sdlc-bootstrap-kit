@@ -43,6 +43,8 @@ jobs:
         run: bash template/scripts/tests/test_kit_pointers.sh
       - name: Bootstrap unit tests
         run: bash template/scripts/tests/test_bootstrap.sh
+      - name: Pre-commit merger unit tests
+        run: python3 template/scripts/tests/test_merge_precommit.py
 
       - name: Knowledge-graph unit tests
         run: |

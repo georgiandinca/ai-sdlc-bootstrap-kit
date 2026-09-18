@@ -185,6 +185,22 @@ check mal_gemini_array_unchanged  "$(cmp -s "$tmp/gemini-before" "$proj/.gemini/
 check mal_gemini_array_reported   "$(grep -c 'malformed .gemini/settings.json' "$proj/.ai-sdlc/install-report.md")" "1"
 rm -rf "$tmp"
 
+# --- 8. --hooks repo folds into an existing config without losing it ---------------
+tmp=$(mktemp -d); mkdir -p "$tmp/acme-api"
+printf 'repos:\n  - repo: local\n    hooks:\n      - id: mine\n        name: mine\n        entry: echo\n        language: system\n' \
+  > "$tmp/acme-api/.pre-commit-config.yaml"
+"$BOOT" --name "Acme" --slug acme --dir "$tmp/acme-sdlc" --desc "d" --ticket ACME \
+        --layout sidecar --hooks repo --hooks-target "$tmp/acme-api" \
+        --non-interactive >/dev/null 2>&1
+check hooks_kept_mine  "$(grep -c 'id: mine' "$tmp/acme-api/.pre-commit-config.yaml")" "1"
+# grep for the `id:` line specifically — the real kit config also mentions
+# validate-skills in its `entry:` line (script path), so a bare substring
+# count would over-count.
+check hooks_added_kit  "$(grep -c '^[[:space:]]*- id: validate-skills$' "$tmp/acme-api/.pre-commit-config.yaml")" "1"
+check hooks_backup     "$([ -f "$tmp/acme-sdlc/.ai-sdlc/pre-commit-config.backup.yaml" ] && echo yes)" "yes"
+check hooks_manifest   "$(jqp "$tmp/acme-sdlc/.ai-sdlc/kit.json" hooks)" '"repo"'
+rm -rf "$tmp"
+
 echo "---"
 [ "$fails" -eq 0 ] && echo "all bootstrap tests passed" || echo "$fails test(s) failed"
 exit "$fails"
