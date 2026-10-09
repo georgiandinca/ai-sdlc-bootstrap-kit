@@ -1,0 +1,39 @@
+.github/workflows/ci.yml
+  s_9c814260f64312::t_9261693e9c125f 63,87
+.gitlab-ci.yml
+  s_9c814260f64312::t_271e4255a4081a 69,87
+template/.github/workflows/ai-governance.yml
+  s_9c814260f64312::t_822d2a6085dda6 46,67
+template/docs/knowledge/README.md
+  s_b4c3937d93dfc3::t_f16c2334e2d621 33-35
+template/scripts/knowledge/export_html.py
+  s_b4c3937d93dfc3::t_2187fe2063a970 1-108
+template/scripts/knowledge/graph_view.html
+  s_b4c3937d93dfc3::t_1c7415e4a94208 1-445
+template/scripts/knowledge/tests/test_export_html.py
+  s_b4c3937d93dfc3::t_8203726ce0e26a 1-57
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c73bae86cec1e2c7d885943441c61721f81b527b",
+  "prompts": {},
+  "sessions": {
+    "s_9c814260f64312": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3a8feedd-7390-4420-832c-56dcc1ee8b5b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Georgian Dinca <geo@magnify.ro>"
+    },
+    "s_b4c3937d93dfc3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "08d55f53-1175-4395-9860-dc90850a48d4",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Georgian Dinca <geo@magnify.ro>"
+    }
+  }
+}
