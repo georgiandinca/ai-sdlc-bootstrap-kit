@@ -89,6 +89,25 @@ class DanglingLinkTests(unittest.TestCase):
             self.assertTrue(kit_dangling,
                             "kit scope must see the kit-only dangling overlay edge")
 
+    def test_git_ignored_files_are_not_ingested(self):
+        import shutil, subprocess
+        if not shutil.which("git"):
+            self.skipTest("git not available")
+        with tempfile.TemporaryDirectory() as d:
+            base = Path(d); data = _fixture_repo(base)
+            subprocess.run(["git", "init", "-q"], cwd=d, check=True)
+            (base / ".gitignore").write_text("node_modules/\nout/\n", encoding="utf-8")
+            (base / "docs/node_modules/pkg").mkdir(parents=True)
+            (base / "docs/node_modules/pkg/README.md").write_text("vendored\n", encoding="utf-8")
+            (base / "src/out").mkdir()
+            (base / "src/out/gen.py").write_text("def gen(): pass\n", encoding="utf-8")
+            ingest.build(data=data, base=base)
+            fed = q.open_federated(data=data, base=base)
+            paths = {r[0] for r in fed.conn.execute(
+                f"SELECT path FROM ({fed.nodes_sql()})")}
+            self.assertIn("src/thing.py", paths)
+            self.assertFalse([p for p in paths if "node_modules" in p or "/out/" in p], paths)
+
 
 if __name__ == "__main__":
     unittest.main()

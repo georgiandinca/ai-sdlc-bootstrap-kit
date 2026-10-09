@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -27,6 +28,26 @@ import link_commits               # noqa: E402
 import query as query_mod         # noqa: E402
 
 DASHBOARD_DB = manifest_mod.REPO_ROOT / "dashboard" / "utilization.db"
+
+
+def _drop_ignored(nodes, edges, base):
+    """Drop nodes (and their edges) whose file is git-ignored: vendored or
+    generated trees (node_modules/, out/) are not project knowledge. Outside a
+    git work tree nothing is dropped."""
+    paths = sorted({nd["path"] for nd in nodes if nd.get("path")})
+    if not paths:
+        return nodes, edges
+    try:
+        r = subprocess.run(["git", "check-ignore", "-z", "--stdin"], cwd=str(base),
+                           input="\0".join(paths), capture_output=True, text=True)
+    except OSError:
+        return nodes, edges
+    if r.returncode != 0:  # 1 = none ignored, 128 = not a git work tree
+        return nodes, edges
+    ignored = {p for p in r.stdout.split("\0") if p}
+    gone = {nd["id"] for nd in nodes if nd.get("path") in ignored}
+    return ([nd for nd in nodes if nd["id"] not in gone],
+            [e for e in edges if e["src"] not in gone and e["dst"] not in gone])
 
 
 def build(data=None, base=None):
@@ -54,6 +75,7 @@ def build(data=None, base=None):
                 n, e = ingest_docs.ingest_root(root, name, base)
             ns_nodes += n
             ns_edges += e
+        ns_nodes, ns_edges = _drop_ignored(ns_nodes, ns_edges, base)
         if kind == "code":
             cn, ce, attrib = link_commits.link(name, ns_nodes, DASHBOARD_DB, base)
             ns_nodes += cn
