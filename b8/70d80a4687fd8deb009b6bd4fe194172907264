@@ -1,0 +1,35 @@
+template/.claude/rules/knowledge-sources.md
+  s_9c814260f64312::t_12a707becd759c 13
+template/docs/knowledge/schema.md
+  s_b4c3937d93dfc3::t_1daae8c17aa591 53,70-73
+template/scripts/knowledge/ingest_docs.py
+  s_b4c3937d93dfc3::t_c7ce960cb6ca1a 3-6,9,12,19-24,82-115,118-119,151-160
+template/scripts/knowledge/tests/test_ingest.py
+  s_b4c3937d93dfc3::t_79cf7601470cee 112-123
+template/scripts/knowledge/tests/test_ingest_docs.py
+  s_b4c3937d93dfc3::t_30560217456b78 77-123
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b870d80a4687fd8deb009b6bd4fe194172907264",
+  "prompts": {},
+  "sessions": {
+    "s_9c814260f64312": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3a8feedd-7390-4420-832c-56dcc1ee8b5b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Georgian Dinca <geo@magnify.ro>"
+    },
+    "s_b4c3937d93dfc3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "08d55f53-1175-4395-9860-dc90850a48d4",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Georgian Dinca <geo@magnify.ro>"
+    }
+  }
+}
