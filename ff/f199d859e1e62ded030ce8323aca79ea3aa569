@@ -1,0 +1,20 @@
+docs/roadmap/2026-10-09-knowledge-graph-view-design.md
+  s_b4c3937d93dfc3::t_5ca2666848fe6a 1-75
+  s_b4c3937d93dfc3::t_5517e4088dc042 76-77
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fff199d859e1e62ded030ce8323aca79ea3aa569",
+  "prompts": {},
+  "sessions": {
+    "s_b4c3937d93dfc3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "08d55f53-1175-4395-9860-dc90850a48d4",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Georgian Dinca <geo@magnify.ro>"
+    }
+  }
+}
