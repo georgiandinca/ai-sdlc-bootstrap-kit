@@ -43,6 +43,7 @@ jobs:
           python3 scripts/knowledge/tests/test_ingest.py
           python3 scripts/knowledge/tests/test_mcp_server.py
           python3 scripts/knowledge/tests/test_end_to_end.py
+          python3 scripts/knowledge/tests/test_export_html.py
 
       - name: Run consumption/ROI unit tests (token-roi theme)
         run: |
@@ -63,4 +64,5 @@ jobs:
       - name: Knowledge graph build + traceability smoke
         run: |
           python3 scripts/knowledge/ingest.py --build
+          python3 scripts/knowledge/export_html.py
           python3 scripts/knowledge/ingest.py --federated --trace ADR-0001 | python3 -c "import json,sys; d=json.load(sys.stdin); assert d.get('nodes'), 'empty trace chain'; print('trace OK:', len(d.get('nodes')), 'nodes')"

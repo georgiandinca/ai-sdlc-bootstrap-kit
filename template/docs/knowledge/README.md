@@ -30,6 +30,9 @@ python3 scripts/knowledge/ingest.py --scope kit-code --trace ADR-0001
 # Content search + stats
 python3 scripts/knowledge/ingest.py --federated --query "knowledge graph"
 python3 scripts/knowledge/ingest.py --stats
+
+# Explore it visually: one self-contained HTML page (git-ignored, no network)
+python3 scripts/knowledge/export_html.py --open
 ```
 
 Agents can also reach it over MCP: the `knowledge` server (`.mcp.json`) exposes
