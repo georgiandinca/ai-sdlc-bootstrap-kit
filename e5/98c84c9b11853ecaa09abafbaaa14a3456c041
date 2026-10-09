@@ -1,0 +1,21 @@
+template/scripts/knowledge/ingest.py
+  s_b4c3937d93dfc3::t_8178a2924f2c42 16,33-52,78
+template/scripts/knowledge/tests/test_ingest.py
+  s_b4c3937d93dfc3::t_829c54374c8ba5 92-110
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e598c84c9b11853ecaa09abafbaaa14a3456c041",
+  "prompts": {},
+  "sessions": {
+    "s_b4c3937d93dfc3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "08d55f53-1175-4395-9860-dc90850a48d4",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Georgian Dinca <geo@magnify.ro>"
+    }
+  }
+}
