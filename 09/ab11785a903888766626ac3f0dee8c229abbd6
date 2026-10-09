@@ -1,0 +1,35 @@
+template/docs/knowledge/README.md
+  s_b4c3937d93dfc3::t_d0bf35e700e166 44-46
+template/docs/knowledge/graph-manifest.json
+  s_b4c3937d93dfc3::t_aa81079d239ddc 4
+template/docs/knowledge/schema.md
+  s_b4c3937d93dfc3::t_3cf73e8486667d 27-30
+template/scripts/knowledge/ingest.py
+  s_b4c3937d93dfc3::t_7eef355552847e 89-94
+template/scripts/knowledge/ingest_code.py
+  s_b4c3937d93dfc3::t_f81584faf72aa1 66-69,73-74
+template/scripts/knowledge/ingest_docs.py
+  s_b4c3937d93dfc3::t_bbb4aa60d958bb 122-127,129
+template/scripts/knowledge/tests/test_ingest.py
+  s_b4c3937d93dfc3::t_d7970a448ead9b 124-137
+template/scripts/knowledge/tests/test_ingest_code.py
+  s_b4c3937d93dfc3::t_7a4d916dfbf188 86-100
+template/scripts/knowledge/tests/test_ingest_docs.py
+  s_b4c3937d93dfc3::t_dacc3495c8c190 124-150
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "09ab11785a903888766626ac3f0dee8c229abbd6",
+  "prompts": {},
+  "sessions": {
+    "s_b4c3937d93dfc3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "08d55f53-1175-4395-9860-dc90850a48d4",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Georgian Dinca <geo@magnify.ro>"
+    }
+  }
+}
