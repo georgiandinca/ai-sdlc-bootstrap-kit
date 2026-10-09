@@ -74,5 +74,52 @@ class IngestRootTests(unittest.TestCase):
             self.assertNotIn("docs/.knowledge/graph.db.md", paths)
 
 
+class BodyLinkTests(unittest.TestCase):
+    def _repo(self, d):
+        base = Path(d)
+        (base / "docs/guide/sub").mkdir(parents=True)
+        (base / "src").mkdir()
+        (base / "docs/guide/sub/README.md").write_text("Sub.\n", encoding="utf-8")
+        (base / "docs/guide/b.md").write_text("B.\n", encoding="utf-8")
+        (base / "docs/top.md").write_text("Top.\n", encoding="utf-8")
+        (base / "src/tool.py").write_text("x = 1\n", encoding="utf-8")
+        return base
+
+    def test_relative_links_resolve_to_repo_paths_with_lines(self):
+        with tempfile.TemporaryDirectory() as d:
+            base = self._repo(d)
+            body = ("See [b](b.md#part) and [b again](./b.md).\n"
+                    "Up: [top](../top.md \"Top\"), dir: [sub](sub/), code: [tool](/src/tool.py)\n"
+                    "Spaces: [x](<my%20file.md>)\n")
+            got = list(idoc.body_links(body, "docs/guide/a.md", base, line_offset=4))
+            self.assertEqual(got, [("docs/guide/b.md", 5), ("docs/top.md", 6),
+                                   ("docs/guide/sub/README.md", 6), ("src/tool.py", 6),
+                                   ("docs/guide/my file.md", 7)])
+
+    def test_non_graph_targets_are_skipped(self):
+        with tempfile.TemporaryDirectory() as d:
+            base = self._repo(d)
+            body = ("[web](https://example.com/x.md) [mail](mailto:a@b.co) [anchor](#here)\n"
+                    "![img](b.md) [pic](shot.png) [self](a.md) [out](../../../etc/x.md)\n"
+                    "[folder without a README](../../src/)\n"
+                    "```\n[in fence](b.md)\n```\n")
+            self.assertEqual(list(idoc.body_links(body, "docs/guide/a.md", base)), [])
+
+    def test_ingest_root_emits_links_edges(self):
+        with tempfile.TemporaryDirectory() as d:
+            base = self._repo(d)
+            (base / "docs/guide/a.md").write_text(
+                "---\ntitle: A\n---\n\nSee [b](b.md), [tool](../../src/tool.py), [gone](gone.md).\n",
+                encoding="utf-8")
+            _nodes, edges = idoc.ingest_root(base / "docs", "docs", base)
+            links = {e["dst"]: e for e in edges if e["kind"] == "links"}
+            inroot = links["doc:docs:docs/guide/b.md"]
+            self.assertEqual((inroot["resolved"], inroot["source_file"], inroot["line"]),
+                             (1, "docs/guide/a.md", 5))
+            # outside this root (or missing): left as path: for the overlay pass
+            self.assertIsNone(links["path:src/tool.py"]["resolved"])
+            self.assertIsNone(links["path:docs/guide/gone.md"]["resolved"])
+
+
 if __name__ == "__main__":
     unittest.main()

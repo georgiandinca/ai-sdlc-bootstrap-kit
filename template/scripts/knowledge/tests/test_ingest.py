@@ -109,5 +109,17 @@ class DanglingLinkTests(unittest.TestCase):
             self.assertFalse([p for p in paths if "node_modules" in p or "/out/" in p], paths)
 
 
+    def test_markdown_link_across_namespaces_resolves_in_overlay(self):
+        with tempfile.TemporaryDirectory() as d:
+            base = Path(d); data = _fixture_repo(base)
+            (base / "docs/guide.md").write_text(
+                "See [the code](../src/thing.py) and [nothing](missing.md).\n", encoding="utf-8")
+            ingest.build(data=data, base=base)
+            fed = q.open_federated(data=data, base=base)
+            rows = {r[0]: r[1] for r in fed.conn.execute(
+                f"SELECT dst, resolved FROM ({fed.edges_sql()}) WHERE kind='links'")}
+            self.assertEqual(rows, {"code:kit:src/thing.py": 1, "path:docs/missing.md": 0})
+
+
 if __name__ == "__main__":
     unittest.main()

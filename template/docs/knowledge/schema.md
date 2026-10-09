@@ -50,6 +50,7 @@ so retrieved context is always citable with its trust tier (`AGENTS.md §4.2`).
 | `traces` | story → adr | frontmatter `traces:` |
 | `cites` | doc → source | frontmatter `cites:` |
 | `supersedes` | adr → adr | frontmatter `supersedes:` |
+| `links` | doc → doc/code | relative markdown link `[text](path)` in a doc body |
 | `imports` | code → code | `ast`/regex (intra-namespace only) |
 | `contains` | code → symbol | `ast`/regex |
 | `touches` | commit → code | git numstat (optional) |
@@ -66,6 +67,10 @@ Every edge stores `source_file` + `line` (its citation) and `resolved`
 - **Code marker:** a comment containing `ADR-NNNN` → an `implements` edge (file
   level, plus symbol level when the marker is inside a def).
 - **Naming:** `tests/test_x.py` → `covers` the same-namespace `x.py`.
+- **Markdown links:** a relative `[text](path)` link in a doc body to a `.md`
+  or code file → a `links` edge citing the line. External URLs, `#anchors`,
+  images and fenced code are ignored; a folder link resolves to its `README.md`.
+  A target that is not a node in any namespace is kept as `resolved=0`.
 - **JIRA keys:** a frontmatter link value matching `ABC-123` resolves to
   `issue:<KEY>`, linking docs/stories/ADRs to imported issues.
 
