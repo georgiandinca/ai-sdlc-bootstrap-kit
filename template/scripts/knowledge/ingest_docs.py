@@ -119,9 +119,14 @@ def ingest_root(root: Path, namespace: str, base: Path):
     path_index = {}  # rels -> node id, to resolve in-root links in-pass
     root = Path(root)
     base = Path(base)
-    for f in sorted(root.rglob("*.md")):
+    # a root is a folder (walked) or a single file; a root named in the manifest
+    # is honoured even when hidden, dot-directories below it are skipped
+    files = [root] if root.is_file() else sorted(root.rglob("*.md"))
+    for f in files:
+        if f.suffix.lower() != ".md":
+            continue
         rel = f.relative_to(base)
-        if any(part.startswith(".") for part in rel.parts):
+        if f != root and any(part.startswith(".") for part in f.relative_to(root).parts):
             continue  # skip dot-directories (derived .knowledge/, etc.)
         rels = str(rel).replace("\\", "/")
         text = f.read_text(encoding="utf-8", errors="replace")

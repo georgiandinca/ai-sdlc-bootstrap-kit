@@ -41,7 +41,9 @@ Agents can also reach it over MCP: the `knowledge` server (`.mcp.json`) exposes
 ## Adding a repo
 
 Add a namespace to `graph-manifest.json` (`kind: code|docs`, its `db` path, and
-`roots`), then rebuild. Scoped queries stay isolated to that namespace; federated
+`roots`), then rebuild. A root is a folder (walked recursively) or a single
+file; the `briefs` namespace uses file roots to bring the top-level briefs and
+the skills into the graph, so links to them resolve. Scoped queries stay isolated to that namespace; federated
 queries and the overlay tie repos together through shared `adr:`/`story:` ids.
 
 ## Growing it into production (documented, not built)

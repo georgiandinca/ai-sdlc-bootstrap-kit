@@ -121,5 +121,32 @@ class BodyLinkTests(unittest.TestCase):
             self.assertIsNone(links["path:docs/guide/gone.md"]["resolved"])
 
 
+class RootKindTests(unittest.TestCase):
+    def test_a_single_file_can_be_a_root(self):
+        with tempfile.TemporaryDirectory() as d:
+            base = Path(d)
+            (base / "docs").mkdir()
+            (base / "docs/a.md").write_text("A.\n", encoding="utf-8")
+            (base / "AGENTS.md").write_text("See [a](docs/a.md).\n", encoding="utf-8")
+            (base / "notes.txt").write_text("not markdown\n", encoding="utf-8")
+            nodes, edges = idoc.ingest_root(base / "AGENTS.md", "briefs", base)
+            self.assertEqual([n["id"] for n in nodes], ["doc:briefs:AGENTS.md"])
+            self.assertEqual([(e["kind"], e["dst"]) for e in edges], [("links", "path:docs/a.md")])
+            self.assertEqual(idoc.ingest_root(base / "notes.txt", "briefs", base), ([], []))
+
+    def test_an_explicit_hidden_root_is_walked_but_hidden_dirs_below_are_not(self):
+        with tempfile.TemporaryDirectory() as d:
+            base = Path(d)
+            (base / ".claude/skills/qa").mkdir(parents=True)
+            (base / ".claude/skills/qa/SKILL.md").write_text("Skill.\n", encoding="utf-8")
+            (base / ".claude/skills/.cache").mkdir()
+            (base / ".claude/skills/.cache/x.md").write_text("Derived.\n", encoding="utf-8")
+            (base / "docs/.knowledge").mkdir(parents=True)
+            (base / "docs/.knowledge/x.md").write_text("Derived.\n", encoding="utf-8")
+            nodes, _ = idoc.ingest_root(base / ".claude/skills", "briefs", base)
+            self.assertEqual([n["path"] for n in nodes], [".claude/skills/qa/SKILL.md"])
+            self.assertEqual(idoc.ingest_root(base / "docs", "docs", base)[0], [])
+
+
 if __name__ == "__main__":
     unittest.main()

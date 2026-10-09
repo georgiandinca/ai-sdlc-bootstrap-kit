@@ -24,6 +24,10 @@ shared **`global` overlay** holds edges whose endpoints live in different
 namespaces (e.g. code that implements a docs ADR) plus unresolved (dangling)
 links. Add a repo by adding a namespace entry — no code change.
 
+A root is a folder, walked recursively, or a single file (`"AGENTS.md"`). A root
+named in the manifest is ingested even when it is hidden (`.claude/skills/`);
+dot-directories below a root are skipped, and so is anything git-ignored.
+
 ## Nodes
 
 | kind | id form | source |

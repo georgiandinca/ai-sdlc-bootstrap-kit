@@ -86,6 +86,12 @@ def build(data=None, base=None):
                 if nd["id"] in attrib:
                     nd["meta"] = {**(nd.get("meta") or {}), **attrib[nd["id"]]}
         ns_ids = {nd["id"] for nd in ns_nodes}
+        # path refs to a file in this namespace (possibly under another root) resolve here
+        ns_paths = {nd["path"]: nd["id"] for nd in ns_nodes
+                    if nd.get("path") and nd["kind"] != "symbol"}
+        ns_edges = [{**e, "dst": ns_paths.get(e["dst"][len("path:"):], e["dst"])}
+                    if isinstance(e["dst"], str) and e["dst"].startswith("path:") else e
+                    for e in ns_edges]
         for nd in ns_nodes:
             gs.add_node(conn, nd)
             if nd.get("path") and nd["kind"] != "symbol":

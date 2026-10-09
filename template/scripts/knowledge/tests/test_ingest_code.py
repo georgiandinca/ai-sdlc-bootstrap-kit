@@ -83,5 +83,20 @@ class IngestCodeTests(unittest.TestCase):
                              "Should NOT match s2/myutil.py via bare-suffix match")
 
 
+class FileRootTests(unittest.TestCase):
+    def test_a_single_file_can_be_a_root(self):
+        import tempfile
+        from pathlib import Path as P
+        import ingest_code
+        with tempfile.TemporaryDirectory() as d:
+            base = P(d)
+            (base / "tools").mkdir()
+            (base / "tools/run.py").write_text("def go():\n    return 1\n", encoding="utf-8")
+            (base / "tools/other.py").write_text("def no():\n    return 0\n", encoding="utf-8")
+            nodes, _ = ingest_code.ingest_root(base / "tools/run.py", "kit", base)
+            self.assertEqual(sorted(n["id"] for n in nodes),
+                             ["code:kit:tools/run.py", "sym:kit:tools/run.py:go"])
+
+
 if __name__ == "__main__":
     unittest.main()

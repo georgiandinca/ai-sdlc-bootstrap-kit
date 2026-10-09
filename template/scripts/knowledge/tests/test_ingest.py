@@ -121,5 +121,19 @@ class DanglingLinkTests(unittest.TestCase):
             self.assertEqual(rows, {"code:kit:src/thing.py": 1, "path:docs/missing.md": 0})
 
 
+    def test_link_between_two_roots_of_one_namespace_stays_in_that_namespace(self):
+        with tempfile.TemporaryDirectory() as d:
+            base = Path(d); data = _fixture_repo(base)
+            (base / "AGENTS.md").write_text("Start at the [readme](README.md).\n", encoding="utf-8")
+            (base / "README.md").write_text("Readme.\n", encoding="utf-8")
+            data["namespaces"]["briefs"] = {"kind": "docs", "db": ".knowledge/briefs.db",
+                                            "roots": ["AGENTS.md", "README.md"]}
+            ingest.build(data=data, base=base)
+            scoped = q.open_scoped("briefs", data=data, base=base)
+            rows = scoped.conn.execute(
+                "SELECT src, dst, resolved FROM ns_briefs.edges WHERE kind='links'").fetchall()
+            self.assertEqual(rows, [("doc:briefs:AGENTS.md", "doc:briefs:README.md", 1)])
+
+
 if __name__ == "__main__":
     unittest.main()
