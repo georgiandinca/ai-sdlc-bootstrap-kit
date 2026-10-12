@@ -5,7 +5,7 @@
 CREATE TABLE IF NOT EXISTS sessions (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     ts          TEXT    NOT NULL,                      -- ISO 8601 timestamp
-    seat        TEXT    NOT NULL,                      -- Architect | EM | Product | Developer | QA
+    seat        TEXT    NOT NULL,                      -- Architect | EM | Product | Developer | QA | Reviewer
     tool        TEXT    NOT NULL DEFAULT 'claude',
     task        TEXT,
     ticket      TEXT,

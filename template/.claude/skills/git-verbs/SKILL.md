@@ -18,7 +18,7 @@ Hide git behind intent for operators whose **git-comfort** (in `USER.md`) is `gu
 |---|---|---|
 | "get the latest" / "update my copy" | `scripts/session/sync.sh` | fast-forward pull (refuses on a dirty tree) |
 | "save my work" / "I'm done with this" | `scripts/session/checkpoint.sh "<short summary>"` | commit + push to a safe personal branch — **no** review requested |
-| "send for review" / "share this" | `scripts/session/wrapup.sh "<message>"` | commit + push + open a merge request |
+| "send for review" / "share this" | `scripts/session/wrapup.sh "<message>"` | commit + push + open a merge request — run the independent review first (`WORKING-AGREEMENT.md` §5); the script does not |
 
 ## Rules
 

@@ -24,6 +24,7 @@ A map of every directory in this workspace and what belongs there. When in doubt
 │       ├── playbook-product/
 │       ├── playbook-dev/
 │       ├── playbook-qa/
+│       ├── playbook-reviewer/
 │       └── skill-creator/          # create / improve skills
 │
 ├── .github/

@@ -100,7 +100,7 @@ esac
 
 cat <<'EOF'
 [session ritual] Before creating artefacts and during this session:
-1. Confirm the operator's SEAT (Architect/EM/Product/Developer/QA). If a saved seat is
+1. Confirm the operator's SEAT (Architect/EM/Product/Developer/QA/Reviewer). If a saved seat is
    shown above, confirm or change it; otherwise ask. Use it as the default `owner:` in new
    frontmatter; set `author:` from `git config user.name`/`user.email`; `created:` = today.
 2. If this branch is BEHIND upstream AND the tree is CLEAN, OFFER a sync

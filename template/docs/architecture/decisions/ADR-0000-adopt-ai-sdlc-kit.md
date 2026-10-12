@@ -29,7 +29,7 @@ Adopt the **AI-SDLC Bootstrap Kit** and its seven-pillar framework ([`../../meth
 1. `AGENTS.md` is the canonical brief; `CLAUDE.md` and other tool files are thin pointers.
 2. Maturity & trust are signalled by **location + frontmatter** (§4.2) and enforced by `scripts/validate-frontmatter.py`.
 3. AI acts under a **scoped-write MCP posture** — attributable to a named seat, never silent.
-4. The named seats are **Architect, EM, Product, Developer, QA**, each with an invokable playbook skill and a scoped MCP profile.
+4. The named seats are **Architect, EM, Product, Developer, QA, Reviewer**, each with an invokable playbook skill and a scoped MCP profile. The Reviewer seat does the independent review of a change before its pull request is opened, and is usually held by an AI agent for that one task.
 5. Governance rules run as **CI gates** (`.github/workflows/ai-governance.yml`).
 6. Knowledge is **ingested and grounded on** (`docs/knowledge/`), not guessed.
 7. A **human-owned continuous-improvement loop** (`docs/methodology/continuous-improvement.md`) feeds usage back into the rules.

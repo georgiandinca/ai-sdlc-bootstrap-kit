@@ -72,7 +72,7 @@ Ties to the board's Roles × Skills × MCP matrix. See [`AGENTS.md`](../../../AG
 ## §5 — Definition of done for this seat's artefacts
 
 - CI is green, **including the AI-governance gate**.
-- Every PR is reviewed before merge to a protected branch.
+- Every PR is reviewed before merge to a protected branch, after the Reviewer seat's independent review before it was opened (`playbook-reviewer`).
 - Runbooks carry the frontmatter contract (name / status / classification / ai-trust / owner).
 - Commit messages reference the issue key per [`WORKING-AGREEMENT.md`](../../../WORKING-AGREEMENT.md) §5.5.
 - No secrets are committed (verified by the pipeline).

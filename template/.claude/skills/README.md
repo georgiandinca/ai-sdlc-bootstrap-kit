@@ -15,6 +15,7 @@ The `playbook-<seat>` skills capture each named seat's **role contract** — wha
 | **playbook-product** | Product (PO/PM) |
 | **playbook-dev** | Developer |
 | **playbook-qa** | QA |
+| **playbook-reviewer** | Reviewer |
 
 These are **Architect-owned baselines**; each seat holder may amend their own via PR.
 

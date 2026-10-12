@@ -11,7 +11,7 @@ cd "$repo_root"
 
 new_seat="${1:-}"
 if [ -z "$new_seat" ]; then
-  echo "Usage: scripts/session/switch-seat.sh <Architect|EM|Product|Developer|QA>"
+  echo "Usage: scripts/session/switch-seat.sh <Architect|EM|Product|Developer|QA|Reviewer>"
   exit 2
 fi
 
@@ -30,7 +30,7 @@ for s in data.get("seats", []):
         sys.exit(0)
 sys.exit(1)
 PY
-) || { echo "unknown seat: ${new_seat} (must be one of Architect/EM/Product/Developer/QA)"; exit 2; }
+) || { echo "unknown seat: ${new_seat} (must be one of Architect/EM/Product/Developer/QA/Reviewer)"; exit 2; }
 
 canonical="${resolved%%|*}"; rest="${resolved#*|}"
 comfort="${rest%%|*}"; playbook="${rest#*|}"

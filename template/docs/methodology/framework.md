@@ -54,7 +54,7 @@ The governance rules are expressed as runnable scripts and enforced as merge gat
 Project sources are **ingested** into a queryable store the agents **ground** on instead of guessing. The kit ships a dependency-light ingestion stub and a documented path to a production vector store / knowledge graph (or a hosted `knowledge` MCP server). **Where:** [`../knowledge/`](../knowledge/), [`../../scripts/knowledge/ingest.py`](../../scripts/knowledge/ingest.py).
 
 ### 6. Roles × Skills × MCP
-Each named seat (Architect, EM, Product, Developer, QA) has an **invokable role-contract skill** and a **scoped set of MCP connectors**. The matrix is the operating model: who owns what, which skills they invoke, which tools they may act in. **Where:** [`../../.claude/skills/`](../../.claude/skills/), [`../../.mcp.json`](../../.mcp.json), `AGENTS.md` §5.
+Each named seat (Architect, EM, Product, Developer, QA, Reviewer) has an **invokable role-contract skill** and a **scoped set of MCP connectors**. The matrix is the operating model: who owns what, which skills they invoke, which tools they may act in. **Where:** [`../../.claude/skills/`](../../.claude/skills/), [`../../.mcp.json`](../../.mcp.json), `AGENTS.md` §5.
 
 ### 7. Human methodology & continuous improvement
 The human stays in the loop. Retros, the AI-utilization dashboard (DB + web), and a cost/quality feedback loop turn usage into improvements to the rules, skills, and knowledge. **Where:** [`./continuous-improvement.md`](./continuous-improvement.md), [`../../dashboard/`](../../dashboard/).

@@ -23,7 +23,7 @@ import json
 from pathlib import Path
 
 REQUIRED_FIELDS = ["id", "git_comfort_default", "playbook", "connectors", "first_task"]
-KNOWN_SEATS = {"Architect", "EM", "Product", "Developer", "QA"}
+KNOWN_SEATS = {"Architect", "EM", "Product", "Developer", "QA", "Reviewer"}
 COMFORTS = {"git-native", "guided", "hidden"}
 MANIFEST_REL = "scripts/session/seat-profiles.json"
 MCP_REL = ".mcp.json"
