@@ -17,12 +17,12 @@ Installs the [AI-SDLC Bootstrap Kit](https://github.com/georgiandinca/ai-sdlc-bo
 Run the situation check before asking the user anything:
 
 ```bash
-"$CLAUDE_PLUGIN_ROOT/.claude/skills/install-ai-sdlc-kit/scripts/detect-situation.sh"
+bash "<directory of this SKILL.md>/scripts/detect-situation.sh"
 ```
 
-(When the kit repo itself is open, the path is `.claude/skills/install-ai-sdlc-kit/scripts/detect-situation.sh`.)
+The script sits beside this file, at `scripts/detect-situation.sh` — resolve it from wherever this `SKILL.md` was loaded, in any agent. (In Claude Code that is `$CLAUDE_PLUGIN_ROOT/.claude/skills/install-ai-sdlc-kit/scripts/detect-situation.sh`; with the kit repo itself open, `.claude/skills/install-ai-sdlc-kit/scripts/detect-situation.sh`.)
 
-It prints one JSON object and writes nothing. Read it, then take exactly one path:
+It prints one JSON object and writes nothing — no temp files either, so it runs in a read-only sandbox. Read it, then take exactly one path:
 
 | `kit.state` | `user_md` | Path |
 |---|---|---|
@@ -37,6 +37,18 @@ Never install when `kit.state` is not `absent`. Never re-run onboarding when `US
 `.ai-sdlc/kit.json` is absent or fails to parse as JSON — in that case treat `kit.manifest`
 as unknown rather than reading fields out of it (Step 4's version-drift check needs a valid
 manifest; if it isn't valid, say so and stop there instead of comparing against `null`).
+
+### If the script cannot run
+
+Say so, then establish the same facts with these read-only commands and take the path from the table above:
+
+| Fact | Command |
+|---|---|
+| `kit.state` | `test -f .ai-sdlc/kit.json` — missing is `absent`; present and `git ls-files --error-unmatch .ai-sdlc/kit.json` succeeds is `present-committed`; otherwise `present-uncommitted` |
+| `user_md` | `test -f USER.md` |
+| `git.dirty`, `git.has_commits` | `git status --porcelain` prints anything; `git rev-parse HEAD` succeeds |
+| `hooks` | `test -f .pre-commit-config.yaml`; `grep -q pre-commit .git/hooks/pre-commit`; `command -v pre-commit` |
+| `layout_signals` | workspace files at the root (`pnpm-workspace.yaml`, `turbo.json`, `nx.json`, `lerna.json`, `go.work`, a `[workspace]` table in `Cargo.toml`); `ls -d */.git` for child repos; `ls -d ../*/.git` for sibling repos |
 
 ## Step 2 — Setup
 
@@ -101,6 +113,8 @@ The kit is installed and this person is onboarded. Report, with a fix offered fo
 - **Onboard from memory.** Always via the project's `ONBOARDING.md`.
 
 ## Running without Claude Code
+
+The kit also installs as a plugin in Codex (`codex plugin marketplace add`, then `codex plugin add`) and in Antigravity (`agy plugin install` on a clone) — the README has the commands.
 
 The situation check and `bootstrap.sh` are plain shell. Any agent can be pointed at this file and follow it, and a person can run the install directly:
 

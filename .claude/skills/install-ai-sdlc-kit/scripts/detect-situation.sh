@@ -111,38 +111,38 @@ if [ "$parent" != "$dir" ]; then
   done
 fi
 
-cat <<JSON
-{
-  "cwd": $(json_str "$dir"),
-  "git": {
-    "is_repo": $(json_bool "$is_repo"),
-    "root": $(json_str "$git_root"),
-    "remote": $(json_str "$remote"),
-    "branch": $(json_str "$branch"),
-    "dirty": $(json_bool "$dirty"),
-    "has_commits": $(json_bool "$has_commits")
-  },
-  "kit": {
-    "state": $(json_str "$kit_state"),
-    "root": $(json_str "$kit_root"),
-    "manifest": $manifest,
-    "manifest_valid": $(json_bool "$manifest_valid")
-  },
-  "user_md": $(json_bool "$user_md"),
-  "hooks": {
-    "config": $(json_bool "$hooks_config"),
-    "installed": $(json_bool "$hooks_installed"),
-    "pre_commit_available": $(json_bool "$pre_commit_available")
-  },
-  "layout_signals": {
-    "workspace_files": $(json_array ${workspace+"${workspace[@]}"}),
-    "child_repos": $(json_array ${children+"${children[@]}"}),
-    "sibling_repos": $(json_array ${siblings+"${siblings[@]}"})
-  },
-  "tooling": {
-    "git": $(json_str "$v_git"),
-    "python3": $(json_str "$v_py"),
-    "pyyaml": $(json_bool "$pyyaml")
-  }
-}
-JSON
+# Emitted with printf, not a here-document: bash backs a here-document with a temp
+# file, which fails in a read-only sandbox (as Codex and other agents run this check).
+printf '{\n'
+printf '  "cwd": %s,\n' "$(json_str "$dir")"
+printf '  "git": {\n'
+printf '    "is_repo": %s,\n' "$(json_bool "$is_repo")"
+printf '    "root": %s,\n' "$(json_str "$git_root")"
+printf '    "remote": %s,\n' "$(json_str "$remote")"
+printf '    "branch": %s,\n' "$(json_str "$branch")"
+printf '    "dirty": %s,\n' "$(json_bool "$dirty")"
+printf '    "has_commits": %s\n' "$(json_bool "$has_commits")"
+printf '  },\n'
+printf '  "kit": {\n'
+printf '    "state": %s,\n' "$(json_str "$kit_state")"
+printf '    "root": %s,\n' "$(json_str "$kit_root")"
+printf '    "manifest": %s,\n' "$manifest"
+printf '    "manifest_valid": %s\n' "$(json_bool "$manifest_valid")"
+printf '  },\n'
+printf '  "user_md": %s,\n' "$(json_bool "$user_md")"
+printf '  "hooks": {\n'
+printf '    "config": %s,\n' "$(json_bool "$hooks_config")"
+printf '    "installed": %s,\n' "$(json_bool "$hooks_installed")"
+printf '    "pre_commit_available": %s\n' "$(json_bool "$pre_commit_available")"
+printf '  },\n'
+printf '  "layout_signals": {\n'
+printf '    "workspace_files": %s,\n' "$(json_array ${workspace+"${workspace[@]}"})"
+printf '    "child_repos": %s,\n' "$(json_array ${children+"${children[@]}"})"
+printf '    "sibling_repos": %s\n' "$(json_array ${siblings+"${siblings[@]}"})"
+printf '  },\n'
+printf '  "tooling": {\n'
+printf '    "git": %s,\n' "$(json_str "$v_git")"
+printf '    "python3": %s,\n' "$(json_str "$v_py")"
+printf '    "pyyaml": %s\n' "$(json_bool "$pyyaml")"
+printf '  }\n'
+printf '}\n'

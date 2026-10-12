@@ -78,6 +78,30 @@ check G_valid     "$(printf '%s' "$out" | jqp kit.manifest_valid)"  "false"
 check G_json_valid "$(printf '%s' "$out" | python3 -c 'import json,sys; json.load(sys.stdin); print("true")' 2>/dev/null || printf 'false')" "true"
 rm -rf "$tmp"
 
+# --- Case H: read-only sandbox (no writable temp dir) ------------------------------
+# Agents such as Codex run the check in a sandbox where nothing is writable. Bash
+# backs a here-document with a temp file, so the script must not use one.
+check H_no_heredoc "$(grep -c '<<' "$DETECT")" "0"
+if command -v sandbox-exec >/dev/null 2>&1; then
+  tmp=$(mktemp -d); ( cd "$tmp" && git_q init )
+  profile='(version 1)(allow default)(deny file-write*)(allow file-write* (regex #"^/dev/"))'
+  out=$(sandbox-exec -p "$profile" bash "$DETECT" --dir "$tmp" 2>&1)
+  check H_readonly_json "$(printf '%s' "$out" | jqp git.is_repo 2>/dev/null || printf 'unparsable')" "true"
+  rm -rf "$tmp"
+else
+  echo "skip H_readonly_json (no sandbox-exec on this platform)"
+fi
+
+# --- Case I: plugin manifests stay in step -----------------------------------------
+# Claude Code and Codex read .claude-plugin/plugin.json; Antigravity reads plugin.json
+# at the repo root. They are the same manifest and must not drift.
+ROOT=$(cd "$HERE/../../../../.." && pwd)
+if [ -f "$ROOT/.claude-plugin/plugin.json" ]; then
+  check I_manifests_match "$(cmp -s "$ROOT/plugin.json" "$ROOT/.claude-plugin/plugin.json" && printf same || printf differ)" "same"
+else
+  echo "skip I_manifests_match (not running inside the kit repo)"
+fi
+
 echo "---"
 [ "$fails" -eq 0 ] && echo "all detect-situation tests passed" || echo "$fails test(s) failed"
 exit "$fails"
