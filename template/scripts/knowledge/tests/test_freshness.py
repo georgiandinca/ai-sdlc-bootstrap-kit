@@ -66,6 +66,30 @@ class FreshnessTests(unittest.TestCase):
             (base / "product/app.py").write_text("def run(): return 2\n", encoding="utf-8")
             self.assertEqual(freshness.check(data, base)["state"], "fresh")
 
+    def test_a_repository_beside_the_base_is_tracked_and_reads_its_own_ignore_rules(self):
+        """Sidecar layout: the code repository sits next to the kit, as ../side."""
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
+            base = Path(d) / "kit"; base.mkdir(); data = _project(base)
+            side = Path(d) / "side"
+            (side / "dist").mkdir(parents=True)
+            (side / "app.py").write_text("def run(): pass\n", encoding="utf-8")
+            (side / "dist/built.py").write_text("def built(): pass\n", encoding="utf-8")
+            (side / ".gitignore").write_text("dist/\n", encoding="utf-8")
+            _git(side, "init", "-q"); _git(side, "add", "-A"); _git(side, "commit", "-qm", "one")
+            data["namespaces"]["side"] = {"kind": "code", "db": ".knowledge/side.db",
+                                          "roots": ["../side/"]}
+            ingest.build(data=data, base=base)
+            self.assertIn("../side", freshness.heads(data, base))
+            import query as q
+            kg = q.open_scoped("side", data=data, base=base)
+            paths = {r[0] for r in kg.conn.execute(f"SELECT path FROM ({kg.nodes_sql()})")}
+            self.assertIn("../side/app.py", paths)
+            self.assertNotIn("../side/dist/built.py", paths)
+            self.assertEqual(freshness.check(data, base)["state"], "fresh")
+            (side / "app.py").write_text("def run(): return 1\n", encoding="utf-8")
+            _git(side, "commit", "-qam", "two")
+            self.assertEqual([c["tree"] for c in freshness.check(data, base)["changed"]], ["../side"])
+
     def test_a_namespace_without_sources_is_named(self):
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
             base = Path(d); data = _project(base)

@@ -25,7 +25,7 @@ python3 scripts/knowledge/ingest.py --build
 python3 scripts/knowledge/ingest.py --federated --trace ADR-0001
 
 # Only what names the ADR directly: the code and tests that carry its marker
-python3 scripts/knowledge/ingest.py --trace ADR-0004 --depth 1
+python3 scripts/knowledge/ingest.py --trace ADR-0001 --depth 1
 
 # Scope to one namespace
 python3 scripts/knowledge/ingest.py --scope kit-code --trace ADR-0001
@@ -48,10 +48,11 @@ Agents can also reach it over MCP: the `knowledge` server (`.mcp.json`) exposes
 and `issues` (the tracker export). A project adds a `code` namespace for each
 of its code repositories (see "Adding a repo").
 
-In the kit's **parent layout** the code repositories are cloned under this one
-and git-ignored by it. The build reads such a repository by its own ignore
-rules, so its tracked files are ingested and its `node_modules/` or `dist/`
-are not. A repository that is not cloned gives an empty namespace, not an
+A root may be another git repository: one cloned under this one (the kit's
+**parent layout**, where it is usually git-ignored here) or one beside it
+(the **sidecar layout**, with a root such as `../acme-api/`). The build reads
+such a repository by its own ignore rules, so its tracked files are ingested
+and its `node_modules/` or `dist/` are not. A repository that is not cloned gives an empty namespace, not an
 error, which is what happens in CI.
 
 What the graph knows about code, and what it does not:
@@ -70,7 +71,8 @@ What the graph knows about code, and what it does not:
   `pyproject.toml`, `package.json`), and the text of code files. A content
   search finds names and documents, not usages inside code; use `grep` for
   those.
-- **Commit attribution** is linked for the kit's own code only.
+- **Commit attribution** is linked for code in this repository, and not for
+  a namespace read from another repository.
 
 ## Keeping it up to date
 
@@ -101,12 +103,13 @@ nothing is committed.
 **When it happens by itself.** The session-start hook (`scripts/session/start.sh`)
 runs the check and rebuilds when the graph is stale or unbuilt, and says which
 namespaces have no sources. It does not pull the code repositories, and it
-does not run again during a session. A session started inside a code
+does not run again during a session. A session started inside another
 repository does not run it: the script lives in this repository only.
 
 **When to do it by hand.**
 
-- After pulling or switching branch in any of the four repositories mid-session.
+- After pulling or switching branch mid-session, in this repository or in any
+  code repository the manifest names.
 - After editing files you want to query before committing them: the check sees
   commits only, so it still says "fresh".
 - After adding a namespace or a root to `graph-manifest.json`.
@@ -117,7 +120,7 @@ repository does not run it: the script lives in this repository only.
   main checkout too, and replaces the graph kept there:
   ```bash
   python3 scripts/knowledge/ingest.py --build --base /path/to/main/checkout
-  python3 scripts/knowledge/ingest.py --trace ADR-0004 --depth 1 --base /path/to/main/checkout
+  python3 scripts/knowledge/ingest.py --trace ADR-0001 --depth 1 --base /path/to/main/checkout
   ```
   Every later command needs the same `--base`. The MCP server and
   `export_html.py` take no such option: they follow the `KG_BASE` environment

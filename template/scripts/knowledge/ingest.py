@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -37,14 +38,16 @@ def _drop_ignored(nodes, edges, base, tree=None):
     """Drop nodes (and their edges) whose file is git-ignored: vendored or
     generated trees (node_modules/, out/) are not project knowledge. Outside a
     git work tree nothing is dropped. `tree` is the work tree that decides
-    (default: the base); node paths stay relative to the base."""
+    (default: the base); node paths stay relative to the base, and may start
+    with `../` for a root beside it."""
     base = Path(base).resolve()
     tree = Path(tree).resolve() if tree else base
     in_tree = {}  # path as the deciding work tree sees it -> path as the node holds it
     for nd in nodes:
         if nd.get("path"):
             try:
-                in_tree[str((base / nd["path"]).relative_to(tree)).replace("\\", "/")] = nd["path"]
+                full = Path(os.path.normpath(base / nd["path"]))
+                in_tree[str(full.relative_to(tree)).replace("\\", "/")] = nd["path"]
             except ValueError:
                 continue
     if not in_tree:
@@ -89,8 +92,8 @@ def build(data=None, base=None):
             n, e = _drop_ignored(n, e, base, freshness.work_tree(root, base))
             ns_nodes += n
             ns_edges += e
-        # commits are recorded for the base repository; a namespace read from a
-        # repository cloned under it has none to link, and the search is slow
+        # commits are recorded for the base repository; a namespace read from
+        # another repository has none to link, and the search is slow
         own = all(freshness.work_tree(r, base) == Path(base).resolve() for r in roots)
         if kind == "code" and own:
             cn, ce, attrib = link_commits.link(name, ns_nodes, Path(base) / DASHBOARD_DB, base)

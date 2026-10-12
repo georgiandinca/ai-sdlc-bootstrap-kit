@@ -3,11 +3,11 @@
 """Is the built graph still the graph of what is checked out?
 
 A build records the commit of every git work tree it read: the base, and each
-repository cloned under it that a namespace names as a root (the product
-repositories in the parent layout), together with the manifest it was built
-from. `check` compares that record with what is there now, and also names the
-namespaces that have no sources on disk, which is the case for the product
-namespaces in a git worktree and in CI.
+other repository that a namespace names as a root, whether it is cloned under
+the base (the parent layout) or beside it (the sidecar layout), together with
+the manifest it was built from. `check` compares that record with what is there now, and also names the
+namespaces that have no sources on disk, which is the case for the code
+repositories of the parent layout in a git worktree and in CI.
 
 It sees commits only: an edit that is not committed does not make the graph
 stale here, so rebuild after editing too. A repository cloned somewhere below
@@ -17,6 +17,7 @@ from __future__ import annotations
 import functools
 import hashlib
 import json
+import os
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
@@ -27,16 +28,20 @@ STAMP = "built.json"
 
 
 def work_tree(root, base) -> Path:
-    """The git work tree that owns a root. A repository cloned under the base
-    is git-ignored by the base and answers for its own files; any other root
-    belongs to the base."""
+    """The git work tree that owns a root, and so decides which of its files
+    are ignored and which commit it is at. A repository cloned under the base
+    (often git-ignored by it), or one beside the base, answers for its own
+    files; any other root belongs to the base."""
     root, base = Path(root).resolve(), Path(base).resolve()
     folder = root if root.is_dir() else root.parent
-    # only a folder between the root and the base that holds .git can be another
-    # work tree; without one the answer is the base, and no git call is needed
     between = [folder, *folder.parents]
     if base not in between:
-        return base
+        # a root outside the base: the repository it is in, if it is in one
+        while not folder.exists() and folder != folder.parent:
+            folder = folder.parent
+        return _toplevel(str(folder)) or base
+    # only a folder between the root and the base that holds .git can be another
+    # work tree; without one the answer is the base, and no git call is needed
     if not any((p / ".git").exists() for p in between[:between.index(base)]):
         return base
     top = _toplevel(str(folder))
@@ -63,12 +68,13 @@ def _head(tree: Path):
 
 
 def heads(data, base) -> dict:
-    """{work tree, relative to the base ('.' for the base): commit or None}."""
+    """{work tree, relative to the base ('.' for the base, '../x' for one beside
+    it): commit or None}."""
     base = Path(base).resolve()
     trees = {base}
     for _name, _kind, _db, roots in manifest_mod.namespaces(data, base=base):
         trees |= {work_tree(root, base) for root in roots if Path(root).exists()}
-    return {("." if t == base else str(t.relative_to(base)).replace("\\", "/")): _head(t)
+    return {("." if t == base else os.path.relpath(t, base).replace("\\", "/")): _head(t)
             for t in sorted(trees)}
 
 

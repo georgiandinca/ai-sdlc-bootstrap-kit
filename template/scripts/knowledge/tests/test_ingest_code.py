@@ -103,15 +103,17 @@ class MoreLanguagesTests(unittest.TestCase):
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(text, encoding="utf-8")
 
+    # The markers below use numbers no project has: this file is ingested with a
+    # project's scripts, and a real number would put it in that decision's trace.
     def test_tsx_sql_and_tf_files_are_ingested(self):
         with tempfile.TemporaryDirectory() as d:
             base = Path(d)
             self._write(base / "app/src/App.tsx",
-                        "// ADR-0004\nexport function App() {\n  return null;\n}\n"
+                        "// ADR-9994\nexport function App() {\n  return null;\n}\n"
                         "export default async function load() {}\n")
-            self._write(base / "app/db/001_init.sql", "-- ADR-0003\nCREATE TABLE t (id int);\n")
-            self._write(base / "app/main.tf", "# ADR-0007\n")
-            self._write(base / "app/tests/posture.tftest.hcl", "# ADR-0007\n")
+            self._write(base / "app/db/001_init.sql", "-- ADR-9993\nCREATE TABLE t (id int);\n")
+            self._write(base / "app/main.tf", "# ADR-9997\n")
+            self._write(base / "app/tests/posture.tftest.hcl", "# ADR-9997\n")
             nodes, edges = icode.ingest_root(base / "app", "console", base)
             ids = {n["id"] for n in nodes}
             self.assertIn("code:console:app/src/App.tsx", ids)
@@ -121,7 +123,7 @@ class MoreLanguagesTests(unittest.TestCase):
             self.assertIn("code:console:app/main.tf", ids)
             self.assertIn("code:console:app/tests/posture.tftest.hcl", ids)
             implements = {(e["src"], e["dst"]) for e in edges if e["kind"] == "implements"}
-            self.assertIn(("code:console:app/db/001_init.sql", "adr:ADR-0003"), implements)
+            self.assertIn(("code:console:app/db/001_init.sql", "adr:ADR-9993"), implements)
 
     def test_a_typescript_test_covers_the_file_it_is_named_after(self):
         with tempfile.TemporaryDirectory() as d:
