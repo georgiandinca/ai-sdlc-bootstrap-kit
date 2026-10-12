@@ -138,7 +138,7 @@ See `AGENTS.md` §4.3. Every AI write is **attributable to a named seat + sessio
 
 Every agent session follows a lightweight ritual (the git workflow on the board: **Repo → Edit → Pull Request**):
 
-- **Session start.** Confirm which seat you are operating as. The Claude Code hook (`.claude/settings.json`) runs `scripts/session/start.sh`, which prints git identity, branch, and sync state, and offers a fast-forward sync (`scripts/session/sync.sh`) — run it **only on explicit confirmation**.
+- **Session start.** Confirm which seat you are operating as. The Claude Code hook (`.claude/settings.json`) runs `scripts/session/start.sh`, which prints git identity, branch, and sync state, and offers a fast-forward sync (`scripts/session/sync.sh`) — run it **only on explicit confirmation**. It also rebuilds the knowledge graph when it is stale or unbuilt; the graph is git-ignored, and how it is kept current is in [`docs/knowledge/README.md`](./docs/knowledge/README.md).
 - **Authoring.** New Markdown carries `owner` = confirmed seat, `author` = `git config user.name`/`user.email`, `created` = today. Don't default `owner` to the Architect.
 - **Session end.** Offer to commit + open a PR: `scripts/session/wrapup.sh "<message>" <paths>`. The script branches off a protected branch, commits, pushes, and opens a PR (or prints the PR URL). **AI never pushes a protected branch to origin.**
 - **Commit messages.** Reference the issue key (`<TICKET-123>`) so the host links commits to the issue. The `commit-msg` hook (`scripts/git/commit_msg_ticket.py`) enforces or nudges this; `[no-ticket]` exempts genuine non-ticket commits.

@@ -6,8 +6,10 @@ federated queries/traces, each grounded on a source citation.
 
   ingest.py --build                       # (re)build every namespace + overlay
   ingest.py --stats
+  ingest.py --freshness                   # built from the commits checked out now?
   ingest.py --query "text" [--scope NS | --federated]
-  ingest.py --trace ADR-0001 [--scope NS | --federated]
+  ingest.py --trace ADR-0001 [--scope NS | --federated] [--depth N]
+  ingest.py ... --base DIR                # read and keep the graph under DIR
 """
 from __future__ import annotations
 
@@ -25,26 +27,36 @@ import ingest_code                # noqa: E402
 import ingest_issues              # noqa: E402
 import link_issues                # noqa: E402
 import link_commits               # noqa: E402
+import freshness                  # noqa: E402
 import query as query_mod         # noqa: E402
 
-DASHBOARD_DB = manifest_mod.REPO_ROOT / "dashboard" / "utilization.db"
+DASHBOARD_DB = Path("dashboard") / "utilization.db"   # under the base
 
 
-def _drop_ignored(nodes, edges, base):
+def _drop_ignored(nodes, edges, base, tree=None):
     """Drop nodes (and their edges) whose file is git-ignored: vendored or
     generated trees (node_modules/, out/) are not project knowledge. Outside a
-    git work tree nothing is dropped."""
-    paths = sorted({nd["path"] for nd in nodes if nd.get("path")})
-    if not paths:
+    git work tree nothing is dropped. `tree` is the work tree that decides
+    (default: the base); node paths stay relative to the base."""
+    base = Path(base).resolve()
+    tree = Path(tree).resolve() if tree else base
+    in_tree = {}  # path as the deciding work tree sees it -> path as the node holds it
+    for nd in nodes:
+        if nd.get("path"):
+            try:
+                in_tree[str((base / nd["path"]).relative_to(tree)).replace("\\", "/")] = nd["path"]
+            except ValueError:
+                continue
+    if not in_tree:
         return nodes, edges
     try:
-        r = subprocess.run(["git", "check-ignore", "-z", "--stdin"], cwd=str(base),
-                           input="\0".join(paths), capture_output=True, text=True)
+        r = subprocess.run(["git", "check-ignore", "-z", "--stdin"], cwd=str(tree),
+                           input="\0".join(sorted(in_tree)), capture_output=True, text=True)
     except OSError:
         return nodes, edges
     if r.returncode != 0:  # 1 = none ignored, 128 = not a git work tree
         return nodes, edges
-    ignored = {p for p in r.stdout.split("\0") if p}
+    ignored = {in_tree[p] for p in r.stdout.split("\0") if p in in_tree}
     gone = {nd["id"] for nd in nodes if nd.get("path") in ignored}
     return ([nd for nd in nodes if nd["id"] not in gone],
             [e for e in edges if e["src"] not in gone and e["dst"] not in gone])
@@ -58,6 +70,7 @@ def build(data=None, base=None):
     held: list[dict] = []
     issues_present = any(spec.get("kind") == "issues"
                          for spec in data.get("namespaces", {}).values())
+    freshness.forget(data, base)
 
     for name, kind, db, roots in manifest_mod.namespaces(data, base=base):
         conn = gs.connect(db)
@@ -73,11 +86,14 @@ def build(data=None, base=None):
                 n, e = ingest_issues.ingest_root(root, name, base)
             else:
                 n, e = ingest_docs.ingest_root(root, name, base)
+            n, e = _drop_ignored(n, e, base, freshness.work_tree(root, base))
             ns_nodes += n
             ns_edges += e
-        ns_nodes, ns_edges = _drop_ignored(ns_nodes, ns_edges, base)
-        if kind == "code":
-            cn, ce, attrib = link_commits.link(name, ns_nodes, DASHBOARD_DB, base)
+        # commits are recorded for the base repository; a namespace read from a
+        # repository cloned under it has none to link, and the search is slow
+        own = all(freshness.work_tree(r, base) == Path(base).resolve() for r in roots)
+        if kind == "code" and own:
+            cn, ce, attrib = link_commits.link(name, ns_nodes, Path(base) / DASHBOARD_DB, base)
             ns_nodes += cn
             ns_edges += ce
             if issues_present:
@@ -120,6 +136,7 @@ def build(data=None, base=None):
         gs.add_edge(oconn, row)
     oconn.commit()
     oconn.close()
+    freshness.record(data, base)
     return _stats(data, base)
 
 
@@ -141,8 +158,9 @@ def _stats(data, base):
     return {"namespaces": ns_stats, "overlay_edges": ove}
 
 
-def _kg(scope):
-    return query_mod.open_scoped(scope) if scope else query_mod.open_federated()
+def _kg(scope, base=None):
+    return (query_mod.open_scoped(scope, base=base) if scope
+            else query_mod.open_federated(base=base))
 
 
 def main():
@@ -150,31 +168,48 @@ def main():
     g = ap.add_mutually_exclusive_group(required=True)
     g.add_argument("--build", action="store_true", help="(re)build all namespaces + overlay")
     g.add_argument("--stats", action="store_true", help="show node/edge counts")
+    g.add_argument("--freshness", action="store_true",
+                   help="is the graph built from the commits checked out now? exit 1 if not")
     g.add_argument("--query", metavar="TEXT", help="content search")
     g.add_argument("--trace", metavar="ID", help="trace a node id's chain")
     ap.add_argument("--scope", metavar="NS", help="restrict to one namespace")
     ap.add_argument("--federated", action="store_true", help="query across all namespaces (default)")
+    ap.add_argument("--depth", type=int, default=4, metavar="N",
+                    help="how many edges --trace follows from the id (default 4; "
+                         "1 = only what is tied to it directly)")
+    ap.add_argument("--base", metavar="DIR", type=Path,
+                    help="read the files, and keep the graph, under DIR in place of this "
+                         "checkout; this checkout's scripts and manifest are still used. "
+                         "From a git worktree, name the main checkout to get the "
+                         "product repositories cloned under it")
     a = ap.parse_args()
+    if a.base and not a.base.is_dir():
+        ap.error(f"--base {a.base} is not a directory")
+    base = a.base.resolve() if a.base else manifest_mod.REPO_ROOT
 
     if a.build:
-        stats = build()
+        stats = build(base=base)
         for name, nn, ne in stats["namespaces"]:
             print(f"  {name:<10} {nn:>5} nodes  {ne:>5} edges")
         print(f"  {'overlay':<10} {'':>5}        {stats['overlay_edges']:>5} edges")
         print("Built docs+code knowledge graph. See docs/knowledge/README.md.")
         return 0
     if a.stats:
-        print(json.dumps(_stats(manifest_mod.load(), manifest_mod.REPO_ROOT), indent=2))
+        print(json.dumps(_stats(manifest_mod.load(), base), indent=2))
         return 0
+    if a.freshness:
+        state = freshness.check(base=base)
+        print(json.dumps(state, indent=2))
+        return 0 if state["state"] == "fresh" else 1
     scope = a.scope if not a.federated else None
-    kg = _kg(scope)
+    kg = _kg(scope, base)
     if not kg.aliases:
         print(query_mod.EMPTY_HINT)
         return 1
     if a.query:
         print(json.dumps(query_mod.search(kg, a.query), indent=2))
     else:
-        print(json.dumps(query_mod.trace(kg, a.trace), indent=2))
+        print(json.dumps(query_mod.trace(kg, a.trace, max_depth=max(1, a.depth)), indent=2))
     return 0
 
 

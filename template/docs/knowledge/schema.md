@@ -70,7 +70,7 @@ Every edge stores `source_file` + `line` (its citation) and `resolved`
   `cites:`, `supersedes:`. Values are ids (`ADR-0001`, `AS-0001`) or paths.
 - **Code marker:** a comment containing `ADR-NNNN` → an `implements` edge (file
   level, plus symbol level when the marker is inside a def).
-- **Naming:** `tests/test_x.py` → `covers` the same-namespace `x.py`.
+- **Naming:** `tests/test_x.py` → `covers` the same-namespace `x.py`; `x.test.tsx` or `x.spec.ts` → `covers` `x.tsx` / `x.ts`. The code file has to be in the test's folder or the one above.
 - **Markdown links:** a relative `[text](path)` link in a doc body to a `.md`
   or code file → a `links` edge citing the line. External URLs, `#anchors`,
   images and fenced code are ignored; a folder link resolves to its `README.md`.

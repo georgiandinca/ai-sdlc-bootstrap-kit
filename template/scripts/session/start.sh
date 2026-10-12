@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Session-start status for the current repo. Read-only. Always exits 0.
+# Session-start status for the current repo. Changes no tracked file: besides a fetch, the only
+# thing it may write is the git-ignored knowledge graph, rebuilt when stale. Always exits 0.
 set -uo pipefail
 
 repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || {
@@ -75,6 +76,24 @@ if [ "${behind:-0}" -gt 0 ] 2>/dev/null && [ "${dirty:-dirty}" = clean ]; then
     echo "[sync] behind by ${behind} — offer to run scripts/session/sync.sh."
   fi
 fi
+# --- knowledge graph (pillar 5): keep it the graph of what is checked out ---
+# The check compares commits and is quick; a rebuild takes some seconds.
+if [ -f scripts/knowledge/ingest.py ] && command -v python3 >/dev/null 2>&1; then
+  kg_state=$(python3 scripts/knowledge/ingest.py --freshness 2>/dev/null) && kg_fresh=yes || kg_fresh=no
+  if [ "$kg_fresh" = yes ]; then
+    echo "[knowledge] graph is fresh — ground on it (knowledge MCP: kg_freshness, kg_trace, kg_federated_query)."
+  elif python3 scripts/knowledge/ingest.py --build >/dev/null 2>&1; then
+    echo "[knowledge] graph was stale or unbuilt — rebuilt from what is checked out."
+    kg_state=$(python3 scripts/knowledge/ingest.py --freshness 2>/dev/null) || true
+  else
+    echo "[knowledge] graph is stale and the rebuild failed — run: python3 scripts/knowledge/ingest.py --build"
+  fi
+  kg_empty=$(printf '%s' "${kg_state:-}" | python3 -c 'import json,sys
+try: print(", ".join(json.load(sys.stdin).get("without_sources", [])))
+except Exception: pass' 2>/dev/null || true)
+  [ -n "$kg_empty" ] && echo "[knowledge] no sources here for: ${kg_empty} — those namespaces are empty (a git worktree, or a repository that is not cloned). See docs/knowledge/README.md."
+fi
+
 case "$comfort" in
   guided|hidden) echo "[git-verbs] operator is git-'${comfort}' — use the git-verbs skill (save my work / get the latest / send for review), not raw git." ;;
 esac

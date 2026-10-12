@@ -13,10 +13,10 @@ class McpProtocolTests(unittest.TestCase):
         self.assertIn("tools", r["result"]["capabilities"])
         self.assertIn("serverInfo", r["result"])
 
-    def test_tools_list_has_three(self):
+    def test_tools_list_has_four(self):
         r = srv.handle({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
         names = {t["name"] for t in r["result"]["tools"]}
-        self.assertEqual(names, {"kg_query", "kg_federated_query", "kg_trace"})
+        self.assertEqual(names, {"kg_query", "kg_federated_query", "kg_trace", "kg_freshness"})
 
     def test_notification_no_reply(self):
         self.assertIsNone(srv.handle({"jsonrpc": "2.0", "method": "notifications/initialized"}))
@@ -50,6 +50,19 @@ class McpProtocolTests(unittest.TestCase):
             self.assertIn(query.EMPTY_HINT, text)
         finally:
             srv.query_mod.open_federated = orig
+
+
+class FreshnessToolTests(unittest.TestCase):
+    def test_kg_freshness_answers_with_a_state(self):
+        r = srv.handle({"jsonrpc": "2.0", "id": 20, "method": "tools/call",
+                        "params": {"name": "kg_freshness", "arguments": {}}})
+        state = json.loads(r["result"]["content"][0]["text"])
+        self.assertIn(state["state"], {"fresh", "stale", "unbuilt"})
+        self.assertIn("without_sources", state)
+
+    def test_kg_trace_takes_a_depth(self):
+        tool = next(t for t in srv.TOOLS if t["name"] == "kg_trace")
+        self.assertIn("depth", tool["inputSchema"]["properties"])
 
 
 if __name__ == "__main__":
