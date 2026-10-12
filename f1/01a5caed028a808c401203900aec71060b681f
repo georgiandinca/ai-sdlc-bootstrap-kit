@@ -1,0 +1,69 @@
+docs/SPEC.md
+  s_a3f7c8ae86b723::t_f5b3d5a0693b07 46,87
+template/.claude/skills/README.md
+  s_080dbe206d21ef::t_f1d0ae8aa1950c 18
+template/.claude/skills/git-verbs/SKILL.md
+  s_080dbe206d21ef::t_7221aa269b03bd 21
+template/.claude/skills/playbook-em/SKILL.md
+  s_080dbe206d21ef::t_34dac6bd4887bf 75
+template/.claude/skills/playbook-reviewer/SKILL.md
+  s_080dbe206d21ef::t_fc14ef47b3d7f8 1-85
+template/.mcp.json
+  s_080dbe206d21ef::t_eef718c3bd3674 6
+template/AGENTS.md
+  s_a3f7c8ae86b723::t_96c5ad2c30ba6c 23-24,185
+template/FOLDER-INDEX.md
+  s_080dbe206d21ef::t_f852ddc697dcd6 27
+template/ONBOARDING.md
+  s_080dbe206d21ef::t_fb0c41a9675d3d 166
+template/USER.md.example
+  s_080dbe206d21ef::t_0d9d4beef3b5ad 15
+template/WORKING-AGREEMENT.md
+  s_a3f7c8ae86b723::t_8079bb86e09170 143-148,171,192
+template/dashboard/schema.sql
+  s_080dbe206d21ef::t_1d71ac48369ca2 8
+template/docs/ai-context/README.md
+  s_080dbe206d21ef::t_fdbb38256fec06 47-48
+template/docs/ai-context/skills/reviewer/review-guide.md
+  s_080dbe206d21ef::t_3db6170d7fe8a0 1-69
+template/docs/architecture/decisions/ADR-0000-adopt-ai-sdlc-kit.md
+  s_a3f7c8ae86b723::t_53f7b6118c6a8e 32
+template/docs/methodology/framework.md
+  s_a3f7c8ae86b723::t_53e660004b8785 57
+template/scripts/session/seat-profiles.json
+  s_a3f7c8ae86b723::t_b9aa2c7240049f 28-33
+template/scripts/session/start.sh
+  s_080dbe206d21ef::t_0d5c63e7d20e5f 103
+template/scripts/session/switch-seat.sh
+  s_080dbe206d21ef::t_0adb298af8ac11 14,33
+template/scripts/session/wrapup.sh
+  s_080dbe206d21ef::t_d0e1e435f98cf9 43
+template/scripts/tests/test_validate_seat_profiles.py
+  s_080dbe206d21ef::t_01d2a12b03cdec 17,20,27,59,91
+template/scripts/validate-seat-profiles.py
+  s_080dbe206d21ef::t_59ca46337b43f9 26
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f101a5caed028a808c401203900aec71060b681f",
+  "prompts": {},
+  "sessions": {
+    "s_080dbe206d21ef": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6b27845b-3a5e-49b9-bf35-7295428b3517",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Georgian Dinca <geo@magnify.ro>"
+    },
+    "s_a3f7c8ae86b723": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a3ae3845-5646-438c-9b4d-ce73a5f9bc87",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Georgian Dinca <geo@magnify.ro>"
+    }
+  }
+}
