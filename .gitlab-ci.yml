@@ -67,6 +67,7 @@ ai-governance:
   - python3 template/scripts/knowledge/tests/test_link_issues.py
   - python3 template/scripts/knowledge/tests/test_issue_chain.py
   - python3 template/scripts/knowledge/tests/test_export_html.py
+  - python3 template/scripts/knowledge/tests/test_freshness.py
   - python3 template/scripts/jira/tests/test_export_jira.py
   - echo "Running consumption/ROI unit tests (token-roi theme)…"
   - python3 template/dashboard/tests/test_schema.py

@@ -58,6 +58,15 @@ class IngestCodeTests(unittest.TestCase):
             self.assertTrue(any(e["kind"] == "implements" and e["dst"] == "adr:ADR-0002"
                                 for e in edges))
 
+    def test_non_python_symbol_line_ignores_blank_lines_above(self):
+        with tempfile.TemporaryDirectory() as d:
+            base = Path(d)
+            self._write(base / "s/a.js", "import x\n\n\nfunction foo() {}\n")
+            nodes, edges = icode.ingest_root(base / "s", "kit", base)
+            foo = next(n for n in nodes if n["kind"] == "symbol" and n["name"] == "foo")
+            self.assertEqual(foo["meta"]["lineno"], 4)  # not 2, the first blank line
+            self.assertEqual([e["line"] for e in edges if e["dst"] == foo["id"]], [4])
+
     def test_import_resolution_boundary(self):
         """Regression test: ensure import resolution requires path-separator boundary.
 
@@ -96,6 +105,48 @@ class FileRootTests(unittest.TestCase):
             nodes, _ = ingest_code.ingest_root(base / "tools/run.py", "kit", base)
             self.assertEqual(sorted(n["id"] for n in nodes),
                              ["code:kit:tools/run.py", "sym:kit:tools/run.py:go"])
+
+
+class MoreLanguagesTests(unittest.TestCase):
+    def _write(self, p, text):
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(text, encoding="utf-8")
+
+    # The markers below use numbers no project has: this file is ingested with a
+    # project's scripts, and a real number would put it in that decision's trace.
+    def test_tsx_sql_and_tf_files_are_ingested(self):
+        with tempfile.TemporaryDirectory() as d:
+            base = Path(d)
+            self._write(base / "app/src/App.tsx",
+                        "// ADR-9994\nexport function App() {\n  return null;\n}\n"
+                        "export default async function load() {}\n")
+            self._write(base / "app/db/001_init.sql", "-- ADR-9993\nCREATE TABLE t (id int);\n")
+            self._write(base / "app/main.tf", "# ADR-9997\n")
+            self._write(base / "app/tests/posture.tftest.hcl", "# ADR-9997\n")
+            nodes, edges = icode.ingest_root(base / "app", "console", base)
+            ids = {n["id"] for n in nodes}
+            self.assertIn("code:console:app/src/App.tsx", ids)
+            self.assertIn("sym:console:app/src/App.tsx:App", ids)
+            self.assertIn("sym:console:app/src/App.tsx:load", ids)
+            self.assertIn("code:console:app/db/001_init.sql", ids)
+            self.assertIn("code:console:app/main.tf", ids)
+            self.assertIn("code:console:app/tests/posture.tftest.hcl", ids)
+            implements = {(e["src"], e["dst"]) for e in edges if e["kind"] == "implements"}
+            self.assertIn(("code:console:app/db/001_init.sql", "adr:ADR-9993"), implements)
+
+    def test_a_typescript_test_covers_the_file_it_is_named_after(self):
+        with tempfile.TemporaryDirectory() as d:
+            base = Path(d)
+            self._write(base / "app/src/App.tsx", "export function App() {}\n")
+            self._write(base / "app/src/App.test.tsx", "test('x', () => {});\n")
+            self._write(base / "app/src/util.ts", "export const a = 1;\n")
+            self._write(base / "app/src/util.spec.ts", "test('y', () => {});\n")
+            nodes, edges = icode.ingest_root(base / "app", "console", base)
+            kinds = {n["id"]: n["kind"] for n in nodes}
+            self.assertEqual(kinds["test:console:app/src/App.test.tsx"], "test")
+            covers = {(e["src"], e["dst"]) for e in edges if e["kind"] == "covers"}
+            self.assertIn(("test:console:app/src/App.test.tsx", "code:console:app/src/App.tsx"), covers)
+            self.assertIn(("test:console:app/src/util.spec.ts", "code:console:app/src/util.ts"), covers)
 
 
 if __name__ == "__main__":

@@ -109,6 +109,48 @@ class DanglingLinkTests(unittest.TestCase):
             self.assertFalse([p for p in paths if "node_modules" in p or "/out/" in p], paths)
 
 
+    def test_a_repository_cloned_under_the_base_is_ingested_by_its_own_ignore_rules(self):
+        """Parent layout: the product repository is git-ignored by the kit, and still ingested."""
+        import shutil, subprocess
+        if not shutil.which("git"):
+            self.skipTest("git not available")
+        with tempfile.TemporaryDirectory() as d:
+            base = Path(d); data = _fixture_repo(base)
+            subprocess.run(["git", "init", "-q"], cwd=d, check=True)
+            (base / ".gitignore").write_text("product/\n", encoding="utf-8")
+            product = base / "product"
+            (product / "pkg").mkdir(parents=True)
+            (product / "dist").mkdir()
+            subprocess.run(["git", "init", "-q"], cwd=str(product), check=True)
+            (product / ".gitignore").write_text("dist/\n", encoding="utf-8")
+            (product / "pkg/app.py").write_text("# ADR-0001\ndef run(): pass\n", encoding="utf-8")
+            (product / "dist/built.py").write_text("def built(): pass\n", encoding="utf-8")
+            data["namespaces"]["product"] = {"kind": "code", "db": ".knowledge/product.db",
+                                             "roots": ["product/"]}
+            ingest.build(data=data, base=base)
+            fed = q.open_federated(data=data, base=base)
+            paths = {r[0] for r in fed.conn.execute(f"SELECT path FROM ({fed.nodes_sql()})")}
+            self.assertIn("product/pkg/app.py", paths)
+            self.assertNotIn("product/dist/built.py", paths)
+
+    def test_a_namespace_whose_repository_is_not_cloned_is_empty_not_an_error(self):
+        with tempfile.TemporaryDirectory() as d:
+            base = Path(d); data = _fixture_repo(base)
+            data["namespaces"]["absent"] = {"kind": "code", "db": ".knowledge/absent.db",
+                                            "roots": ["not-cloned/"]}
+            stats = ingest.build(data=data, base=base)
+            self.assertIn(["absent", 0, 0], [list(row) for row in stats["namespaces"]])
+
+    def test_the_base_option_must_name_a_directory(self):
+        import subprocess
+        script = Path(ingest.__file__)
+        with tempfile.TemporaryDirectory() as d:
+            r = subprocess.run([sys.executable, str(script), "--stats", "--base", f"{d}/missing"],
+                               capture_output=True, text=True)
+            self.assertEqual(r.returncode, 2)
+            self.assertIn("is not a directory", r.stderr)
+            self.assertFalse((Path(d) / "missing").exists())
+
     def test_markdown_link_across_namespaces_resolves_in_overlay(self):
         with tempfile.TemporaryDirectory() as d:
             base = Path(d); data = _fixture_repo(base)

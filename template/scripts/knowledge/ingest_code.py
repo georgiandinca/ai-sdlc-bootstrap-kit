@@ -12,16 +12,24 @@ from pathlib import Path
 
 from graph_store import adr_id, code_id, symbol_id, test_id
 
-CODE_SUFFIXES = {".py", ".js", ".ts", ".sh", ".go", ".rb", ".java", ".rs"}
+CODE_SUFFIXES = {".py", ".js", ".jsx", ".ts", ".tsx", ".sh", ".go", ".rb", ".java", ".rs",
+                 ".sql", ".tf", ".hcl"}
 SKIP_DIRS = {"__pycache__", "node_modules", ".git"}
 _ADR_MARKER_RE = re.compile(r"ADR-\d{3,4}")
 _TEST_NAME_RE = re.compile(r"^(?:test_(.+)|(.+)_test)\.py$")
+# x.test.tsx / x.spec.ts next to x.tsx / x.ts
+_JS_TEST_NAME_RE = re.compile(r"^(.+)\.(?:test|spec)\.(?:ts|tsx|js|jsx)$")
+_JS_SUFFIXES = (".ts", ".tsx", ".js", ".jsx")
 _DEF_RE = re.compile(
-    r"^\s*(?:def|class|func|function|public|private|protected|const|let|var)\s+([A-Za-z_]\w*)")
+    # [ \t]*, not \s*: \s also matches newlines, so the match (and the line number
+    # taken from it) would start at the first blank line above the definition.
+    r"^[ \t]*(?:export\s+(?:default\s+)?)?(?:async\s+)?"
+    r"(?:def|class|func|function|public|private|protected|const|let|var)\s+([A-Za-z_]\w*)",
+    re.MULTILINE)  # without it only a definition on the first line of a file was found
 
 
 def _is_test(name: str) -> bool:
-    return bool(_TEST_NAME_RE.match(name))
+    return bool(_TEST_NAME_RE.match(name) or _JS_TEST_NAME_RE.match(name))
 
 
 def _markers(text: str):
@@ -121,8 +129,12 @@ def ingest_root(root: Path, namespace: str, base: Path):
 
         if is_test:
             m = _TEST_NAME_RE.match(f.name)
-            stem = m.group(1) or m.group(2)
-            covers_pending.append((nid, stem, rel.parent))
+            if m:
+                names = [f"{m.group(1) or m.group(2)}.py"]
+            else:
+                stem = _JS_TEST_NAME_RE.match(f.name).group(1)
+                names = [stem + suffix for suffix in _JS_SUFFIXES]
+            covers_pending.append((nid, names, rel.parent))
 
     # resolve intra-namespace imports (dotted module -> a file in this root)
     for src_id, mod, line in raw_imports:
@@ -135,9 +147,9 @@ def ingest_root(root: Path, namespace: str, base: Path):
                           "resolved": 1, "namespace": namespace})
 
     # resolve covers by naming (test_x.py -> x.py near the test)
-    for tid, stem, parent in covers_pending:
-        cands = [str((parent / f"{stem}.py")).replace("\\", "/"),
-                 str((parent.parent / f"{stem}.py")).replace("\\", "/")]
+    for tid, names, parent in covers_pending:
+        cands = [str(folder / name).replace("\\", "/")
+                 for folder in (parent, parent.parent) for name in names]
         target = next((file_index[c] for c in cands if c in file_index), None)
         if target:
             edges.append({"src": tid, "dst": target, "kind": "covers",

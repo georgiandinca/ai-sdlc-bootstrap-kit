@@ -5,10 +5,16 @@ All paths resolve against a base dir (default: the template repo root)."""
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-MANIFEST = REPO_ROOT / "docs" / "knowledge" / "graph-manifest.json"
+_HERE = Path(__file__).resolve().parent.parent.parent
+# The manifest is always this checkout's. KG_BASE moves where the files are read
+# and the graph is kept, for the CLI, the MCP server and the HTML export alike:
+# from a git worktree, set it to the main checkout to get the repositories
+# cloned under it. `ingest.py --base` does the same for one command.
+REPO_ROOT = Path(os.environ["KG_BASE"]).resolve() if os.environ.get("KG_BASE") else _HERE
+MANIFEST = _HERE / "docs" / "knowledge" / "graph-manifest.json"
 DEFAULT_OVERLAY = "docs/knowledge/.knowledge/global.db"
 
 
