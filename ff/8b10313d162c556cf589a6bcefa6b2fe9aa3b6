@@ -1,0 +1,30 @@
+.claude/skills/install-ai-sdlc-kit/SKILL.md
+  s_bf24ad2cb01a2d::t_793e149fcdadb3 117-118
+  s_bf24ad2cb01a2d::t_3263f5de8f9f13 20,23,25
+  s_bf24ad2cb01a2d::t_9fa81ea6d1f1ab 41-52
+README.md
+  s_bf24ad2cb01a2d::t_a2d11aad95d4c5 43
+  s_bf24ad2cb01a2d::t_a30f58f78f0e2d 54-72
+.claude/skills/install-ai-sdlc-kit/scripts/tests/test-detect-situation.sh
+  s_bf24ad2cb01a2d::t_600e06e0503713 81-104
+.claude/skills/install-ai-sdlc-kit/scripts/detect-situation.sh
+  s_bf24ad2cb01a2d::t_b34b3336a103bf 114-148
+plugin.json
+  s_bf24ad2cb01a2d::t_b34b3336a103bf 1-12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ff8b10313d162c556cf589a6bcefa6b2fe9aa3b6",
+  "prompts": {},
+  "sessions": {
+    "s_bf24ad2cb01a2d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b023af1b-4d15-4519-b23a-7a6515740a64",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Georgian Dinca <geo@magnify.ro>"
+    }
+  }
+}
