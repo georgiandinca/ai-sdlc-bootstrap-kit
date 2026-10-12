@@ -1,0 +1,51 @@
+.github/workflows/ci.yml
+  s_080dbe206d21ef::t_8a6e43b20e81ca 64
+.gitlab-ci.yml
+  s_080dbe206d21ef::t_687a7298eb4e2f 70
+template/.github/workflows/ai-governance.yml
+  s_080dbe206d21ef::t_accceaa2b7c520 47
+template/.mcp.json
+  s_080dbe206d21ef::t_760dca23bd72a8 21
+template/WORKING-AGREEMENT.md
+  s_080dbe206d21ef::t_81897ea796eae0 141
+template/docs/knowledge/README.md
+  s_080dbe206d21ef::t_eccebb21bd5e78 27-29,42-143,148-149
+template/docs/knowledge/schema.md
+  s_080dbe206d21ef::t_5cdc8a4bac58c5 73
+template/scripts/knowledge/freshness.py
+  s_080dbe206d21ef::t_03a4e6d35e33d4 1-136
+template/scripts/knowledge/ingest.py
+  s_080dbe206d21ef::t_d45777ea1277b9 9,11-12,30,33,36,39-50,53-54,59,73,89,92-96,139,161-163,171-172,177-184,186-188,191,198,200-203,205,212
+template/scripts/knowledge/ingest_code.py
+  s_080dbe206d21ef::t_740077b7164987 15-16,20-22,24-26,30,130-135,148-150
+template/scripts/knowledge/manifest.py
+  s_080dbe206d21ef::t_34ec135c373751 8,11-17
+template/scripts/knowledge/mcp_server.py
+  s_080dbe206d21ef::t_6572ee2656485e 6,15,33-37,40-41,43-49,72-74
+template/scripts/knowledge/tests/test_freshness.py
+  s_080dbe206d21ef::t_82e0e17dd28713 1-120
+template/scripts/knowledge/tests/test_ingest.py
+  s_080dbe206d21ef::t_3c52c5a214c753 112-153
+template/scripts/knowledge/tests/test_ingest_code.py
+  s_080dbe206d21ef::t_a017a9ddaace82 101-140
+template/scripts/knowledge/tests/test_mcp_server.py
+  s_080dbe206d21ef::t_ab8f237bf66212 16,19,55-67
+template/scripts/session/start.sh
+  s_080dbe206d21ef::t_ef52ae66ee69ba 2-3,79-96
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6bf27b7730a29c50c59277a9372a171996eb72dd",
+  "prompts": {},
+  "sessions": {
+    "s_080dbe206d21ef": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6b27845b-3a5e-49b9-bf35-7295428b3517",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Georgian Dinca <geo@magnify.ro>"
+    }
+  }
+}
