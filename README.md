@@ -40,7 +40,7 @@ The kit operationalises an AI-augmented SDLC as seven pillars — see [`template
 
 ## Install the kit into a project
 
-Three routes, pick whichever fits your setup.
+Pick whichever route fits your setup.
 
 **Claude Code plugin.** In any project, install the kit's marketplace once, then the plugin:
 
@@ -51,7 +51,25 @@ claude plugin install ai-sdlc-kit@ai-sdlc-bootstrap-kit
 
 Then, in that project, ask the agent to set up the kit — for example `/ai-sdlc-kit:install-ai-sdlc-kit` — and it drives detection, layout choice and merge for you.
 
-**Other coding agents (not Claude Code).** Clone the kit alongside or into your project, then point your agent at the skill's instructions:
+**Codex plugin.** Same two steps, with Codex's commands:
+
+```bash
+codex plugin marketplace add georgiandinca/ai-sdlc-bootstrap-kit
+codex plugin add ai-sdlc-kit@ai-sdlc-bootstrap-kit
+```
+
+Then ask Codex to set up the kit. The situation check writes nothing, so it runs in Codex's read-only sandbox.
+
+**Antigravity plugin.** `agy plugin install` takes a directory, so clone first; it copies the plugin, so the clone can be thrown away afterwards:
+
+```bash
+git clone --depth 1 https://github.com/georgiandinca/ai-sdlc-bootstrap-kit /tmp/ai-sdlc-kit
+agy plugin install /tmp/ai-sdlc-kit
+```
+
+Then ask Antigravity to set up the kit.
+
+**Other coding agents.** Clone the kit alongside or into your project, then point your agent at the skill's instructions:
 
 ```bash
 git clone https://github.com/georgiandinca/ai-sdlc-bootstrap-kit /tmp/ai-sdlc-kit
