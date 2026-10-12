@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Knowledge graph</title>
+<style>
+  :root {
+    --bg: #f7f7f5; --panel: #ffffff; --line: #e2e1dc; --text: #1f2328; --muted: #6b7280;
+    --edge: #9aa0a6; --accent: #2f6feb; --bad: #d1242f; --halo: #ffffff;
+    --k-adr: #b4540a; --k-story: #8250df; --k-doc: #2f6feb; --k-source: #0e8a7d;
+    --k-code-file: #57606a; --k-symbol: #a5adb8; --k-test: #2da44e; --k-commit: #bf8700;
+    --k-issue: #cf4f8b; --k-missing: #d1242f;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14161a; --panel: #1c1f24; --line: #2e333b; --text: #e6e8eb; --muted: #9099a5;
+      --edge: #5d6570; --accent: #6ea8fe; --bad: #ff7b72; --halo: #14161a;
+      --k-adr: #f0883e; --k-story: #b392f0; --k-doc: #6ea8fe; --k-source: #39c5b5;
+      --k-code-file: #a0a8b3; --k-symbol: #59616c; --k-test: #56d364; --k-commit: #e3b341;
+      --k-issue: #f778ba; --k-missing: #ff7b72;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--bg); color: var(--text); overflow: hidden;
+         font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  #app { display: grid; grid-template-columns: 250px 1fr 320px; height: 100%; }
+  aside { background: var(--panel); overflow-y: auto; padding: 14px 14px 24px; }
+  #filters { border-right: 1px solid var(--line); }
+  #detail { border-left: 1px solid var(--line); }
+  #stage { position: relative; min-width: 0; }
+  canvas { display: block; width: 100%; height: 100%; cursor: grab; }
+  canvas.dragging { cursor: grabbing; }
+  h1 { font-size: 15px; margin: 0 0 2px; }
+  h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted);
+       margin: 18px 0 6px; font-weight: 600; }
+  .sub { color: var(--muted); font-size: 12px; }
+  input[type=search] { width: 100%; padding: 6px 8px; margin-top: 12px; border-radius: 6px;
+       border: 1px solid var(--line); background: var(--bg); color: var(--text); font: inherit; }
+  input[type=search]:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  label.row { display: flex; align-items: center; gap: 7px; padding: 2px 0; cursor: pointer; }
+  label.row .n { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .sw { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  .sw.line { height: 3px; border-radius: 2px; width: 14px; }
+  .chip { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 11px;
+          color: #fff; vertical-align: 1px; }
+  .bad { color: var(--bad); }
+  #detail h3 { font-size: 14px; margin: 0 0 6px; overflow-wrap: anywhere; }
+  dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 8px 0; }
+  dt { color: var(--muted); }
+  dd { margin: 0; overflow-wrap: anywhere; }
+  .snippet { color: var(--muted); border-left: 2px solid var(--line); padding-left: 8px; margin: 8px 0; }
+  ul.edges { list-style: none; margin: 0; padding: 0; }
+  ul.edges li { padding: 5px 0; border-bottom: 1px solid var(--line); }
+  ul.edges button { all: unset; cursor: pointer; color: var(--accent); overflow-wrap: anywhere; }
+  ul.edges button:hover { text-decoration: underline; }
+  .cite { color: var(--muted); font-size: 11px; overflow-wrap: anywhere;
+          font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  #hint { position: absolute; left: 12px; bottom: 10px; color: var(--muted); font-size: 11px;
+          pointer-events: none; }
+  .btn { margin-top: 10px; padding: 5px 10px; border: 1px solid var(--line); border-radius: 6px;
+         background: var(--bg); color: var(--text); font: inherit; cursor: pointer; }
+  @media (max-width: 900px) {
+    body { overflow: auto; }
+    #app { grid-template-columns: 1fr; grid-template-rows: auto 70vh auto; height: auto; }
+    #filters, #detail { border: 0; border-bottom: 1px solid var(--line); }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="filters">
+    <h1>Knowledge graph</h1>
+    <div class="sub" id="stats"></div>
+    <input type="search" id="search" placeholder="Search name or path…" autocomplete="off">
+    <div class="sub" id="searchInfo"></div>
+    <h2>Namespaces</h2><div id="fNs"></div>
+    <h2>Node kinds</h2><div id="fKind"></div>
+    <h2>Edge kinds</h2><div id="fEdge"></div>
+    <h2>View</h2>
+    <label class="row"><input type="checkbox" id="onlyUnresolved"> <span class="bad">Only unresolved links</span></label>
+    <label class="row"><input type="checkbox" id="hideUnlinked"> Hide unlinked nodes</label>
+    <button class="btn" id="fit">Fit to screen</button>
+  </aside>
+  <main id="stage">
+    <canvas id="c"></canvas>
+    <div id="hint">Drag to pan · scroll to zoom · click a node for its links and citations</div>
+  </main>
+  <aside id="detail"></aside>
+</div>
+<script id="graph-data" type="application/json">/*__GRAPH_DATA__*/</script>
+<script>
+(function () {
+  "use strict";
+  var DATA = JSON.parse(document.getElementById("graph-data").textContent);
+  var KIND_ORDER = ["adr", "story", "issue", "source", "doc", "code-file", "test", "symbol", "commit", "missing"];
+  var EDGE_COLORS = { implements: "--k-adr", traces: "--k-story", cites: "--k-source", supersedes: "--k-commit",
+    covers: "--k-test", links: "--k-doc", imports: "--k-code-file", contains: "--k-symbol", touches: "--k-commit",
+    "part-of": "--k-issue", references: "--k-issue" };
+  var ALWAYS_LABEL = { adr: 1, story: 1, issue: 1, source: 1, missing: 1 };
+  var LIST_CAP = 150;
+
+  var nodes = DATA.nodes, edges = DATA.edges, byId = {};
+  nodes.forEach(function (n, i) { n.i = i; n.out = []; n.inn = []; n.deg = 0; byId[n.id] = n; });
+  edges.forEach(function (e) {
+    e.s = byId[e.src]; e.t = byId[e.dst];
+    e.s.out.push(e); e.t.inn.push(e);
+  });
+
+  function uniq(list) { var seen = {}, out = []; list.forEach(function (v) { if (!seen[v]) { seen[v] = 1; out.push(v); } }); return out; }
+  var nsList = uniq(nodes.map(function (n) { return n.ns; }));
+  var kindList = uniq(nodes.map(function (n) { return n.kind; })).sort(function (a, b) {
+    return (KIND_ORDER.indexOf(a) + 99) % 99 - (KIND_ORDER.indexOf(b) + 99) % 99; });
+  var edgeKindList = uniq(edges.map(function (e) { return e.kind; })).sort();
+
+  var state = { ns: {}, kind: {}, edge: {}, onlyUnresolved: false, hideUnlinked: false,
+                query: "", selected: null, hover: null };
+  nsList.forEach(function (v) { state.ns[v] = true; });
+  kindList.forEach(function (v) { state.kind[v] = v !== "symbol"; });
+  edgeKindList.forEach(function (v) { state.edge[v] = true; });
+
+  // ---- theme --------------------------------------------------------------
+  var css = {};
+  function readTheme() {
+    var cs = getComputedStyle(document.documentElement);
+    ["--bg", "--text", "--muted", "--edge", "--accent", "--bad", "--halo"].concat(
+      KIND_ORDER.map(function (k) { return "--k-" + k; })).forEach(function (v) {
+        css[v] = cs.getPropertyValue(v).trim(); });
+  }
+  function kindColor(k) { return css["--k-" + k] || css["--k-doc"]; }
+  function edgeColor(k) { return css[EDGE_COLORS[k]] || css["--edge"]; }
+
+  // ---- layout: deterministic start, namespaces clustered around anchors ----
+  var seed = 1234567;
+  function rnd() { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; }
+  var anchors = {}, nsSize = {};
+  nodes.forEach(function (n) { if (n.kind !== "symbol") nsSize[n.ns] = (nsSize[n.ns] || 0) + 1; });
+  nsList.forEach(function (ns, k) {
+    var a = (k / nsList.length) * Math.PI * 2, R = nsList.length > 1 ? 950 : 0;
+    anchors[ns] = { x: Math.cos(a) * R, y: Math.sin(a) * R, spread: 40 + 16 * Math.sqrt(nsSize[ns] || 1) };
+  });
+  nodes.forEach(function (n) {
+    var a = anchors[n.ns], r = a.spread * Math.sqrt(rnd()), th = rnd() * Math.PI * 2;
+    n.x = a.x + Math.cos(th) * r; n.y = a.y + Math.sin(th) * r; n.vx = 0; n.vy = 0;
+  });
+
+  var vis = [], visEdges = [], alpha = 1;
+  function nodePasses(n) { return state.ns[n.ns] && state.kind[n.kind]; }
+  function edgePasses(e) { return state.edge[e.kind] && (!state.onlyUnresolved || !e.resolved); }
+  function recompute() {
+    nodes.forEach(function (n) { n.on = nodePasses(n); n.deg = 0; });
+    visEdges = edges.filter(function (e) { return e.s.on && e.t.on && edgePasses(e); });
+    visEdges.forEach(function (e) { e.s.deg++; e.t.deg++; });
+    if (state.hideUnlinked || state.onlyUnresolved) {
+      nodes.forEach(function (n) { if (n.deg === 0) n.on = false; });
+    }
+    vis = nodes.filter(function (n) { return n.on; });
+    vis.forEach(function (n) { n.r = n.kind === "symbol" ? 2 : Math.min(3 + Math.sqrt(n.deg) * 1.2, 14); });
+    if (state.selected && !state.selected.on) state.selected = null;
+    applyQuery(); updateCounts(); renderDetail(); alpha = Math.max(alpha, 0.6); kick();
+  }
+
+  function tick() {
+    var n = vis.length, i, j, a, b, dx, dy, d2, f, d;
+    for (i = 0; i < n; i++) {
+      a = vis[i];
+      for (j = i + 1; j < n; j++) {
+        b = vis[j]; dx = a.x - b.x; dy = a.y - b.y; d2 = dx * dx + dy * dy;
+        if (d2 > 90000) continue;
+        if (d2 < 1) { dx = rnd() - 0.5; dy = rnd() - 0.5; d2 = 1; }
+        f = 700 * alpha / d2;
+        a.vx += dx * f; a.vy += dy * f; b.vx -= dx * f; b.vy -= dy * f;
+      }
+    }
+    for (i = 0; i < visEdges.length; i++) {
+      var e = visEdges[i]; a = e.s; b = e.t; dx = b.x - a.x; dy = b.y - a.y;
+      d = Math.sqrt(dx * dx + dy * dy) || 1;
+      f = (d - (e.kind === "contains" ? 18 : 70)) / d * 0.12 * alpha;
+      a.vx += dx * f; a.vy += dy * f; b.vx -= dx * f; b.vy -= dy * f;
+    }
+    for (i = 0; i < n; i++) {
+      a = vis[i]; var an = anchors[a.ns];
+      a.vx += (an.x - a.x) * 0.02 * alpha; a.vy += (an.y - a.y) * 0.02 * alpha;
+      if (a === dragNode) { a.vx = a.vy = 0; continue; }
+      a.vx *= 0.6; a.vy *= 0.6; a.x += a.vx; a.y += a.vy;
+    }
+    alpha *= 0.985;
+  }
+
+  // ---- canvas ---------------------------------------------------------------
+  var canvas = document.getElementById("c"), ctx = canvas.getContext("2d");
+  var view = { x: 0, y: 0, k: 0.6 }, W = 0, H = 0, dpr = 1, raf = 0, userMoved = false;
+  function resize() {
+    var r = canvas.getBoundingClientRect(); dpr = window.devicePixelRatio || 1;
+    W = r.width; H = r.height; canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+    draw();
+  }
+  function fit() {
+    if (!vis.length) return;
+    var x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    vis.forEach(function (n) { x0 = Math.min(x0, n.x); x1 = Math.max(x1, n.x); y0 = Math.min(y0, n.y); y1 = Math.max(y1, n.y); });
+    var k = Math.min(W / (x1 - x0 + 120), H / (y1 - y0 + 120), 2.5);
+    view.k = k > 0 && isFinite(k) ? k : 1;
+    view.x = W / 2 - (x0 + x1) / 2 * view.k; view.y = H / 2 - (y0 + y1) / 2 * view.k;
+  }
+  function kick() { if (!raf) raf = requestAnimationFrame(frame); }
+  function frame() {
+    raf = 0;
+    if (alpha > 0.01) {
+      var steps = vis.length > 1200 ? 1 : 3;
+      for (var s = 0; s < steps; s++) tick();
+      if (!userMoved) fit();
+      kick();
+    }
+    draw();
+  }
+  function focusSet() {
+    var c = state.selected || state.hover; if (!c) return null;
+    var set = {}; set[c.id] = 1;
+    c.out.forEach(function (e) { if (e.t.on && edgePasses(e)) set[e.t.id] = 1; });
+    c.inn.forEach(function (e) { if (e.s.on && edgePasses(e)) set[e.s.id] = 1; });
+    return set;
+  }
+  function draw() {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = css["--bg"]; ctx.fillRect(0, 0, W, H);
+    ctx.setTransform(dpr * view.k, 0, 0, dpr * view.k, dpr * view.x, dpr * view.y);
+    var focus = focusSet(), c = state.selected || state.hover, i, e, n, lit;
+    var searching = !!state.query;
+    ctx.lineWidth = 1 / view.k;
+    for (i = 0; i < visEdges.length; i++) {
+      e = visEdges[i]; lit = c && (e.s === c || e.t === c);
+      ctx.globalAlpha = lit ? 0.95 : (focus || searching ? 0.06 : (e.kind === "contains" ? 0.25 : 0.5));
+      ctx.strokeStyle = e.resolved ? edgeColor(e.kind) : css["--bad"];
+      ctx.lineWidth = (lit ? 2 : 1) / view.k;
+      ctx.setLineDash(e.resolved ? [] : [4 / view.k, 3 / view.k]);
+      ctx.beginPath(); ctx.moveTo(e.s.x, e.s.y); ctx.lineTo(e.t.x, e.t.y); ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    for (i = 0; i < vis.length; i++) {
+      n = vis[i];
+      ctx.globalAlpha = focus ? (focus[n.id] ? 1 : 0.12) : (searching && !n.hit ? 0.12 : 1);
+      ctx.beginPath(); ctx.arc(n.x, n.y, n.r, 0, 6.2832);
+      if (n.kind === "missing") {
+        ctx.strokeStyle = css["--bad"]; ctx.lineWidth = 1.5 / view.k; ctx.stroke();
+      } else { ctx.fillStyle = kindColor(n.kind); ctx.fill(); }
+      if (n === state.selected) {
+        ctx.strokeStyle = css["--text"]; ctx.lineWidth = 2 / view.k;
+        ctx.beginPath(); ctx.arc(n.x, n.y, n.r + 3 / view.k, 0, 6.2832); ctx.stroke();
+      }
+    }
+    // labels in screen space so they stay readable at any zoom
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.font = "11px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+    ctx.textBaseline = "middle"; ctx.lineJoin = "round";
+    var shown = 0;
+    for (i = 0; i < vis.length && shown < 400; i++) {
+      n = vis[i];
+      var want = focus ? focus[n.id] && (n === c || Object.keys(focus).length <= 40)
+        : (searching ? n.hit && view.k > 0.5
+          : ALWAYS_LABEL[n.kind] || (n.kind === "symbol" ? view.k > 2.6 : view.k > 1.3) || n.deg >= 12);
+      if (!want) continue;
+      var sx = n.x * view.k + view.x, sy = n.y * view.k + view.y;
+      if (sx < -50 || sx > W + 50 || sy < -10 || sy > H + 10) continue;
+      var label = n.name.length > 42 ? n.name.slice(0, 40) + "…" : n.name;
+      ctx.globalAlpha = 1; ctx.lineWidth = 3; ctx.strokeStyle = css["--halo"];
+      ctx.strokeText(label, sx + n.r * view.k + 4, sy);
+      ctx.fillStyle = css["--text"]; ctx.fillText(label, sx + n.r * view.k + 4, sy);
+      shown++;
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // ---- interaction ----------------------------------------------------------
+  function toWorld(ev) {
+    var r = canvas.getBoundingClientRect();
+    return { x: (ev.clientX - r.left - view.x) / view.k, y: (ev.clientY - r.top - view.y) / view.k };
+  }
+  function pick(p) {
+    var best = null, bd = Infinity;
+    for (var i = 0; i < vis.length; i++) {
+      var n = vis[i], dx = n.x - p.x, dy = n.y - p.y, d = dx * dx + dy * dy, lim = n.r + 5 / view.k;
+      if (d < lim * lim && d < bd) { bd = d; best = n; }
+    }
+    return best;
+  }
+  var dragNode = null, panning = false, moved = false, last = null;
+  canvas.addEventListener("pointerdown", function (ev) {
+    canvas.setPointerCapture(ev.pointerId); last = { x: ev.clientX, y: ev.clientY }; moved = false;
+    dragNode = pick(toWorld(ev)); panning = !dragNode; canvas.classList.add("dragging");
+  });
+  canvas.addEventListener("pointermove", function (ev) {
+    if (!last) {
+      var h = pick(toWorld(ev));
+      if (h !== state.hover) { state.hover = h; canvas.style.cursor = h ? "pointer" : ""; draw(); }
+      return;
+    }
+    var dx = ev.clientX - last.x, dy = ev.clientY - last.y;
+    if (Math.abs(dx) + Math.abs(dy) > 2) moved = true;
+    last = { x: ev.clientX, y: ev.clientY };
+    if (dragNode) { dragNode.x += dx / view.k; dragNode.y += dy / view.k; alpha = Math.max(alpha, 0.15); kick(); }
+    else if (panning) { view.x += dx; view.y += dy; userMoved = true; draw(); }
+  });
+  canvas.addEventListener("pointerup", function (ev) {
+    if (!moved) select(pick(toWorld(ev)), false);
+    dragNode = null; panning = false; last = null; canvas.classList.remove("dragging");
+  });
+  canvas.addEventListener("pointerleave", function () { if (state.hover) { state.hover = null; draw(); } });
+  canvas.addEventListener("wheel", function (ev) {
+    ev.preventDefault();
+    var r = canvas.getBoundingClientRect(), mx = ev.clientX - r.left, my = ev.clientY - r.top;
+    var k = Math.min(8, Math.max(0.05, view.k * Math.exp(-ev.deltaY * 0.0015)));
+    view.x = mx - (mx - view.x) * k / view.k; view.y = my - (my - view.y) * k / view.k; view.k = k;
+    userMoved = true; draw();
+  }, { passive: false });
+
+  function select(n, center) {
+    state.selected = n || null;
+    if (n && center) {
+      userMoved = true; view.k = Math.max(view.k, 1.4);
+      view.x = W / 2 - n.x * view.k; view.y = H / 2 - n.y * view.k;
+    }
+    renderDetail(); draw();
+  }
+
+  // ---- side panels (textContent only: graph content is untrusted) -------------
+  function el(tag, cls, text) {
+    var x = document.createElement(tag);
+    if (cls) x.className = cls;
+    if (text != null) x.textContent = text;
+    return x;
+  }
+  var countEls = [];
+  function checkRow(host, group, key, swatch, isLine) {
+    var row = el("label", "row"), cb = el("input");
+    cb.type = "checkbox"; cb.checked = state[group][key];
+    cb.addEventListener("change", function () { state[group][key] = cb.checked; recompute(); });
+    row.appendChild(cb);
+    if (swatch) { var s = el("span", "sw" + (isLine ? " line" : "")); s.style.background = "var(" + swatch + ")"; row.appendChild(s); }
+    row.appendChild(el("span", null, key));
+    var n = el("span", "n"); row.appendChild(n); countEls.push({ group: group, key: key, el: n });
+    host.appendChild(row);
+  }
+  nsList.forEach(function (v) { checkRow(document.getElementById("fNs"), "ns", v); });
+  kindList.forEach(function (v) { checkRow(document.getElementById("fKind"), "kind", v, "--k-" + v); });
+  edgeKindList.forEach(function (v) { checkRow(document.getElementById("fEdge"), "edge", v, EDGE_COLORS[v] || "--edge", true); });
+
+  function updateCounts() {
+    var tally = { ns: {}, kind: {}, edge: {} };
+    nodes.forEach(function (n) { tally.ns[n.ns] = (tally.ns[n.ns] || 0) + 1; tally.kind[n.kind] = (tally.kind[n.kind] || 0) + 1; });
+    edges.forEach(function (e) { tally.edge[e.kind] = (tally.edge[e.kind] || 0) + 1; });
+    countEls.forEach(function (c) { c.el.textContent = tally[c.group][c.key] || 0; });
+    var unresolved = edges.filter(function (e) { return !e.resolved; }).length;
+    var stats = document.getElementById("stats"); stats.textContent = "";
+    stats.appendChild(el("div", null, "Showing " + vis.length + " of " + nodes.length + " nodes, " +
+      visEdges.length + " of " + edges.length + " links"));
+    stats.appendChild(el("div", unresolved ? "bad" : null, unresolved + " unresolved link" + (unresolved === 1 ? "" : "s")));
+    if (DATA.built) stats.appendChild(el("div", null, "Built " + DATA.built));
+  }
+
+  function applyQuery() {
+    var q = state.query, hits = 0;
+    nodes.forEach(function (n) {
+      n.hit = !!q && n.on && ((n.name || "").toLowerCase().indexOf(q) >= 0 || (n.path || "").toLowerCase().indexOf(q) >= 0);
+      if (n.hit) hits++;
+    });
+    document.getElementById("searchInfo").textContent = q ? hits + " match" + (hits === 1 ? "" : "es") + " · Enter jumps to the first" : "";
+  }
+  var search = document.getElementById("search");
+  search.addEventListener("input", function () { state.query = search.value.trim().toLowerCase(); applyQuery(); draw(); });
+  search.addEventListener("keydown", function (ev) {
+    if (ev.key !== "Enter") return;
+    var first = vis.filter(function (n) { return n.hit; }).sort(function (a, b) { return b.deg - a.deg; })[0];
+    if (first) select(first, true);
+  });
+  document.getElementById("onlyUnresolved").addEventListener("change", function (ev) { state.onlyUnresolved = ev.target.checked; recompute(); });
+  document.getElementById("hideUnlinked").addEventListener("change", function (ev) { state.hideUnlinked = ev.target.checked; recompute(); });
+  document.getElementById("fit").addEventListener("click", function () { userMoved = false; fit(); draw(); });
+
+  function edgeList(title, list, otherKey) {
+    var frag = document.createDocumentFragment();
+    if (!list.length) return frag;
+    frag.appendChild(el("h2", null, title + " (" + list.length + ")"));
+    var ul = el("ul", "edges");
+    list.slice(0, LIST_CAP).forEach(function (e) {
+      var other = e[otherKey], li = el("li"), head = el("div");
+      var chip = el("span", "chip", e.kind); chip.style.background = "var(" + (EDGE_COLORS[e.kind] || "--edge") + ")";
+      head.appendChild(chip); head.appendChild(document.createTextNode(" "));
+      var b = el("button", null, other.name); b.title = other.id;
+      b.addEventListener("click", function () {
+        if (!other.on) { state.ns[other.ns] = true; state.kind[other.kind] = true; syncChecks(); recompute(); }
+        select(other, true);
+      });
+      head.appendChild(b);
+      if (!e.resolved) { head.appendChild(document.createTextNode(" ")); head.appendChild(el("span", "bad", "unresolved")); }
+      li.appendChild(head);
+      if (e.file) li.appendChild(el("div", "cite", e.file + (e.line ? ":" + e.line : "")));
+      ul.appendChild(li);
+    });
+    frag.appendChild(ul);
+    if (list.length > LIST_CAP) frag.appendChild(el("div", "sub", "+" + (list.length - LIST_CAP) + " more"));
+    return frag;
+  }
+  function syncChecks() {
+    document.querySelectorAll("#fNs input, #fKind input").forEach(function (cb) {
+      var key = cb.parentNode.querySelector("span:not(.sw):not(.n)").textContent;
+      var group = cb.closest("#fNs") ? "ns" : "kind"; cb.checked = state[group][key];
+    });
+  }
+  function renderDetail() {
+    var host = document.getElementById("detail"), n = state.selected; host.textContent = "";
+    if (!n) {
+      host.appendChild(el("h2", null, "Selection"));
+      host.appendChild(el("div", "sub", "Click a node to see what it links to, what links to it, and the file and line each link was drawn from."));
+      return;
+    }
+    host.appendChild(el("h3", null, n.name));
+    var chip = el("span", "chip", n.kind + (n.subtype ? " · " + n.subtype : "")); chip.style.background = "var(--k-" + n.kind + ")";
+    host.appendChild(chip);
+    var dl = el("dl");
+    [["Namespace", n.ns], ["Path", n.path], ["Trust tier", n.tier], ["Id", n.id]].forEach(function (p) {
+      if (!p[1]) return; dl.appendChild(el("dt", null, p[0])); dl.appendChild(el("dd", null, p[1]));
+    });
+    host.appendChild(dl);
+    if (n.kind === "missing") host.appendChild(el("div", "bad", "No node with this id exists: every link to it is unresolved."));
+    if (n.text) host.appendChild(el("div", "snippet", n.text + (n.text.length >= 280 ? "…" : "")));
+    host.appendChild(edgeList("Links to", n.out, "t"));
+    host.appendChild(edgeList("Linked from", n.inn, "s"));
+    if (!n.out.length && !n.inn.length) host.appendChild(el("div", "sub", "No links. Add frontmatter links (traces:, cites:, implements:) to connect it."));
+  }
+
+  // ---- boot ---------------------------------------------------------------
+  readTheme();
+  if (window.matchMedia) {
+    var mq = window.matchMedia("(prefers-color-scheme: dark)"), onTheme = function () { readTheme(); draw(); };
+    if (mq.addEventListener) mq.addEventListener("change", onTheme); else if (mq.addListener) mq.addListener(onTheme);
+  }
+  window.addEventListener("resize", resize);
+  resize(); recompute();
+  window.__kg = { state: state, nodes: nodes, visible: function () { return vis.length; }, select: select, byId: byId };
+})();
+</script>
+</body>
+</html>

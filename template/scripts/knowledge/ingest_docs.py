@@ -1,18 +1,27 @@
 #!/usr/bin/env python3
 # ADR-0001 — local docs+code knowledge graph
-"""Docs ingester: frontmatter + link convention -> nodes/edges. Stdlib only
-(no pyyaml): a small frontmatter parser handles scalars, inline [a, b] lists,
-and block '- item' lists."""
+"""Docs ingester: frontmatter + link convention -> nodes/edges, plus a `links`
+edge per relative markdown link in the body. Stdlib only (no pyyaml): a small
+frontmatter parser handles scalars, inline [a, b] lists, and block '- item'
+lists."""
 from __future__ import annotations
 
+import posixpath
 import re
 from pathlib import Path
+from urllib.parse import unquote
 
 from graph_store import adr_id, story_id, doc_id, source_id, normalize_ref
 
 LINK_FIELDS = ("implements", "traces", "cites", "supersedes", "covers")
 _ADR_FILE_RE = re.compile(r"(ADR-\d{3,4})")
 _STORY_FILE_RE = re.compile(r"(AS-\d+)", re.I)
+# inline [text](target "title") / [text](<target>); images (![..]) are skipped
+_MD_LINK_RE = re.compile(r"(?<!!)\[[^\]\n]*\]\(\s*(<[^>\n]+>|[^)\s]+)(?:\s+[\"'][^\"'\n]*[\"'])?\s*\)")
+_FENCE_RE = re.compile(r"^\s*(```|~~~)")
+_SCHEME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:")
+# link targets that can be graph nodes (docs + ingest_code.CODE_SUFFIXES)
+LINKABLE_SUFFIXES = {".md", ".py", ".js", ".ts", ".sh", ".go", ".rb", ".java", ".rs"}
 
 
 def parse_frontmatter(text: str):
@@ -70,13 +79,54 @@ def classify(rel_path: str, meta: dict):
     return "doc", None
 
 
+def body_links(body: str, rel_path: str, base: Path, line_offset: int = 0):
+    """Yield (repo-relative target path, line) for each relative markdown link
+    in `body` that points at a doc or code file. External URLs, bare #anchors,
+    images, fenced code and targets outside the repo are skipped; a link to a
+    directory resolves to its README.md when it has one. First occurrence per target wins."""
+    here = posixpath.dirname(rel_path)
+    seen = set()
+    fenced = False
+    for i, raw in enumerate(body.splitlines(), 1):
+        if _FENCE_RE.match(raw):
+            fenced = not fenced
+            continue
+        if fenced:
+            continue
+        for m in _MD_LINK_RE.finditer(raw):
+            target = unquote(m.group(1).strip("<>").split("#", 1)[0].split("?", 1)[0])
+            if not target or _SCHEME_RE.match(target) or target.startswith("//"):
+                continue
+            joined = target.lstrip("/") if target.startswith("/") else posixpath.join(here, target)
+            path = posixpath.normpath(joined)
+            if path.startswith("..") or path == ".":
+                continue
+            if (Path(base) / path).is_dir():
+                path = posixpath.join(path, "README.md")
+                if not (Path(base) / path).is_file():
+                    continue  # a folder link with no README is not a broken link
+            if posixpath.splitext(path)[1].lower() not in LINKABLE_SUFFIXES:
+                continue
+            if path == rel_path or path in seen:
+                continue
+            seen.add(path)
+            yield path, line_offset + i
+
+
 def ingest_root(root: Path, namespace: str, base: Path):
     nodes, edges = [], []
+    link_edges = []
+    path_index = {}  # rels -> node id, to resolve in-root links in-pass
     root = Path(root)
     base = Path(base)
-    for f in sorted(root.rglob("*.md")):
+    # a root is a folder (walked) or a single file; a root named in the manifest
+    # is honoured even when hidden, dot-directories below it are skipped
+    files = [root] if root.is_file() else sorted(root.rglob("*.md"))
+    for f in files:
+        if f.suffix.lower() != ".md":
+            continue
         rel = f.relative_to(base)
-        if any(part.startswith(".") for part in rel.parts):
+        if f != root and any(part.startswith(".") for part in f.relative_to(root).parts):
             continue  # skip dot-directories (derived .knowledge/, etc.)
         rels = str(rel).replace("\\", "/")
         text = f.read_text(encoding="utf-8", errors="replace")
@@ -103,4 +153,14 @@ def ingest_root(root: Path, namespace: str, base: Path):
                 edges.append({"src": nid, "dst": normalize_ref(str(ref)),
                               "kind": field, "source_file": rels, "line": None,
                               "resolved": None, "namespace": namespace})
+        path_index[rels] = nid
+        offset = text.count("\n", 0, len(text) - len(body))
+        for target, line in body_links(body, rels, base, offset):
+            link_edges.append({"src": nid, "dst": f"path:{target}", "kind": "links",
+                               "source_file": rels, "line": line,
+                               "resolved": None, "namespace": namespace})
+    # in-root targets resolve here; the rest stay 'path:' for the orchestrator's overlay pass
+    for e in link_edges:
+        target = path_index.get(e["dst"][len("path:"):])
+        edges.append({**e, "dst": target, "resolved": 1} if target else e)
     return nodes, edges

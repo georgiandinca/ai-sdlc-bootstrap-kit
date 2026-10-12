@@ -89,6 +89,51 @@ class DanglingLinkTests(unittest.TestCase):
             self.assertTrue(kit_dangling,
                             "kit scope must see the kit-only dangling overlay edge")
 
+    def test_git_ignored_files_are_not_ingested(self):
+        import shutil, subprocess
+        if not shutil.which("git"):
+            self.skipTest("git not available")
+        with tempfile.TemporaryDirectory() as d:
+            base = Path(d); data = _fixture_repo(base)
+            subprocess.run(["git", "init", "-q"], cwd=d, check=True)
+            (base / ".gitignore").write_text("node_modules/\nout/\n", encoding="utf-8")
+            (base / "docs/node_modules/pkg").mkdir(parents=True)
+            (base / "docs/node_modules/pkg/README.md").write_text("vendored\n", encoding="utf-8")
+            (base / "src/out").mkdir()
+            (base / "src/out/gen.py").write_text("def gen(): pass\n", encoding="utf-8")
+            ingest.build(data=data, base=base)
+            fed = q.open_federated(data=data, base=base)
+            paths = {r[0] for r in fed.conn.execute(
+                f"SELECT path FROM ({fed.nodes_sql()})")}
+            self.assertIn("src/thing.py", paths)
+            self.assertFalse([p for p in paths if "node_modules" in p or "/out/" in p], paths)
+
+
+    def test_markdown_link_across_namespaces_resolves_in_overlay(self):
+        with tempfile.TemporaryDirectory() as d:
+            base = Path(d); data = _fixture_repo(base)
+            (base / "docs/guide.md").write_text(
+                "See [the code](../src/thing.py) and [nothing](missing.md).\n", encoding="utf-8")
+            ingest.build(data=data, base=base)
+            fed = q.open_federated(data=data, base=base)
+            rows = {r[0]: r[1] for r in fed.conn.execute(
+                f"SELECT dst, resolved FROM ({fed.edges_sql()}) WHERE kind='links'")}
+            self.assertEqual(rows, {"code:kit:src/thing.py": 1, "path:docs/missing.md": 0})
+
+
+    def test_link_between_two_roots_of_one_namespace_stays_in_that_namespace(self):
+        with tempfile.TemporaryDirectory() as d:
+            base = Path(d); data = _fixture_repo(base)
+            (base / "AGENTS.md").write_text("Start at the [readme](README.md).\n", encoding="utf-8")
+            (base / "README.md").write_text("Readme.\n", encoding="utf-8")
+            data["namespaces"]["briefs"] = {"kind": "docs", "db": ".knowledge/briefs.db",
+                                            "roots": ["AGENTS.md", "README.md"]}
+            ingest.build(data=data, base=base)
+            scoped = q.open_scoped("briefs", data=data, base=base)
+            rows = scoped.conn.execute(
+                "SELECT src, dst, resolved FROM ns_briefs.edges WHERE kind='links'").fetchall()
+            self.assertEqual(rows, [("doc:briefs:AGENTS.md", "doc:briefs:README.md", 1)])
+
 
 if __name__ == "__main__":
     unittest.main()

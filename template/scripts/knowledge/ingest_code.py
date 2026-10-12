@@ -63,11 +63,15 @@ def ingest_root(root: Path, namespace: str, base: Path):
     raw_imports = []         # (src_id, module, line)
     covers_pending = []      # (test_id, stem, parent_rels)
 
-    for f in sorted(root.rglob("*")):
+    # a root is a folder (walked) or a single file; a root named in the manifest
+    # is honoured even when hidden, dot/vendored directories below it are skipped
+    files = [root] if root.is_file() else sorted(root.rglob("*"))
+    for f in files:
         if not f.is_file() or f.suffix.lower() not in CODE_SUFFIXES:
             continue
         rel = f.relative_to(base)
-        if any(p.startswith(".") or p in SKIP_DIRS for p in rel.parts):
+        if f != root and any(p.startswith(".") or p in SKIP_DIRS
+                             for p in f.relative_to(root).parts):
             continue
         rels = str(rel).replace("\\", "/")
         text = f.read_text(encoding="utf-8", errors="replace")

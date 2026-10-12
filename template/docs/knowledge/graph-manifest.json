@@ -1,6 +1,7 @@
 {
   "namespaces": {
     "docs":     { "kind": "docs", "db": "docs/.knowledge/graph.db", "roots": ["docs/"] },
+    "briefs":   { "kind": "docs", "db": ".knowledge/briefs.db",     "roots": ["AGENTS.md", "CLAUDE.md", "README.md", "ONBOARDING.md", "WORKING-AGREEMENT.md", "INDEX.md", "FOLDER-INDEX.md", ".claude/skills/", "dashboard/README.md", "scripts/spend/README.md"] },
     "kit-code": { "kind": "code", "db": ".knowledge/graph.db",       "roots": ["scripts/", "dashboard/"] },
     "issues":   { "kind": "issues", "db": "docs/product/jira/.knowledge/graph.db", "roots": ["docs/product/jira/issues.csv"] }
   },

@@ -60,6 +60,7 @@ jobs:
           python3 template/scripts/knowledge/tests/test_ingest_issues.py
           python3 template/scripts/knowledge/tests/test_link_issues.py
           python3 template/scripts/knowledge/tests/test_issue_chain.py
+          python3 template/scripts/knowledge/tests/test_export_html.py
           python3 template/scripts/jira/tests/test_export_jira.py
 
       - name: Consumption/ROI unit tests (token-roi theme)
@@ -83,5 +84,6 @@ jobs:
       - name: Knowledge graph build + traceability smoke
         run: |
           python3 template/scripts/knowledge/ingest.py --build
+          python3 template/scripts/knowledge/export_html.py
           python3 template/scripts/knowledge/ingest.py --federated --trace ADR-0001 | python3 -c "import json,sys; d=json.load(sys.stdin); assert d.get('nodes'), 'empty trace chain'; print('trace OK:', len(d.get('nodes')), 'nodes')"
           python3 template/scripts/knowledge/ingest.py --federated --trace issue:PROJ-1 | python3 -c "import json,sys; d=json.load(sys.stdin); assert d.get('nodes'), 'empty issue trace'; print('issue trace OK:', len(d['nodes']), 'nodes')"
