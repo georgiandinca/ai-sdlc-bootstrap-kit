@@ -1,0 +1,35 @@
+docs/visuals/README.md
+  s_080dbe206d21ef::t_4d3611da77e21b 30
+template/.claude/skills/playbook-dev/SKILL.md
+  s_080dbe206d21ef::t_e54a0492956137 72
+template/.claude/skills/playbook-reviewer/SKILL.md
+  s_080dbe206d21ef::t_89893a0d731612 52,62
+template/AGENTS.md
+  s_080dbe206d21ef::t_30ee7dde72285b 15
+template/WORKING-AGREEMENT.md
+  s_080dbe206d21ef::t_5b96808244bd41 143,145
+template/docs/ai-context/skills/reviewer/review-guide.md
+  s_080dbe206d21ef::t_38ec213030926d 22
+template/docs/architecture/decisions/ADR-0000-adopt-ai-sdlc-kit.md
+  s_080dbe206d21ef::t_7df3bc34b6cd0a 8
+template/docs/methodology/framework.md
+  s_080dbe206d21ef::t_0a9ac7df6a2036 26-28
+template/scripts/session/seat-profiles.json
+  s_080dbe206d21ef::t_e22f448f552084 31,33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6e2bd0a9abc7d7417acbc17d44667e77a3225c69",
+  "prompts": {},
+  "sessions": {
+    "s_080dbe206d21ef": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6b27845b-3a5e-49b9-bf35-7295428b3517",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Georgian Dinca <geo@magnify.ro>"
+    }
+  }
+}
