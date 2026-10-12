@@ -58,6 +58,15 @@ class IngestCodeTests(unittest.TestCase):
             self.assertTrue(any(e["kind"] == "implements" and e["dst"] == "adr:ADR-0002"
                                 for e in edges))
 
+    def test_non_python_symbol_line_ignores_blank_lines_above(self):
+        with tempfile.TemporaryDirectory() as d:
+            base = Path(d)
+            self._write(base / "s/a.js", "import x\n\n\nfunction foo() {}\n")
+            nodes, edges = icode.ingest_root(base / "s", "kit", base)
+            foo = next(n for n in nodes if n["kind"] == "symbol" and n["name"] == "foo")
+            self.assertEqual(foo["meta"]["lineno"], 4)  # not 2, the first blank line
+            self.assertEqual([e["line"] for e in edges if e["dst"] == foo["id"]], [4])
+
     def test_import_resolution_boundary(self):
         """Regression test: ensure import resolution requires path-separator boundary.
 

@@ -69,7 +69,8 @@ def call_tool(name, args):
         kg = query_mod.open_scoped(args["scope"]) if args.get("scope") else query_mod.open_federated()
         if not kg.aliases:
             return _text({"root": args["id"], "nodes": [], "edges": [], "hint": query_mod.EMPTY_HINT})
-        return _text(query_mod.trace(kg, args["id"], max_depth=max(1, int(args.get("depth", 4)))))
+        depth = args.get("depth")  # a client may send the key as null
+        return _text(query_mod.trace(kg, args["id"], max_depth=max(1, int(4 if depth is None else depth))))
     if name == "kg_freshness":
         return _text(freshness.check())
     raise KeyError(name)

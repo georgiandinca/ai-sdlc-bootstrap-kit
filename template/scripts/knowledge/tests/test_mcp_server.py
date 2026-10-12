@@ -64,6 +64,21 @@ class FreshnessToolTests(unittest.TestCase):
         tool = next(t for t in srv.TOOLS if t["name"] == "kg_trace")
         self.assertIn("depth", tool["inputSchema"]["properties"])
 
+    def test_kg_trace_null_depth_falls_back_to_the_default(self):
+        seen = {}
+        orig_open, orig_trace = srv.query_mod.open_federated, srv.query_mod.trace
+        try:
+            srv.query_mod.open_federated = lambda **kw: query.KG(sqlite3.connect(":memory:"), ["kit"])
+            srv.query_mod.trace = lambda kg, node_id, max_depth: seen.update(depth=max_depth) or {}
+            for depth, want in ((None, 4), (0, 1), (2, 2)):
+                r = srv.handle({"jsonrpc": "2.0", "id": 21, "method": "tools/call",
+                                "params": {"name": "kg_trace",
+                                           "arguments": {"id": "code:kit:x", "depth": depth}}})
+                self.assertNotIn("error", r)
+                self.assertEqual(seen["depth"], want)
+        finally:
+            srv.query_mod.open_federated, srv.query_mod.trace = orig_open, orig_trace
+
 
 if __name__ == "__main__":
     unittest.main()

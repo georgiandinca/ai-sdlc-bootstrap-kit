@@ -21,7 +21,9 @@ _TEST_NAME_RE = re.compile(r"^(?:test_(.+)|(.+)_test)\.py$")
 _JS_TEST_NAME_RE = re.compile(r"^(.+)\.(?:test|spec)\.(?:ts|tsx|js|jsx)$")
 _JS_SUFFIXES = (".ts", ".tsx", ".js", ".jsx")
 _DEF_RE = re.compile(
-    r"^\s*(?:export\s+(?:default\s+)?)?(?:async\s+)?"
+    # [ \t]*, not \s*: \s also matches newlines, so the match (and the line number
+    # taken from it) would start at the first blank line above the definition.
+    r"^[ \t]*(?:export\s+(?:default\s+)?)?(?:async\s+)?"
     r"(?:def|class|func|function|public|private|protected|const|let|var)\s+([A-Za-z_]\w*)",
     re.MULTILINE)  # without it only a definition on the first line of a file was found
 
