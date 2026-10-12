@@ -28,8 +28,8 @@
       "first_task": "Write a test-plan stub with one traceability entry." },
     { "id": "Reviewer", "git_comfort_default": "git-native", "playbook": "playbook-reviewer",
       "default_model": "opus",
-      "escalation_hint": "Never below the model that wrote the change; sonnet is enough for a change that touches only documents and decides nothing.",
+      "escalation_hint": "Run the review on a model at least as capable as the one that wrote the change.",
       "connectors": ["issue-tracker", "knowledge"],
-      "first_task": "Review a committed, unpushed change against its story and report the verdict." }
+      "first_task": "Review a committed change against its story, before its pull request is opened, and report the verdict." }
   ]
 }

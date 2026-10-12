@@ -5,7 +5,7 @@ owner: Architect
 author: AI-SDLC Bootstrap Kit
 created: 2026-06-26
 classification: internal
-last-reviewed: 2026-06-26
+last-reviewed: 2026-10-12
 ai-trust: working
 ---
 

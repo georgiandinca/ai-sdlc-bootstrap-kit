@@ -19,7 +19,7 @@ The lists are not complete, and passing them is not a verdict. They are a starti
 
 The author of the change writes the brief. A reviewer that is missing one of these asks for it or lists it under "not checked".
 
-- **The change** — the checkout and the commits, committed and not yet pushed.
+- **The change** — the checkout and the commits: committed, with no pull request opened yet.
 - **The requirement** — the story and its acceptance criteria, or the decision. For a change with no story, the requirement in the author's words.
 - **The author's model**, so the reviewer can be run on one at least as capable (`WORKING-AGREEMENT.md` §5).
 - **Where the knowledge graph is** — which checkout holds a graph that includes the code under review, and whether the change exists only in a git worktree.

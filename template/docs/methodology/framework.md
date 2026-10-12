@@ -23,6 +23,9 @@ This project treats AI agents as **first-class collaborators across the whole so
    │ Architect│   │    EM    │   │ Product  │   │Developer │   │    QA    │  ◀── pillar 6
    └────┬─────┘   └────┬─────┘   └────┬─────┘   └────┬─────┘   └────┬─────┘
         │  each seat = invokable Skill (.claude/skills) + scoped MCP (.mcp.json)
+        │         ┌──────────────────────────────────────────────────────┐
+        │         │ Reviewer — reviews each change before its PR is opened │
+        │         └──────────────────────────┬───────────────────────────┘
         ▼              ▼              ▼              ▼              ▼
    ┌─────────────────────────────────────────────────────────────────────┐
    │  GOVERNANCE & RULES (pillar 3)  →  enforced by CI/CD (pillar 4)       │

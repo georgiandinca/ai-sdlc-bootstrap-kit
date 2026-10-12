@@ -12,7 +12,7 @@ This is the single source of truth that **all AI tools read** — Claude (Claude
 
 ## 0. Startup — user identity and onboarding
 
-Every AI agent **must** execute this sequence at the start of every session in this repo:
+Every AI agent **must** execute this sequence at the start of every session in this repo (except an agent given a seat in its brief, below):
 
 1. **Check for `USER.md`** at the repo root.
 2. **If `USER.md` does not exist** → load and follow [`ONBOARDING.md`](./ONBOARDING.md). Do not proceed with project work until onboarding is complete and `USER.md` has been created.

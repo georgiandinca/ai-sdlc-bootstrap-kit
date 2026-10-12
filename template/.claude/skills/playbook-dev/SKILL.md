@@ -69,6 +69,7 @@ Maps to the board's Roles × Skills × MCP matrix; the Developer seat operates a
 ## §5 — Definition of done for this seat's artefacts
 - Code compiles and **all** tests pass locally and in CI.
 - New behaviour is covered by unit/component tests.
+- The change had its independent review before the PR was opened, with each finding recorded as fixed, deferred or rejected (`playbook-reviewer`).
 - PR is small, peer-reviewed, and references the issue key (see [`WORKING-AGREEMENT.md`](../../../WORKING-AGREEMENT.md) §5.5).
 - No secrets, credentials, or real personal data in code, fixtures, or logs.
 - Library APIs are verified via `context7`, not assumed.

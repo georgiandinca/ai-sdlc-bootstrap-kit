@@ -49,7 +49,7 @@ This is the role-seat contract for the **Reviewer** seat on `<PROJECT_NAME>` —
 
 ## §3 — Working with other seats
 
-- **Reviewer ↔ Developer** — the Developer hands over a committed, unpushed change with its requirement, and records each finding's resolution in the pull request.
+- **Reviewer ↔ Developer** — the Developer hands over a committed change, before its pull request is opened, with its requirement, and records each finding's resolution in the pull request.
 - **Reviewer ↔ Architect** — for an ADR or an amendment the Reviewer verifies every factual sentence. It never words the decision as made.
 - **Reviewer ↔ QA** — the Reviewer tries to make each gate pass when it should fail, and hands QA what it found.
 - **Reviewer ↔ EM** — recurring findings go to EM as candidates for a CI gate or a rule.
@@ -59,7 +59,7 @@ This is the role-seat contract for the **Reviewer** seat on `<PROJECT_NAME>` —
 
 ## §4 — Working with AI (Roles × Skills × MCP)
 
-The Reviewer is normally an AI agent, and its findings are `working`-trust: evidence for a human, not a sign-off. When a review happens, on which model and with what context is set in `WORKING-AGREEMENT.md` §5 ("Independent review").
+The Reviewer is normally an AI agent, and its findings are `working`-trust: evidence for a human, not a sign-off. When a review happens, on which model and with what context is set in `WORKING-AGREEMENT.md` §5.5 ("Independent review").
 
 - **The seat comes from the brief.** An agent told to hold this seat takes it for that task only. It does not run onboarding and does not read or change `USER.md` (`AGENTS.md` §0).
 - **Read first** — this playbook, then the sections of the review guide (§6) for what the change touches.
