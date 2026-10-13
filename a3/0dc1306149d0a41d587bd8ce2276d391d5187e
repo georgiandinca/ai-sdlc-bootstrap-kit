@@ -1,0 +1,26 @@
+template/scripts/knowledge/tests/test_ingest_issues.py
+  s_bf654b1e71171c::t_ae3141f501fae6 38-83
+template/scripts/knowledge/ingest_issues.py
+  s_bf654b1e71171c::t_ae3141f501fae6 3-8,18,48-51
+  s_bf654b1e71171c::t_1cdd7424e62781 52-53
+template/docs/knowledge/schema.md
+  s_bf654b1e71171c::t_ae3141f501fae6 69
+template/docs/product/jira/README.md
+  s_bf654b1e71171c::t_d310b490be24db 50-52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a30dc1306149d0a41d587bd8ce2276d391d5187e",
+  "prompts": {},
+  "sessions": {
+    "s_bf654b1e71171c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9b9d1bef-5f65-4671-afbc-e7f504e3c03c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Georgian Dinca <geo@magnify.ro>"
+    }
+  }
+}
