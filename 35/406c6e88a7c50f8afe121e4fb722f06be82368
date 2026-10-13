@@ -1,0 +1,61 @@
+template/scripts/knowledge/ingest.py
+  s_bf654b1e71171c::t_af2d6ec69ea7a6 82-86
+template/scripts/knowledge/query.py
+  s_bf654b1e71171c::t_af2d6ec69ea7a6 161
+template/scripts/knowledge/graph_store.py
+  s_bf654b1e71171c::t_af2d6ec69ea7a6 91-96
+template/scripts/knowledge/mcp_server.py
+  s_bf654b1e71171c::t_af2d6ec69ea7a6 67
+template/scripts/knowledge/manifest.py
+  s_bf654b1e71171c::t_af2d6ec69ea7a6 12,46-47,54
+template/scripts/knowledge/link_issues.py
+  s_bf654b1e71171c::t_af2d6ec69ea7a6 14,26
+template/scripts/knowledge/tests/test_link_issues.py
+  s_bf654b1e71171c::t_ebedac936b59fd 47-49
+template/docs/knowledge/schema.md
+  s_bf654b1e71171c::t_af2d6ec69ea7a6 81,108-111
+template/scripts/knowledge/tests/test_ingest_issues.py
+  s_bf654b1e71171c::t_ebedac936b59fd 116,154,156
+  s_bf654b1e71171c::t_af2d6ec69ea7a6 63
+template/scripts/knowledge/tests/test_query.py
+  s_bf654b1e71171c::t_ebedac936b59fd 103-105
+template/scripts/knowledge/ingest_docs.py
+  s_bf654b1e71171c::t_af2d6ec69ea7a6 27-36,54,60-61,65,67
+template/scripts/knowledge/ingest_issues.py
+  s_bf654b1e71171c::t_af2d6ec69ea7a6 6,18,48-51
+template/scripts/knowledge/tests/test_mcp_server.py
+  s_bf654b1e71171c::t_ebedac936b59fd 100
+template/docs/product/jira/README.md
+  s_bf654b1e71171c::t_af2d6ec69ea7a6 51
+template/scripts/knowledge/tests/test_ingest_docs.py
+  s_bf654b1e71171c::t_5dd705cfb798b3 28
+  s_bf654b1e71171c::t_58f8a6e430857b 27,29-45
+template/scripts/knowledge/tests/test_ingest.py
+  s_bf654b1e71171c::t_ebedac936b59fd 247-254,258
+template/.github/workflows/ai-governance.yml
+  s_bf654b1e71171c::t_af2d6ec69ea7a6 48-50
+template/.claude/rules/adr-conventions.md
+  s_bf654b1e71171c::t_af2d6ec69ea7a6 12
+template/scripts/git/commit_msg_ticket.py
+  s_bf654b1e71171c::t_af2d6ec69ea7a6 70
+template/scripts/tests/test_commit_msg_ticket.py
+  s_bf654b1e71171c::t_ebedac936b59fd 50-52,67-68
+template/scripts/knowledge/tests/test_manifest.py
+  s_bf654b1e71171c::t_ebedac936b59fd 52-55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "35406c6e88a7c50f8afe121e4fb722f06be82368",
+  "prompts": {},
+  "sessions": {
+    "s_bf654b1e71171c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9b9d1bef-5f65-4671-afbc-e7f504e3c03c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Georgian Dinca <geo@magnify.ro>"
+    }
+  }
+}
