@@ -109,5 +109,50 @@ class IngestIssuesTests(unittest.TestCase):
             self.assertEqual(counts["issues"], 2)
 
 
+class ProjectKeyPatternTests(unittest.TestCase):
+    def _build(self, base, key_pattern=None):
+        d = base / "docs/product/jira"
+        d.mkdir(parents=True)
+        (d / "issues.csv").write_text("key,title\nE03-S08,Story eight\nstory42,Odd key\n",
+                                      encoding="utf-8")
+        (base / "docs/note.md").write_text(
+            "---\ntitle: Note\ntraces: [E03-S08]\n---\n\nbody\n", encoding="utf-8")
+        issues = {"kind": "issues", "db": "docs/product/jira/.knowledge/graph.db",
+                  "roots": ["docs/product/jira/issues.csv"]}
+        if key_pattern:
+            issues["key_pattern"] = key_pattern
+        data = {"namespaces": {
+                    "docs": {"kind": "docs", "db": "docs/.knowledge/graph.db", "roots": ["docs/"]},
+                    "issues": issues},
+                "overlay": "docs/knowledge/.knowledge/global.db"}
+        ingest.build(data=data, base=base)
+        import query
+        return query.open_federated(data=data, base=base)
+
+    def test_a_frontmatter_ref_in_the_project_pattern_links_to_the_issue(self):
+        import query
+        with tempfile.TemporaryDirectory() as t:
+            kg = self._build(Path(t), r"E\d+-S\d+")
+            res = query.trace(kg, "E03-S08", max_depth=1)  # a bare key
+            self.assertEqual(res["root"], "issue:E03-S08")
+            self.assertIn(("doc:docs:docs/note.md", "issue:E03-S08", "traces", 1),
+                          {(e["src"], e["dst"], e["kind"], e["resolved"]) for e in res["edges"]})
+
+    def test_without_the_pattern_the_ref_stays_a_literal(self):
+        import query
+        with tempfile.TemporaryDirectory() as t:
+            kg = self._build(Path(t))
+            res = query.trace(kg, "issue:E03-S08", max_depth=1)
+            self.assertEqual(res["edges"], [])
+
+    def test_a_bare_key_in_the_ledger_is_traced_whatever_the_pattern(self):
+        import query
+        with tempfile.TemporaryDirectory() as t:
+            kg = self._build(Path(t))
+            self.assertEqual(query.trace(kg, "story42")["root"], "issue:story42")
+            self.assertEqual(query.trace(kg, "E03-S08")["root"], "issue:E03-S08")
+            self.assertEqual(query.trace(kg, "nothing")["root"], "nothing")
+
+
 if __name__ == "__main__":
     unittest.main()

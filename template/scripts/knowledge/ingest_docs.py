@@ -11,7 +11,7 @@ import re
 from pathlib import Path
 from urllib.parse import unquote
 
-from graph_store import adr_id, story_id, doc_id, source_id, normalize_ref
+from graph_store import ISSUE_KEY, adr_id, story_id, doc_id, source_id, normalize_ref
 
 LINK_FIELDS = ("implements", "traces", "cites", "supersedes", "covers")
 _ADR_FILE_RE = re.compile(r"(ADR-\d{3,4})")
@@ -113,7 +113,7 @@ def body_links(body: str, rel_path: str, base: Path, line_offset: int = 0):
             yield path, line_offset + i
 
 
-def ingest_root(root: Path, namespace: str, base: Path):
+def ingest_root(root: Path, namespace: str, base: Path, issue_key: str = ISSUE_KEY):
     nodes, edges = [], []
     link_edges = []
     path_index = {}  # rels -> node id, to resolve in-root links in-pass
@@ -150,7 +150,7 @@ def ingest_root(root: Path, namespace: str, base: Path):
                       "meta": meta, "namespace": namespace})
         for field in LINK_FIELDS:
             for ref in _as_list(meta.get(field)):
-                edges.append({"src": nid, "dst": normalize_ref(str(ref)),
+                edges.append({"src": nid, "dst": normalize_ref(str(ref), issue_key),
                               "kind": field, "source_file": rels, "line": None,
                               "resolved": None, "namespace": namespace})
         path_index[rels] = nid

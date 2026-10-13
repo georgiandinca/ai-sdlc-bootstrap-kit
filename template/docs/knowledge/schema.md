@@ -83,8 +83,19 @@ Every edge stores `source_file` + `line` (its citation) and `resolved`
   or code file → a `links` edge citing the line. External URLs, `#anchors`,
   images and fenced code are ignored; a folder link resolves to its `README.md`.
   A target that is not a node in any namespace is kept as `resolved=0`.
-- **JIRA keys:** a frontmatter link value matching `ABC-123` resolves to
-  `issue:<KEY>`, linking docs/stories/ADRs to imported issues.
+- **Issue keys:** a frontmatter link value that is an issue key resolves to
+  `issue:<KEY>`, linking docs/stories/ADRs to imported issues. A key looks like
+  `ABC-123` unless the `issues` namespace sets `key_pattern`, a Python regular
+  expression for the project's keys:
+
+  ```json
+  "issues": { "kind": "issues", "db": "…", "roots": ["…/issues.csv"], "key_pattern": "E\\d+-S\\d+" }
+  ```
+
+  The same pattern is searched for in commit messages (the `references` edge
+  and the `commit-msg` hook, which also reads it from the branch name). A bare
+  key given to `--trace` or `kg_trace` resolves to its `issue:` node when it
+  matches the pattern or is a key in the ledger.
 
 ## Source-document frontmatter (unchanged)
 

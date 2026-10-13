@@ -46,6 +46,14 @@ class GraphStoreTests(unittest.TestCase):
         self.assertEqual(gs.normalize_ref("AS-2"), "story:AS-2")      # story wins over issue
         self.assertEqual(gs.normalize_ref("ADR-0003"), "adr:ADR-0003")  # adr wins over issue
 
+    def test_normalize_ref_takes_the_project_key_pattern(self):
+        pattern = r"E\d+-S\d+"
+        self.assertEqual(gs.normalize_ref("E03-S08"), "E03-S08")  # not a key by default
+        self.assertEqual(gs.normalize_ref("E03-S08", pattern), "issue:E03-S08")
+        self.assertEqual(gs.normalize_ref("xE03-S08y", pattern), "xE03-S08y")  # whole ref only
+        self.assertEqual(gs.normalize_ref("PROJ-1", pattern), "PROJ-1")
+        self.assertEqual(gs.normalize_ref("ADR-0003", r"[A-Z]+-\d+"), "adr:ADR-0003")
+
 
 if __name__ == "__main__":
     unittest.main()

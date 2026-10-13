@@ -10,7 +10,7 @@ import sqlite3
 from pathlib import Path
 
 import manifest as manifest_mod
-from graph_store import normalize_ref
+from graph_store import ISSUE_KEY, issue_id, normalize_ref
 
 _NODE_COLS = "id,kind,subtype,name,path,tier,text,meta,namespace"
 _EDGE_COLS = "src,dst,kind,source_file,line,resolved,namespace"
@@ -21,10 +21,11 @@ _DOC_KINDS = ("adr", "story", "doc", "source")
 
 
 class KG:
-    def __init__(self, conn, aliases, scope_alias=None):
+    def __init__(self, conn, aliases, scope_alias=None, issue_key=ISSUE_KEY):
         self.conn = conn
         self.aliases = aliases
         self.scope_alias = scope_alias
+        self.issue_key = issue_key  # the project's issue-key pattern (manifest)
 
     def nodes_sql(self):
         return " UNION ALL ".join(f"SELECT {_NODE_COLS} FROM {a}.nodes" for a in self.aliases)
@@ -48,7 +49,7 @@ def _alias(name):
     return "ns_" + re.sub(r"\W", "_", name)
 
 
-def _open(pairs, scope_alias=None):
+def _open(pairs, scope_alias=None, issue_key=ISSUE_KEY):
     """pairs: list of (alias, db_path). Returns a KG over attached DBs (ro)."""
     conn = sqlite3.connect(":memory:")
     aliases = []
@@ -59,7 +60,7 @@ def _open(pairs, scope_alias=None):
     conn.execute("PRAGMA query_only=ON")
     # Only honour scope_alias if the namespace DB was actually attached.
     effective_scope = scope_alias if (scope_alias and scope_alias in aliases) else None
-    return KG(conn, aliases, scope_alias=effective_scope)
+    return KG(conn, aliases, scope_alias=effective_scope, issue_key=issue_key)
 
 
 def open_scoped(namespace, data=None, base=None):
@@ -72,7 +73,7 @@ def open_scoped(namespace, data=None, base=None):
             ns_alias = _alias(name)
             pairs.append((ns_alias, db))
     pairs.append(("overlay", manifest_mod.overlay_db(data, base=base)))
-    return _open(pairs, scope_alias=ns_alias)
+    return _open(pairs, scope_alias=ns_alias, issue_key=manifest_mod.issue_key_pattern(data))
 
 
 def open_federated(data=None, base=None):
@@ -81,7 +82,7 @@ def open_federated(data=None, base=None):
     pairs = [(_alias(name), db)
              for name, kind, db, roots in manifest_mod.namespaces(data, base=base)]
     pairs.append(("overlay", manifest_mod.overlay_db(data, base=base)))
-    return _open(pairs)
+    return _open(pairs, issue_key=manifest_mod.issue_key_pattern(data))
 
 
 def _node(row):
@@ -155,7 +156,10 @@ def trace(kg, node_id, max_depth=4, include_superseded=False):
     what replaced them. Their ids are listed under `superseded`. The id the
     trace starts from was named by the caller and is never left out."""
     if ":" not in node_id:
-        node_id = normalize_ref(node_id)  # 'ADR-0001' -> 'adr:ADR-0001', 'AS-1' -> 'story:AS-1'
+        # 'ADR-0001' -> 'adr:ADR-0001', 'AS-1' -> 'story:AS-1', 'PROJ-1' -> 'issue:PROJ-1'
+        bare, node_id = node_id.strip(), normalize_ref(node_id, kg.issue_key)
+        if ":" not in node_id and get_node(kg, issue_id(bare)):
+            node_id = issue_id(bare)  # a key in the ledger that the pattern does not describe
     skip = set() if include_superseded else superseded_ids(kg) - {node_id}
     left_out = set()
     seen = {node_id}

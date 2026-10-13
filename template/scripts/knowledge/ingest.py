@@ -72,6 +72,7 @@ def build(data=None, base=None):
     all_ids: set[str] = set()
     all_paths: dict[str, str] = {}
     held: list[dict] = []
+    issue_key = manifest_mod.issue_key_pattern(data)
     issues_present = any(spec.get("kind") == "issues"
                          for spec in data.get("namespaces", {}).values())
     freshness.forget(data, base)
@@ -89,7 +90,7 @@ def build(data=None, base=None):
             elif kind == "issues":
                 n, e = ingest_issues.ingest_root(root, name, base)
             else:
-                n, e = ingest_docs.ingest_root(root, name, base)
+                n, e = ingest_docs.ingest_root(root, name, base, issue_key)
             n, e = _drop_ignored(n, e, base, freshness.work_tree(root, base))
             ns_nodes += n
             ns_edges += e
@@ -101,7 +102,7 @@ def build(data=None, base=None):
             ns_nodes += cn
             ns_edges += ce
             if issues_present:
-                ns_edges += link_issues.link(name, cn, base)
+                ns_edges += link_issues.link(name, cn, base, issue_key)
             for nd in ns_nodes:
                 if nd["id"] in attrib:
                     nd["meta"] = {**(nd.get("meta") or {}), **attrib[nd["id"]]}

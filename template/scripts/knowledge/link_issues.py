@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # ADR-0001 — local docs+code knowledge graph
 """Optional layer: link commits to the JIRA issues they reference, by scanning
-each commit message for issue keys (ABC-123). Operates on the commit nodes that
+each commit message for issue keys (ABC-123, or the manifest's `key_pattern`). Operates on the commit nodes that
 `link_commits` produced (Phase-3 commit layer); a clean no-op when there are
 none. commit -> issue is cross-namespace, so the edges resolve in the global
 overlay against the ingested issue nodes (dangling -> resolved=0, surfaced)."""
@@ -11,9 +11,7 @@ import re
 import subprocess
 from pathlib import Path
 
-from graph_store import issue_id
-
-KEY_RE = re.compile(r"\b[A-Z][A-Z0-9]+-\d+\b")
+from graph_store import ISSUE_KEY, issue_id
 
 
 def _message(base, sha):
@@ -23,13 +21,14 @@ def _message(base, sha):
     return out.stdout
 
 
-def link(namespace, commit_nodes, base):
+def link(namespace, commit_nodes, base, issue_key=ISSUE_KEY):
     base = Path(base)
+    key_re = re.compile(rf"\b(?:{issue_key})\b")
     edges = []
     for cn in commit_nodes:
         sha = (cn.get("meta") or {}).get("sha") or cn["id"].rsplit(":", 1)[-1]
         seen = set()
-        for m in KEY_RE.finditer(_message(base, sha)):
+        for m in key_re.finditer(_message(base, sha)):
             key = m.group(0)
             if key in seen:
                 continue
