@@ -47,6 +47,9 @@ instance. Find them at `<base>/rest/api/2/field` (Data Center) or
 ## Linking
 
 - **issue → issue** (`part-of`) — from the `epic`/`parent` columns.
+- **issue → issue** (`depends-on`) — from an optional `depends_on` column: the
+  keys the issue is blocked by, separated by spaces. `export_jira.py` does not
+  write this column; a ledger written by a project's own script can.
 - **commit → issue** (`references`) — from any JIRA key (`ABC-123`) in a commit
   message; the `commit-msg` hook injects a `Refs: KEY` trailer from the branch
   name when none is present. Requires the Phase-3 commit layer (`dashboard/`) for

@@ -66,6 +66,7 @@ document given as the id to trace is traced.
 | `contains` | code → symbol | `ast`/regex |
 | `touches` | commit → code | git numstat (optional) |
 | `part-of` | issue → issue | ledger `epic`/`parent` columns |
+| `depends-on` | issue → the issue it is blocked by | ledger `depends_on` column (optional; keys separated by spaces) |
 | `references` | commit → issue | `Refs: KEY` in commit messages (optional commit layer) |
 
 Every edge stores `source_file` + `line` (its citation) and `resolved`

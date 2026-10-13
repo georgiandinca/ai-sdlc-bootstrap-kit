@@ -35,6 +35,52 @@ class IngestIssuesTests(unittest.TestCase):
                           {(e["src"], e["dst"]) for e in po})
             self.assertEqual(po[0]["source_file"], "docs/product/jira/issues.csv")
 
+    def test_depends_on_column_gives_one_edge_per_key(self):
+        with tempfile.TemporaryDirectory() as t:
+            base = Path(t)
+            d = base / "docs/product/jira"
+            d.mkdir(parents=True)
+            (d / "issues.csv").write_text(
+                "key,title,depends_on\n"
+                "PROJ-1,First,\n"
+                "PROJ-2,Second,PROJ-1\n"
+                "PROJ-3,Third,PROJ-1  PROJ-2 PROJ-2 PROJ-3 PROJ-99\n", encoding="utf-8")
+            nodes, edges = ingest_issues.ingest_root(d / "issues.csv", "issues", base)
+            deps = [(e["src"], e["dst"]) for e in edges if e["kind"] == "depends-on"]
+            self.assertEqual(deps, [("issue:PROJ-2", "issue:PROJ-1"),
+                                    ("issue:PROJ-3", "issue:PROJ-1"),
+                                    ("issue:PROJ-3", "issue:PROJ-2"),
+                                    ("issue:PROJ-3", "issue:PROJ-99")])  # no repeat, no self
+            self.assertEqual({n["id"]: n for n in nodes}["issue:PROJ-3"]["meta"]["depends_on"],
+                             "PROJ-1  PROJ-2 PROJ-2 PROJ-3 PROJ-99")
+
+    def test_a_ledger_without_the_column_has_no_depends_on_edges(self):
+        with tempfile.TemporaryDirectory() as t:
+            base = Path(t)
+            csv_path = self._write(base, "PROJ-2,Story,Child,To Do,,,,,PROJ-1,,,,,,,,\n")
+            nodes, edges = ingest_issues.ingest_root(csv_path, "issues", base)
+            self.assertEqual({e["kind"] for e in edges}, {"part-of"})
+            self.assertEqual(nodes[0]["meta"]["depends_on"], "")
+
+    def test_build_resolves_a_dependency_in_the_ledger_and_reports_one_that_is_not(self):
+        import query
+        with tempfile.TemporaryDirectory() as t:
+            base = Path(t)
+            d = base / "docs/product/jira"
+            d.mkdir(parents=True)
+            (d / "issues.csv").write_text(
+                "key,title,depends_on\nPROJ-1,First,\nPROJ-2,Second,PROJ-1 PROJ-99\n",
+                encoding="utf-8")
+            data = {"namespaces": {
+                        "issues": {"kind": "issues",
+                                   "db": "docs/product/jira/.knowledge/graph.db",
+                                   "roots": ["docs/product/jira/issues.csv"]}},
+                    "overlay": "docs/knowledge/.knowledge/global.db"}
+            ingest.build(data=data, base=base)
+            res = query.trace(query.open_federated(data=data, base=base), "issue:PROJ-2", max_depth=1)
+            got = {(e["dst"], e["resolved"]) for e in res["edges"] if e["kind"] == "depends-on"}
+            self.assertEqual(got, {("issue:PROJ-1", 1), ("issue:PROJ-99", 0)})
+
     def test_blank_key_skipped_and_missing_file(self):
         with tempfile.TemporaryDirectory() as t:
             base = Path(t)
