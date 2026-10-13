@@ -14,16 +14,17 @@ spec.loader.exec_module(vsp)
 PLAYBOOKS = {
     "Architect": "playbook-architect", "EM": "playbook-em", "Product": "playbook-product",
     "Developer": "playbook-dev", "QA": "playbook-qa",
+    "Reviewer": "playbook-reviewer",
 }
 DEFAULTS = {"Architect": "git-native", "EM": "git-native", "Product": "hidden",
-            "Developer": "git-native", "QA": "guided"}
+            "Developer": "git-native", "QA": "guided", "Reviewer": "git-native"}
 
 
 def full_manifest():
     return {"version": 1, "seats": [
         {"id": sid, "git_comfort_default": DEFAULTS[sid], "playbook": PLAYBOOKS[sid],
          "connectors": ["issue-tracker"], "first_task": "do a thing"}
-        for sid in ["Architect", "EM", "Product", "Developer", "QA"]
+        for sid in ["Architect", "EM", "Product", "Developer", "QA", "Reviewer"]
     ]}
 
 
@@ -55,7 +56,7 @@ class ValidateSeatProfilesTests(unittest.TestCase):
         self.assertTrue(any("known seats" in e for e in vsp.validate_manifest(m, self.base)))
 
     def test_missing_known_seat(self):
-        m = full_manifest(); m["seats"].pop()  # drop QA
+        m = full_manifest(); m["seats"].pop()  # drop Reviewer
         self.assertTrue(any("missing seats" in e for e in vsp.validate_manifest(m, self.base)))
 
     def test_duplicate_id(self):
@@ -87,7 +88,7 @@ class ValidateSeatProfilesTests(unittest.TestCase):
     def test_connector_skips_on_malformed_mcp(self):
         """A malformed .mcp.json must produce exactly ONE error, not one per seat."""
         (self.base / ".mcp.json").write_text("{ not json")
-        m = full_manifest()  # 5 seats, each with connectors
+        m = full_manifest()  # 6 seats, each with connectors
         errors = vsp.validate_manifest(m, self.base)
         malformed_errors = [e for e in errors if "cannot validate connectors" in e]
         self.assertEqual(len(malformed_errors), 1,

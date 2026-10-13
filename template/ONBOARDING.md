@@ -163,7 +163,7 @@ Used for `author` in YAML frontmatter (`AGENTS.md` §4.2).
 ## B1 — Seat
 
 > "Which seat are you on this project?"
-1. Architect 2. Engineering Manager 3. Product (PO/PM) 4. Developer 5. QA
+1. Architect 2. Engineering Manager 3. Product (PO/PM) 4. Developer 5. QA 6. Reviewer
 
 Accept a custom seat, but recommend the closest match.
 

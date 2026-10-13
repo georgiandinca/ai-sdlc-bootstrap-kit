@@ -3,7 +3,7 @@
 
   "mcpServers": {
     "issue-tracker": {
-      "$note": "Used by: Product, EM, QA. Example shows Atlassian-hosted MCP; swap for Linear/GitHub-Issues MCP as needed.",
+      "$note": "Used by: Product, EM, QA, and Reviewer (read only). Example shows Atlassian-hosted MCP; swap for Linear/GitHub-Issues MCP as needed.",
       "url": "https://mcp.atlassian.com/v1/mcp",
       "auth": "oauth",
       "lifecycle": "lazy",

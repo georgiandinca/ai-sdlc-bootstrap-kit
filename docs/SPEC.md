@@ -43,6 +43,7 @@ flowchart TB
         P["Product"]:::seat
         D["Developer"]:::seat
         Q["QA"]:::seat
+        R["Reviewer"]:::seat
     end
     KB -->|ground on| SEATS
     SEATS -->|act under| G
@@ -83,7 +84,7 @@ Local feedback via `.pre-commit-config.yaml`; the enforced merge gate is `.githu
 Sources under `docs/knowledge/sources/` (frontmatter per `docs/knowledge/schema.md`) are ingested by `scripts/knowledge/ingest.py` into a git-ignored local index. The stub is dependency-light (chunk + keyword search) with a documented upgrade path to embeddings + a vector store, or a hosted `knowledge` MCP server. Agents **ground** answers on it and cite the source's trust tier.
 
 ### Pillar 6 — Roles × Skills × MCP
-Five named seats — Architect, EM, Product, Developer, QA — each with:
+Six named seats — Architect, EM, Product, Developer, QA, Reviewer — each with:
 - an **invokable** role-contract skill (`.claude/skills/playbook-<seat>/SKILL.md`): owns / co-owns / doesn't-touch, decision rights, cross-seat interactions, and *how it works with AI*;
 - a **scoped MCP profile** (`.mcp.json`): which connectors it uses and how.
 Read-on-demand connector playbooks live in `docs/ai-context/skills/<role>/`.

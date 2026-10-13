@@ -12,13 +12,15 @@ This is the single source of truth that **all AI tools read** — Claude (Claude
 
 ## 0. Startup — user identity and onboarding
 
-Every AI agent **must** execute this sequence at the start of every session in this repo:
+Every AI agent **must** execute this sequence at the start of every session in this repo (except an agent given a seat in its brief, below):
 
 1. **Check for `USER.md`** at the repo root.
 2. **If `USER.md` does not exist** → load and follow [`ONBOARDING.md`](./ONBOARDING.md). Do not proceed with project work until onboarding is complete and `USER.md` has been created.
 3. **If `USER.md` exists** → read it. Use the user's name, role/seat, and communication preferences to tailor all responses for the rest of this session.
 
 > **Onboarding runs in two phases.** `ONBOARDING.md` runs **Phase A (Global)** — identity, environment, preferences (every seat) — then **Phase B (Seat)** — seat, git-comfort, the seat's playbook, MCP profile, and a first task. Seat and git-comfort are recorded in `USER.md` and load live each session via the SessionStart hook. Switch seats later with `scripts/session/switch-seat.sh <seat>`.
+
+> **An agent given a seat in its brief** — a subagent started for one task, such as a review under the Reviewer seat — takes that seat for the task. It skips this startup sequence, does not run onboarding, and does not read or change `USER.md`.
 
 > **Non-git operators work through verbs, not git.** For `guided`/`hidden` git-comfort seats, use the **`git-verbs`** skill — "save my work" (`checkpoint.sh`), "get the latest" (`sync.sh`), "send for review" (`wrapup.sh`) — never raw git. The SessionStart hook, SessionEnd safety net, and a debounced Stop reminder keep their work synced and never lost (`scripts/session/moments.json`).
 
@@ -180,6 +182,7 @@ This template ships with the **full SDLC team**. Each seat has an invokable role
 | **Product (PO/PM)** | Backlog, priority, acceptance criteria; roadmap, milestones, plan. | `playbook-product` |
 | **Developer** | Code + unit tests in the relevant repo; implementation decisions. | `playbook-dev` |
 | **QA** | Test strategy, test plans, traceability; quality gates. | `playbook-qa` |
+| **Reviewer** | The independent review of a change before its pull request is opened: verdict, findings, evidence. Usually held by an AI agent; reports, does not decide. | `playbook-reviewer` |
 
 > **Naming discipline.** Fill `<SEAT_HOLDERS>` with first names only. Don't invent a name for an unfilled seat — refer to it by role.
 

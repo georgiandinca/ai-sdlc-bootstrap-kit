@@ -25,6 +25,11 @@
       "default_model": "sonnet",
       "escalation_hint": "Escalate to opus for test-strategy design; haiku for test-data generation.",
       "connectors": ["issue-tracker", "knowledge"],
-      "first_task": "Write a test-plan stub with one traceability entry." }
+      "first_task": "Write a test-plan stub with one traceability entry." },
+    { "id": "Reviewer", "git_comfort_default": "git-native", "playbook": "playbook-reviewer",
+      "default_model": "opus",
+      "escalation_hint": "Run the review on a model at least as capable as the one that wrote the change.",
+      "connectors": ["issue-tracker", "knowledge"],
+      "first_task": "Review a committed change against its story, before its pull request is opened, and report the verdict." }
   ]
 }

@@ -44,7 +44,8 @@ The `playbook-<seat>` role contracts live in `.claude/skills/` (invokable). The 
 ```
 docs/ai-context/skills/
 ├── product/   # backlog & sprint automation over the issue-tracker MCP
-└── qa/        # test-traceability over the tracker + knowledge MCP
+├── qa/        # test-traceability over the tracker + knowledge MCP
+└── reviewer/  # how an independent review of this project is briefed and what it looks for first
 ```
 
 **Conformity gate.** Every `SKILL.md` is validated by [`../../scripts/validate-skills.py`](../../scripts/validate-skills.py); every governed doc by [`../../scripts/validate-frontmatter.py`](../../scripts/validate-frontmatter.py). Both run locally (pre-commit) and in CI (the enforced merge gate).

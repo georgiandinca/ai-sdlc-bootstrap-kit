@@ -27,6 +27,7 @@ flowchart TB
         P["Product<br/>Skill + MCP"]
         D["Developer<br/>Skill + MCP"]
         Q["QA<br/>Skill + MCP"]
+        R["Reviewer<br/>Skill + MCP"]
     end
     G["3 · Governance & rules<br/>AGENTS.md · trust tiers · scoped-write MCP"]
     CI["4 · CI/CD gates — rules as scripts<br/>validate-skills · validate-frontmatter · commit hook"]

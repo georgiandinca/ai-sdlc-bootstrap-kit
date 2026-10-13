@@ -40,7 +40,7 @@ branch=$(git branch --show-current)
 if [ "$branch" = main ] || [ "$branch" = master ]; then
   [ -z "$seat" ] && seat=${SESSION_SEAT:-}
   if [ -z "$seat" ] && [ -t 0 ]; then
-    printf '[wrapup] On %s. Enter your seat (Architect/EM/Product/Developer/QA): ' "$branch" >&2
+    printf '[wrapup] On %s. Enter your seat (Architect/EM/Product/Developer/QA/Reviewer): ' "$branch" >&2
     read -r seat
   fi
   [ -n "$seat" ] || { echo "[wrapup] on protected branch '$branch' — pass --seat <seat>" >&2; exit 2; }

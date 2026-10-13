@@ -140,7 +140,12 @@ Every agent session follows a lightweight ritual (the git workflow on the board:
 
 - **Session start.** Confirm which seat you are operating as. The Claude Code hook (`.claude/settings.json`) runs `scripts/session/start.sh`, which prints git identity, branch, and sync state, and offers a fast-forward sync (`scripts/session/sync.sh`) — run it **only on explicit confirmation**. It also rebuilds the knowledge graph when it is stale or unbuilt; the graph is git-ignored, and how it is kept current is in [`docs/knowledge/README.md`](./docs/knowledge/README.md).
 - **Authoring.** New Markdown carries `owner` = confirmed seat, `author` = `git config user.name`/`user.email`, `created` = today. Don't default `owner` to the Architect.
-- **Session end.** Offer to commit + open a PR: `scripts/session/wrapup.sh "<message>" <paths>`. The script branches off a protected branch, commits, pushes, and opens a PR (or prints the PR URL). **AI never pushes a protected branch to origin.**
+- **Session end.** Offer to commit + open a PR: `scripts/session/wrapup.sh "<message>" <paths>`. The script branches off a protected branch, commits, pushes, and opens a PR (or prints the PR URL). **AI never pushes a protected branch to origin.** The independent review below comes first: the script opens the pull request and does not run a review.
+- **Independent review.** Every change gets an independent review **before its pull request is opened**, under the Reviewer seat ([`playbook-reviewer`](./.claude/skills/playbook-reviewer/SKILL.md)).
+  - **Order.** The author commits on the branch, the review runs against that diff, the author fixes what it finds, and only then opens the pull request. A push that opens no pull request, such as the one `scripts/session/checkpoint.sh` or the session-end auto-save makes to a personal branch, does not count: the rule is about the pull request. A pull request that is already open is reviewed before the next push to it.
+  - **Independent context.** The reviewer starts in a fresh context and is given the diff, the requirement and the documents they link to, not the author's reasoning. An AI reviewer runs on a model at least as capable as the one that wrote the change.
+  - **The reviewer reports and does not decide the change.** The pull request records each finding as fixed, deferred to a story, or rejected with the reason.
+  - **It adds to the review before merge.** The human review of the pull request before merge to a protected branch stays as it is.
 - **Commit messages.** Reference the issue key (`<TICKET-123>`) so the host links commits to the issue. The `commit-msg` hook (`scripts/git/commit_msg_ticket.py`) enforces or nudges this; `[no-ticket]` exempts genuine non-ticket commits.
 
 The scripts are plain shell and can be run by hand for any editor that doesn't support Claude Code hooks.
@@ -163,6 +168,7 @@ The scripts are plain shell and can be run by hand for any editor that doesn't s
 | **Product (PO/PM)** | Backlog & priority; acceptance criteria; roadmap, milestones, plan. |
 | **Developer** | Code + unit tests; implementation decisions. |
 | **QA** | Test strategy, plans, traceability; quality gates; owns `docs/qa/` if created. |
+| **Reviewer** | The independent review of a change before its pull request is opened: verdict, findings and evidence. The Architect owns its guide in `docs/ai-context/skills/reviewer/`. |
 | **Everyone** | Honours the lifecycle ritual; never promotes silently; tags classification; confirms their seat at session start; follows wrap-up. |
 
 ---
@@ -183,4 +189,4 @@ The scripts are plain shell and can be run by hand for any editor that doesn't s
 | **Promotion** | A deliberate move of an artefact from drafts/working to canonical (or `under-review` → `approved`). |
 | **Trust tier** | The AI-context label from location + frontmatter — Authoritative / Working / Exploratory / Restricted (`AGENTS.md` §4.2). |
 | **Scoped write** | The MCP posture (§5.3): AI may write tracker items & wiki drafts under a named seat; protected branches and final deliverables stay human-applied. |
-| **Named seat** | One of the project roles: Architect, EM, Product, Developer, QA. |
+| **Named seat** | One of the project roles: Architect, EM, Product, Developer, QA, Reviewer. |
