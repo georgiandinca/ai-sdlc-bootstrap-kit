@@ -15,6 +15,7 @@ federated queries/traces, each grounded on a source citation.
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import json
 import os
 import subprocess
@@ -66,6 +67,37 @@ def _drop_ignored(nodes, edges, base, tree=None):
             [e for e in edges if e["src"] not in gone and e["dst"] not in gone])
 
 
+def _excluded(rel, patterns):
+    """`rel` is a file's path below its root. A pattern names the file or a
+    folder above it, literally or as a glob (`*` also crosses `/`)."""
+    parts = rel.split("/")
+    prefixes = ["/".join(parts[:i]) for i in range(1, len(parts) + 1)]
+    return any(fnmatch.fnmatchcase(p, pat) for pat in patterns for p in prefixes)
+
+
+def _drop_excluded(nodes, edges, root, base, patterns):
+    """Drop nodes (and their edges) whose file is under one of the namespace's
+    `exclude` patterns, each a path or glob below the root. A root that is a
+    single file has nothing below it to exclude."""
+    patterns = [p.strip().strip("/") for p in patterns or []]
+    patterns = [p for p in patterns if p]
+    root, base = Path(root).resolve(), Path(base).resolve()
+    if not patterns or root.is_file():
+        return nodes, edges
+    gone = set()
+    for nd in nodes:
+        if not nd.get("path"):
+            continue
+        try:
+            rel = Path(os.path.normpath(base / nd["path"])).relative_to(root)
+        except ValueError:
+            continue
+        if _excluded(str(rel).replace("\\", "/"), patterns):
+            gone.add(nd["id"])
+    return ([nd for nd in nodes if nd["id"] not in gone],
+            [e for e in edges if e["src"] not in gone and e["dst"] not in gone])
+
+
 def build(data=None, base=None):
     data = data or manifest_mod.load()
     base = base or manifest_mod.REPO_ROOT
@@ -92,6 +124,7 @@ def build(data=None, base=None):
             else:
                 n, e = ingest_docs.ingest_root(root, name, base, issue_key)
             n, e = _drop_ignored(n, e, base, freshness.work_tree(root, base))
+            n, e = _drop_excluded(n, e, root, base, data["namespaces"][name].get("exclude"))
             ns_nodes += n
             ns_edges += e
         # commits are recorded for the base repository; a namespace read from

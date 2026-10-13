@@ -177,5 +177,80 @@ class DanglingLinkTests(unittest.TestCase):
             self.assertEqual(rows, [("doc:briefs:AGENTS.md", "doc:briefs:README.md", 1)])
 
 
+class ExcludeTests(unittest.TestCase):
+    def _paths(self, base, data, ns):
+        import query
+        kg = query.open_scoped(ns, data=data, base=base)
+        return {r[0] for r in kg.conn.execute(f"SELECT path FROM ({kg.nodes_sql()})")}
+
+    def _tree(self, base, files):
+        for rel, text in files.items():
+            f = base / rel
+            f.parent.mkdir(parents=True, exist_ok=True)
+            f.write_text(text, encoding="utf-8")
+
+    def test_matching(self):
+        ex = ingest._excluded
+        self.assertTrue(ex("backlog/old/a.md", ["backlog"]))        # a folder above it
+        self.assertTrue(ex("backlog/old/a.md", ["backlog/old"]))
+        self.assertTrue(ex("backlog/old/a.md", ["backlog/old/a.md"]))  # the file
+        self.assertTrue(ex("backlog/old/a.md", ["*.md"]))           # * crosses /
+        self.assertTrue(ex("x/archive/a.md", ["*/archive"]))
+        self.assertFalse(ex("backlog-new/a.md", ["backlog"]))        # not a prefix of a name
+        self.assertFalse(ex("a/backlog/b.md", ["backlog"]))          # below the root, not anywhere
+        self.assertFalse(ex("keep.md", ["backlog", "*.txt"]))
+
+    def test_a_docs_namespace_leaves_out_what_its_exclude_list_names(self):
+        with tempfile.TemporaryDirectory() as t:
+            base = Path(t)
+            self._tree(base, {
+                "docs/keep.md": "# keep\n\n[old](backlog/old.md)\n",
+                "docs/backlog/old.md": "# old\n",
+                "docs/backlog/deep/older.md": "# older\n",
+                "docs/notes/a.draft.md": "# draft\n",
+                "docs/notes/b.md": "# b\n",
+                "other/backlog/kept.md": "# a second root\n"})
+            data = {"namespaces": {"docs": {
+                        "kind": "docs", "db": "docs/.knowledge/graph.db",
+                        "roots": ["docs/", "other/"],
+                        "exclude": ["backlog/", "*.draft.md"]}},
+                    "overlay": "docs/knowledge/.knowledge/global.db"}
+            ingest.build(data=data, base=base)
+            self.assertEqual(self._paths(base, data, "docs"),
+                             {"docs/keep.md", "docs/notes/b.md"})
+
+    def test_exclude_is_below_each_root_and_a_file_root_is_kept(self):
+        with tempfile.TemporaryDirectory() as t:
+            base = Path(t)
+            self._tree(base, {"docs/a.md": "# a\n", "docs/sub/a.md": "# sub a\n",
+                              "README.md": "# readme\n"})
+            data = {"namespaces": {"docs": {
+                        "kind": "docs", "db": "docs/.knowledge/graph.db",
+                        "roots": ["docs/", "README.md"],
+                        "exclude": ["a.md", "README.md", "docs"]}},
+                    "overlay": "docs/knowledge/.knowledge/global.db"}
+            ingest.build(data=data, base=base)
+            self.assertEqual(self._paths(base, data, "docs"), {"docs/sub/a.md", "README.md"})
+
+    def test_a_code_namespace_drops_the_file_and_its_symbols(self):
+        with tempfile.TemporaryDirectory() as t:
+            base = Path(t)
+            self._tree(base, {"src/app.py": "def run():\n    pass\n",
+                              "src/vendor/lib.py": "def helper():\n    pass\n"})
+            data = {"namespaces": {"code": {
+                        "kind": "code", "db": ".knowledge/graph.db",
+                        "roots": ["src/"], "exclude": ["vendor"]}},
+                    "overlay": "docs/knowledge/.knowledge/global.db"}
+            ingest.build(data=data, base=base)
+            self.assertEqual(self._paths(base, data, "code"), {"src/app.py"})
+
+    def test_no_exclude_list_changes_nothing(self):
+        nodes, edges = [{"id": "doc:d:docs/a.md", "path": "docs/a.md"}], []
+        with tempfile.TemporaryDirectory() as t:
+            for patterns in (None, [], ["", "/"]):
+                self.assertEqual(ingest._drop_excluded(nodes, edges, Path(t) / "docs", t, patterns),
+                                 (nodes, edges))
+
+
 if __name__ == "__main__":
     unittest.main()

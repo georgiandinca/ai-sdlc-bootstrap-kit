@@ -28,6 +28,18 @@ A root is a folder, walked recursively, or a single file (`"AGENTS.md"`). A root
 named in the manifest is ingested even when it is hidden (`.claude/skills/`);
 dot-directories below a root are skipped, and so is anything git-ignored.
 
+A `docs` or `code` namespace may take an `exclude` list, for tracked files the
+graph should not hold, such as the Markdown backlog an issue tracker replaced:
+
+```json
+"docs": { "kind": "docs", "db": "docs/.knowledge/graph.db", "roots": ["docs/"],
+          "exclude": ["product/backlog/", "*.draft.md"] }
+```
+
+Each entry is a path or a glob below a root of the namespace (`*` also crosses
+`/`), naming a file or a folder; it is tried against every root. A root that
+is a single file is not excluded this way: take it out of `roots`.
+
 ## Nodes
 
 | kind | id form | source |
