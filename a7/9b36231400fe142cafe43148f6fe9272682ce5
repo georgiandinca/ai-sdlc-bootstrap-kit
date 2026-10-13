@@ -1,0 +1,23 @@
+CHANGELOG.md
+  s_bf654b1e71171c::t_32e73630ab45a5 1-125
+.github/PULL_REQUEST_TEMPLATE.md
+  s_bf654b1e71171c::t_4ebd91eb0effd8 20
+CONTRIBUTING.md
+  s_bf654b1e71171c::t_784e4dd02b8508 71-74,76
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a79b36231400fe142cafe43148f6fe9272682ce5",
+  "prompts": {},
+  "sessions": {
+    "s_bf654b1e71171c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9b9d1bef-5f65-4671-afbc-e7f504e3c03c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Georgian Dinca <geo@magnify.ro>"
+    }
+  }
+}
