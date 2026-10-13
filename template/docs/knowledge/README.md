@@ -41,6 +41,10 @@ python3 scripts/knowledge/export_html.py --open
 Agents can also reach it over MCP: the `knowledge` server (`.mcp.json`) exposes
 `kg_query`, `kg_federated_query`, `kg_trace`, and `kg_freshness`.
 
+A document with `status: superseded` is left out of search and trace
+(`AGENTS.md` §4.2). Add `--include-superseded`, or `include_superseded: true`
+on the MCP tools, to get it back.
+
 ## What is in it
 
 `graph-manifest.json` ships with four namespaces: `docs` (`docs/`), `briefs`

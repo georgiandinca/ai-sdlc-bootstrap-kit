@@ -9,6 +9,7 @@ federated queries/traces, each grounded on a source citation.
   ingest.py --freshness                   # built from the commits checked out now?
   ingest.py --query "text" [--scope NS | --federated]
   ingest.py --trace ADR-0001 [--scope NS | --federated] [--depth N]
+  ingest.py --query/--trace ... --include-superseded   # superseded docs are left out by default
   ingest.py ... --base DIR                # read and keep the graph under DIR
 """
 from __future__ import annotations
@@ -180,6 +181,9 @@ def main():
     ap.add_argument("--depth", type=int, default=4, metavar="N",
                     help="how many edges --trace follows from the id (default 4; "
                          "1 = only what is tied to it directly)")
+    ap.add_argument("--include-superseded", action="store_true",
+                    help="--query and --trace leave out documents with `status: superseded`; "
+                         "this keeps them in")
     ap.add_argument("--base", metavar="DIR", type=Path,
                     help="read the files, and keep the graph, under DIR in place of this "
                          "checkout; this checkout's scripts and manifest are still used. "
@@ -210,9 +214,11 @@ def main():
         print(query_mod.EMPTY_HINT)
         return 1
     if a.query:
-        print(json.dumps(query_mod.search(kg, a.query), indent=2))
+        print(json.dumps(query_mod.search(kg, a.query, include_superseded=a.include_superseded),
+                         indent=2))
     else:
-        print(json.dumps(query_mod.trace(kg, a.trace, max_depth=max(1, a.depth)), indent=2))
+        print(json.dumps(query_mod.trace(kg, a.trace, max_depth=max(1, a.depth),
+                                         include_superseded=a.include_superseded), indent=2))
     return 0
 
 

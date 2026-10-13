@@ -89,5 +89,80 @@ class QueryTests(unittest.TestCase):
             self.assertIn("adr:ADR-0001", node_ids_shorthand)
 
 
+def _adr(base, num, title, extra, body):
+    d = base / "docs/architecture/decisions"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / f"ADR-{num}-x.md").write_text(
+        f"---\ntitle: \"{title}\"\nai-trust: working\n{extra}---\n\n{body}\n", encoding="utf-8")
+
+
+def _build_superseded(base):
+    """ADR-0001 is superseded by ADR-0002; a guide links to both; a story
+    traces to the old decision only."""
+    import ingest
+    _adr(base, "0001", "Queue on a cron", "status: superseded\n", "The pigeon queue runs on a cron.")
+    _adr(base, "0002", "Queue on events", "status: approved\nsupersedes: [ADR-0001]\n",
+         "The pigeon queue runs on events.")
+    (base / "docs/guide.md").write_text(
+        "---\ntitle: Guide\nstatus: approved\n---\n\n"
+        "See [old](architecture/decisions/ADR-0001-x.md) and "
+        "[new](architecture/decisions/ADR-0002-x.md).\n", encoding="utf-8")
+    s = base / "docs/product/stories"
+    s.mkdir(parents=True)
+    (s / "AS-0001.md").write_text(
+        "---\ntitle: Story\nstatus: approved\ntraces: [ADR-0001]\n---\n\nbody\n", encoding="utf-8")
+    data = {"namespaces": {"docs": {"kind": "docs", "db": "docs/.knowledge/graph.db",
+                                    "roots": ["docs/"]}},
+            "overlay": "docs/knowledge/.knowledge/global.db"}
+    ingest.build(data=data, base=base)
+    return data
+
+
+class SupersededTests(unittest.TestCase):
+    def test_search_leaves_superseded_out_unless_asked(self):
+        with tempfile.TemporaryDirectory() as d:
+            base = Path(d); data = _build_superseded(base)
+            fed = q.open_federated(data=data, base=base)
+            ids = {h["id"] for h in q.search(fed, "pigeon queue")}
+            self.assertEqual(ids, {"adr:ADR-0002"})
+            ids = {h["id"] for h in q.search(fed, "pigeon queue", include_superseded=True)}
+            self.assertEqual(ids, {"adr:ADR-0001", "adr:ADR-0002"})
+
+    def test_trace_keeps_only_the_supersedes_edge_to_a_superseded_document(self):
+        with tempfile.TemporaryDirectory() as d:
+            base = Path(d); data = _build_superseded(base)
+            fed = q.open_federated(data=data, base=base)
+            res = q.trace(fed, "ADR-0002")
+            ids = {n["id"] for n in res["nodes"]}
+            self.assertNotIn("adr:ADR-0001", ids)
+            self.assertNotIn("story:AS-0001", ids)  # reachable only through the old ADR
+            self.assertIn("doc:docs:docs/guide.md", ids)
+            touching = {(e["src"], e["kind"]) for e in res["edges"] if e["dst"] == "adr:ADR-0001"}
+            self.assertEqual(touching, {("adr:ADR-0002", "supersedes")})
+            self.assertEqual(res["superseded"], ["adr:ADR-0001"])
+
+    def test_trace_with_include_superseded_is_the_whole_chain(self):
+        with tempfile.TemporaryDirectory() as d:
+            base = Path(d); data = _build_superseded(base)
+            fed = q.open_federated(data=data, base=base)
+            res = q.trace(fed, "ADR-0002", include_superseded=True)
+            ids = {n["id"] for n in res["nodes"]}
+            self.assertLessEqual({"adr:ADR-0001", "story:AS-0001"}, ids)
+            self.assertNotIn("superseded", res)
+
+    def test_a_superseded_document_named_as_the_root_is_traced(self):
+        with tempfile.TemporaryDirectory() as d:
+            base = Path(d); data = _build_superseded(base)
+            fed = q.open_federated(data=data, base=base)
+            res = q.trace(fed, "ADR-0001", max_depth=1)
+            ids = {n["id"] for n in res["nodes"]}
+            self.assertLessEqual({"adr:ADR-0001", "adr:ADR-0002", "story:AS-0001"}, ids)
+            self.assertNotIn("superseded", res)
+
+    def test_an_issue_with_that_status_is_not_a_superseded_document(self):
+        self.assertFalse(q.is_superseded({"kind": "issue", "meta": {"status": "superseded"}}))
+        self.assertTrue(q.is_superseded({"kind": "doc", "meta": {"status": "Superseded "}}))
+
+
 if __name__ == "__main__":
     unittest.main()

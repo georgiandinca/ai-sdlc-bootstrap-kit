@@ -16,6 +16,8 @@ _NODE_COLS = "id,kind,subtype,name,path,tier,text,meta,namespace"
 _EDGE_COLS = "src,dst,kind,source_file,line,resolved,namespace"
 
 EMPTY_HINT = "Graph is empty. Run: ingest.py --build"
+# node kinds that come from a document with frontmatter, and so carry a `status`
+_DOC_KINDS = ("adr", "story", "doc", "source")
 
 
 class KG:
@@ -104,13 +106,32 @@ def get_node(kg, node_id):
     return _node(row) if row else None
 
 
-def search(kg, q, k=5):
+def is_superseded(node):
+    """A document whose frontmatter says `status: superseded` (AGENTS.md §4.2)."""
+    return (node["kind"] in _DOC_KINDS
+            and str(node["meta"].get("status") or "").strip().lower() == "superseded")
+
+
+def superseded_ids(kg):
+    if not kg.aliases:
+        return set()
+    kinds = ",".join("?" * len(_DOC_KINDS))
+    rows = kg.conn.execute(
+        f"SELECT {_NODE_COLS} FROM ({kg.nodes_sql()}) "
+        f"WHERE kind IN ({kinds}) AND lower(meta) LIKE '%superseded%'", _DOC_KINDS)
+    return {n["id"] for n in map(_node, rows) if is_superseded(n)}
+
+
+def search(kg, q, k=5, include_superseded=False):
+    """Superseded documents are left out unless `include_superseded`."""
     if not kg.aliases:
         return []
     terms = [t for t in re.findall(r"\w+", q.lower()) if len(t) > 2]
     scored = []
     for row in kg.conn.execute(f"SELECT {_NODE_COLS} FROM ({kg.nodes_sql()})"):
         n = _node(row)
+        if not include_superseded and is_superseded(n):
+            continue
         hay = ((n["name"] or "") + " " + (n["text"] or "")).lower()
         score = sum(hay.count(t) for t in terms)
         if score:
@@ -128,9 +149,15 @@ def neighbors(kg, node_id):
     return [_edge(r) for r in rows]
 
 
-def trace(kg, node_id, max_depth=4):
+def trace(kg, node_id, max_depth=4, include_superseded=False):
+    """Superseded documents are left out unless `include_superseded`: the trace
+    does not pass through them and keeps only the `supersedes` edge that says
+    what replaced them. Their ids are listed under `superseded`. The id the
+    trace starts from was named by the caller and is never left out."""
     if ":" not in node_id:
         node_id = normalize_ref(node_id)  # 'ADR-0001' -> 'adr:ADR-0001', 'AS-1' -> 'story:AS-1'
+    skip = set() if include_superseded else superseded_ids(kg) - {node_id}
+    left_out = set()
     seen = {node_id}
     frontier = [node_id]
     chain, chain_keys = [], set()
@@ -146,13 +173,20 @@ def trace(kg, node_id, max_depth=4):
             key = (e["src"], e["dst"], e["kind"])
             if key in chain_keys:
                 continue
+            hidden = {e["src"], e["dst"]} & skip
+            left_out |= hidden
+            if hidden and e["kind"] != "supersedes":
+                continue
             chain_keys.add(key)
             chain.append(e)
             for endpoint in (e["src"], e["dst"]):
-                if endpoint not in seen:
+                if endpoint not in seen and endpoint not in skip:
                     seen.add(endpoint)
                     nxt.append(endpoint)
         frontier = nxt
         depth += 1
     nodes = [n for n in (get_node(kg, nid) for nid in seen) if n]
-    return {"root": node_id, "nodes": nodes, "edges": chain}
+    out = {"root": node_id, "nodes": nodes, "edges": chain}
+    if left_out:
+        out["superseded"] = sorted(left_out)
+    return out

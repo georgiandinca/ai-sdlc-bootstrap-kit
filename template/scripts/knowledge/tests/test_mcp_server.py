@@ -69,7 +69,7 @@ class FreshnessToolTests(unittest.TestCase):
         orig_open, orig_trace = srv.query_mod.open_federated, srv.query_mod.trace
         try:
             srv.query_mod.open_federated = lambda **kw: query.KG(sqlite3.connect(":memory:"), ["kit"])
-            srv.query_mod.trace = lambda kg, node_id, max_depth: seen.update(depth=max_depth) or {}
+            srv.query_mod.trace = lambda kg, node_id, max_depth, **kw: seen.update(depth=max_depth) or {}
             for depth, want in ((None, 4), (0, 1), (2, 2)):
                 r = srv.handle({"jsonrpc": "2.0", "id": 21, "method": "tools/call",
                                 "params": {"name": "kg_trace",
@@ -78,6 +78,33 @@ class FreshnessToolTests(unittest.TestCase):
                 self.assertEqual(seen["depth"], want)
         finally:
             srv.query_mod.open_federated, srv.query_mod.trace = orig_open, orig_trace
+
+    def test_search_and_trace_tools_take_include_superseded(self):
+        for name in ("kg_query", "kg_federated_query", "kg_trace"):
+            tool = next(t for t in srv.TOOLS if t["name"] == name)
+            self.assertIn("include_superseded", tool["inputSchema"]["properties"])
+
+    def test_include_superseded_reaches_search_and_trace(self):
+        seen = []
+        orig = (srv.query_mod.open_federated, srv.query_mod.open_scoped,
+                srv.query_mod.trace, srv.query_mod.search)
+        kg = lambda *a, **kw: query.KG(sqlite3.connect(":memory:"), ["kit"])
+        try:
+            srv.query_mod.open_federated = srv.query_mod.open_scoped = kg
+            srv.query_mod.trace = lambda *a, **kw: seen.append(kw["include_superseded"]) or {}
+            srv.query_mod.search = lambda *a, **kw: seen.append(kw["include_superseded"]) or []
+            for name, args in (("kg_query", {"scope": "kit", "query": "x"}),
+                               ("kg_federated_query", {"query": "x"}),
+                               ("kg_trace", {"id": "code:kit:x"})):
+                for sent, want in (({}, False), ({"include_superseded": None}, False),
+                                   ({"include_superseded": True}, True)):
+                    r = srv.handle({"jsonrpc": "2.0", "id": 22, "method": "tools/call",
+                                    "params": {"name": name, "arguments": {**args, **sent}}})
+                    self.assertNotIn("isError", r["result"])
+                    self.assertEqual(seen[-1], want)
+        finally:
+            (srv.query_mod.open_federated, srv.query_mod.open_scoped,
+             srv.query_mod.trace, srv.query_mod.search) = orig
 
 
 if __name__ == "__main__":

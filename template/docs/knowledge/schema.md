@@ -45,6 +45,13 @@ dot-directories below a root are skipped, and so is anything git-ignored.
 Every node carries `namespace`, `path`, and (for docs) a `tier` from `ai-trust`,
 so retrieved context is always citable with its trust tier (`AGENTS.md §4.2`).
 
+A doc node keeps its frontmatter in `meta`, `status` included. A document with
+`status: superseded` stays in the graph, and search and trace leave it out
+unless asked (`--include-superseded`, or `include_superseded` on the MCP
+tools). A trace does not pass through it; it keeps the `supersedes` edge from
+the replacement and lists the ids it left out under `superseded`. A superseded
+document given as the id to trace is traced.
+
 ## Edges
 
 | kind | from → to | derived from |
@@ -53,7 +60,7 @@ so retrieved context is always citable with its trust tier (`AGENTS.md §4.2`).
 | `covers` | test → code | `test_x ↔ x` naming; frontmatter `covers:` |
 | `traces` | story → adr | frontmatter `traces:` |
 | `cites` | doc → source | frontmatter `cites:` |
-| `supersedes` | adr → adr | frontmatter `supersedes:` |
+| `supersedes` | doc → doc (the replacement → what it replaced) | frontmatter `supersedes:` |
 | `links` | doc → doc/code | relative markdown link `[text](path)` in a doc body |
 | `imports` | code → code | `ast`/regex (intra-namespace only) |
 | `contains` | code → symbol | `ast`/regex |
