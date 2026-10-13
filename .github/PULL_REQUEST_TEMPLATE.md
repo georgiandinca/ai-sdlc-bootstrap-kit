@@ -17,5 +17,6 @@ Closes #
 
 - [ ] I ran the validators and tests in `.github/workflows/ci.yml` locally and they pass
 - [ ] I added/updated tests for behavior changes
+- [ ] I added an entry to `CHANGELOG.md` under "Unreleased" (or the change is not visible to a project using the kit)
 - [ ] Commits follow [Conventional Commits](https://www.conventionalcommits.org/)
 - [ ] No secrets, tokens, or real personal data are included

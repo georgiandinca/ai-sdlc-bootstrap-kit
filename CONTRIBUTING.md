@@ -68,9 +68,12 @@ A green local run is the bar for a PR.
 5. **Write clear commits.** We use [Conventional Commits](https://www.conventionalcommits.org/):
    `feat:`, `fix:`, `docs:`, `chore:`, `test:`, `ci:`, `refactor:`.
    Example: `fix(dashboard): guard against empty spend table`.
-6. **Open the PR** against `main`. Describe *what* changed and *why*, and link
+6. **Add a changelog entry** under "Unreleased" in [`CHANGELOG.md`](./CHANGELOG.md)
+   for anything a project that installs or updates the kit will notice. Say
+   what an already-installed project has to do by hand, if anything.
+7. **Open the PR** against `main`. Describe *what* changed and *why*, and link
    any related issue (`Closes #123`).
-7. **Keep the discussion going** — address review comments by pushing follow-up
+8. **Keep the discussion going** — address review comments by pushing follow-up
    commits to the same branch.
 
 ## Coding conventions

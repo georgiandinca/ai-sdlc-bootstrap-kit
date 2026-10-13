@@ -30,6 +30,30 @@ class ManifestTests(unittest.TestCase):
             self.assertEqual(m.overlay_db(loaded, base=base),
                              base / "docs/knowledge/.knowledge/global.db")
 
+    def test_issue_key_pattern(self):
+        ns = lambda **kw: {"kind": "issues", "db": "x.db", "roots": ["i.csv"], **kw}
+        self.assertEqual(m.issue_key_pattern({"namespaces": {}}), m.ISSUE_KEY)
+        self.assertEqual(m.issue_key_pattern({"namespaces": {"issues": ns()}}), m.ISSUE_KEY)
+        custom = r"E\d+-S\d+"
+        self.assertEqual(m.issue_key_pattern({"namespaces": {"issues": ns(key_pattern=custom)}}),
+                         custom)
+        # a key_pattern on a namespace that is not a ledger is not read
+        self.assertEqual(m.issue_key_pattern(
+            {"namespaces": {"docs": {"kind": "docs", "key_pattern": custom}}}), m.ISSUE_KEY)
+        both = m.issue_key_pattern({"namespaces": {"a": ns(), "b": ns(key_pattern=custom)}})
+        import re
+        self.assertTrue(re.fullmatch(both, "PROJ-1") and re.fullmatch(both, "E03-S08"))
+        self.assertIsNone(re.fullmatch(both, "E03-S08-extra"))
+
+    def test_a_key_pattern_that_is_not_a_regular_expression_is_an_error(self):
+        with self.assertRaises(ValueError) as ctx:
+            m.issue_key_pattern({"namespaces": {"issues": {"kind": "issues", "key_pattern": "E(\\d+"}}})
+        self.assertIn("issues", str(ctx.exception))
+        # an inline flag compiles alone and not in the form the readers search with
+        with self.assertRaises(ValueError):
+            m.issue_key_pattern({"namespaces": {"issues": {"kind": "issues",
+                                                           "key_pattern": "(?i)e\\d+-s\\d+"}}})
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -83,18 +83,27 @@ def issue_id(key: str) -> str: return f"issue:{key}"
 
 _ADR_RE = re.compile(r"^ADR-\d{3,4}$")
 _STORY_RE = re.compile(r"^AS-\d+$", re.I)
-_ISSUE_RE = re.compile(r"^[A-Z][A-Z0-9]+-\d+$")
+# What an issue key looks like unless the manifest's `issues` namespace sets
+# `key_pattern` (manifest.issue_key_pattern): ABC-123.
+ISSUE_KEY = r"[A-Z][A-Z0-9]+-\d+"
 
 
-def normalize_ref(ref: str) -> str:
-    """Frontmatter ref -> node id. ADR/story -> canonical id; a path -> a
-    provisional 'path:<p>' id resolved later; anything else stays literal."""
+def issue_key_search(issue_key: str = ISSUE_KEY) -> str:
+    """The pattern as it is searched for in a commit message: a key that is
+    not part of a longer word."""
+    return rf"(?<!\w)(?:{issue_key})(?!\w)"
+
+
+def normalize_ref(ref: str, issue_key: str = ISSUE_KEY) -> str:
+    """Frontmatter ref -> node id. ADR/story/issue key -> canonical id; a path
+    -> a provisional 'path:<p>' id resolved later; anything else stays literal.
+    `issue_key` is the project's key pattern, matched against the whole ref."""
     ref = ref.strip()
     if _ADR_RE.match(ref):
         return adr_id(ref)
     if _STORY_RE.match(ref):
         return story_id(ref.upper())
-    if _ISSUE_RE.match(ref):
+    if re.fullmatch(issue_key, ref):
         return issue_id(ref)
     if "/" in ref or "." in ref:
         return f"path:{ref}"

@@ -41,6 +41,10 @@ python3 scripts/knowledge/export_html.py --open
 Agents can also reach it over MCP: the `knowledge` server (`.mcp.json`) exposes
 `kg_query`, `kg_federated_query`, `kg_trace`, and `kg_freshness`.
 
+A document with `status: superseded` is left out of search and trace
+(`AGENTS.md` §4.2). Add `--include-superseded`, or `include_superseded: true`
+on the MCP tools, to get it back.
+
 ## What is in it
 
 `graph-manifest.json` ships with four namespaces: `docs` (`docs/`), `briefs`
@@ -153,6 +157,11 @@ under `.knowledge/` here, so nothing is written into the other repository. A roo
 file; the `briefs` namespace uses file roots to bring the top-level briefs and
 the skills into the graph, so links to them resolve. Scoped queries stay isolated to that namespace; federated
 queries and the overlay tie repos together through shared `adr:`/`story:` ids.
+
+Two optional settings on a namespace are described in [`schema.md`](./schema.md):
+`exclude`, a list of paths or globs below a `docs` or `code` root that the graph
+leaves out, and `key_pattern` on the `issues` namespace, for a tracker whose
+keys do not look like `ABC-123`.
 
 ## Growing it into production (documented, not built)
 

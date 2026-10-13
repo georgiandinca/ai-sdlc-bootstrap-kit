@@ -3,7 +3,9 @@
 """Thin stdlib stdio MCP server exposing the knowledge graph (no SDK).
 
 Newline-delimited JSON-RPC 2.0. Tools: kg_query (scoped), kg_federated_query,
-kg_trace, kg_freshness. Degrades gracefully when the graph is unbuilt (empty results)."""
+kg_trace, kg_freshness. Degrades gracefully when the graph is unbuilt (empty results).
+Search and trace leave out documents with `status: superseded` unless the call
+sets `include_superseded`."""
 from __future__ import annotations
 
 import json
@@ -17,28 +19,35 @@ import freshness  # noqa: E402
 PROTOCOL_VERSION = "2024-11-05"
 TOOLS = [
     {"name": "kg_query",
-     "description": "Scoped content search within one namespace.",
+     "description": "Scoped content search within one namespace. Superseded "
+                    "documents are left out unless include_superseded is true.",
      "inputSchema": {"type": "object",
                      "properties": {"scope": {"type": "string"},
                                     "query": {"type": "string"},
-                                    "k": {"type": "integer"}},
+                                    "k": {"type": "integer"},
+                                    "include_superseded": {"type": "boolean"}},
                      "required": ["scope", "query"]}},
     {"name": "kg_federated_query",
-     "description": "Content search across all namespaces.",
+     "description": "Content search across all namespaces. Superseded "
+                    "documents are left out unless include_superseded is true.",
      "inputSchema": {"type": "object",
                      "properties": {"query": {"type": "string"},
-                                    "k": {"type": "integer"}},
+                                    "k": {"type": "integer"},
+                                    "include_superseded": {"type": "boolean"}},
                      "required": ["query"]}},
     {"name": "kg_trace",
      "description": "Trace the ADR<->code<->test<->story chain for a node id. "
                     "depth is how many edges to follow (default 4). Use depth 1 to "
                     "get only what is tied to the id directly, for example the code "
                     "and tests that name an ADR; a deeper trace of an ADR returns "
-                    "most of the graph.",
+                    "most of the graph. Superseded documents are left out, apart "
+                    "from the `supersedes` edge to what replaced them, unless "
+                    "include_superseded is true; their ids are listed under `superseded`.",
      "inputSchema": {"type": "object",
                      "properties": {"id": {"type": "string"},
                                     "scope": {"type": "string"},
-                                    "depth": {"type": "integer", "minimum": 1}},
+                                    "depth": {"type": "integer", "minimum": 1},
+                                    "include_superseded": {"type": "boolean"}},
                      "required": ["id"]}},
     {"name": "kg_freshness",
      "description": "Whether the graph was built from the commits checked out now, "
@@ -55,22 +64,24 @@ def _text(obj):
 
 
 def call_tool(name, args):
+    keep = args.get("include_superseded") is True  # null, or the string "false", is not a yes
     if name == "kg_query":
         kg = query_mod.open_scoped(args["scope"])
         if not kg.aliases:
             return _text({"results": [], "hint": query_mod.EMPTY_HINT})
-        return _text(query_mod.search(kg, args["query"], args.get("k", 5)))
+        return _text(query_mod.search(kg, args["query"], args.get("k", 5), include_superseded=keep))
     if name == "kg_federated_query":
         kg = query_mod.open_federated()
         if not kg.aliases:
             return _text({"results": [], "hint": query_mod.EMPTY_HINT})
-        return _text(query_mod.search(kg, args["query"], args.get("k", 5)))
+        return _text(query_mod.search(kg, args["query"], args.get("k", 5), include_superseded=keep))
     if name == "kg_trace":
         kg = query_mod.open_scoped(args["scope"]) if args.get("scope") else query_mod.open_federated()
         if not kg.aliases:
             return _text({"root": args["id"], "nodes": [], "edges": [], "hint": query_mod.EMPTY_HINT})
         depth = args.get("depth")  # a client may send the key as null
-        return _text(query_mod.trace(kg, args["id"], max_depth=max(1, int(4 if depth is None else depth))))
+        return _text(query_mod.trace(kg, args["id"], max_depth=max(1, int(4 if depth is None else depth)),
+                                     include_superseded=keep))
     if name == "kg_freshness":
         return _text(freshness.check())
     raise KeyError(name)

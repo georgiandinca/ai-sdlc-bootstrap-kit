@@ -8,7 +8,8 @@ Modes:
   --mode warn   (default) print a reminder but never block      [advisory]
   --mode block  fail the commit if no key is present            [enforced]
 
-A key looks like ABC-123 (uppercase letters/digits, hyphen, digits). If the
+A key looks like ABC-123 (uppercase letters/digits, hyphen, digits), unless the
+`issues` namespace of docs/knowledge/graph-manifest.json sets `key_pattern`. If the
 current branch is named feature/ABC-123-slug, the key is injected automatically
 when the message has none. Exempt: merges, reverts, and messages containing
 [no-ticket].
@@ -21,10 +22,22 @@ from __future__ import annotations
 import re
 import subprocess
 import sys
+from pathlib import Path
 
-KEY_RE = re.compile(r"\b[A-Z][A-Z0-9]+-\d+\b")
-BRANCH_KEY_RE = re.compile(r"[A-Z][A-Z0-9]+-\d+")
+DEFAULT_KEY = r"[A-Z][A-Z0-9]+-\d+"
 EXEMPT_RE = re.compile(r"^(Merge |Revert )|\[no-ticket\]", re.IGNORECASE | re.MULTILINE)
+
+
+def key_pattern(manifest_path=None) -> str:
+    """The project's issue-key pattern, from the knowledge-graph manifest; the
+    default when the manifest or its reader is missing or cannot be read."""
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "knowledge"))
+        import manifest
+        data = manifest.load(manifest_path) if manifest_path else manifest.load()
+        return manifest.issue_key_pattern(data)
+    except Exception:  # noqa: BLE001
+        return DEFAULT_KEY
 
 
 def current_branch() -> str:
@@ -53,11 +66,12 @@ def main() -> int:
     except OSError:
         return 0
 
-    if EXEMPT_RE.search(msg) or KEY_RE.search(msg):
+    pattern = key_pattern()
+    if EXEMPT_RE.search(msg) or re.search(rf"(?<!\w)(?:{pattern})(?!\w)", msg):
         return 0
 
     # Try to recover the key from the branch name and inject a trailer.
-    m = BRANCH_KEY_RE.search(current_branch())
+    m = re.search(pattern, current_branch())
     if m:
         key = m.group(0)
         with open(path, "w", encoding="utf-8") as fh:

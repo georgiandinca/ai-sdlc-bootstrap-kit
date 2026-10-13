@@ -6,7 +6,10 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from pathlib import Path
+
+from graph_store import ISSUE_KEY, issue_key_search
 
 _HERE = Path(__file__).resolve().parent.parent.parent
 # The manifest is always this checkout's. KG_BASE moves where the files are read
@@ -34,6 +37,29 @@ def namespaces(data: dict, base=REPO_ROOT):
         db = base / spec["db"]
         roots = [base / r for r in spec.get("roots", [])]
         yield name, spec.get("kind", "docs"), db, roots
+
+
+def issue_key_pattern(data: dict) -> str:
+    """The regular expression an issue key matches in this project: `key_pattern`
+    on each `issues` namespace (default ABC-123), joined when they differ. It is
+    matched against a whole frontmatter ref, and searched for in commit messages
+    and branch names, so it is written without `^`/`$` anchors and without
+    inline flags such as `(?i)`."""
+    patterns = []
+    for name, spec in data.get("namespaces", {}).items():
+        if spec.get("kind") != "issues":
+            continue
+        pattern = spec.get("key_pattern") or ISSUE_KEY
+        try:
+            re.compile(issue_key_search(pattern))  # the form every reader uses
+        except re.error as ex:
+            raise ValueError(f"graph-manifest.json: namespace '{name}': key_pattern "
+                             f"{pattern!r} is not a regular expression: {ex}") from ex
+        if pattern not in patterns:
+            patterns.append(pattern)
+    if len(patterns) < 2:
+        return patterns[0] if patterns else ISSUE_KEY
+    return "|".join(f"(?:{p})" for p in patterns)
 
 
 def overlay_db(data: dict, base=REPO_ROOT) -> Path:

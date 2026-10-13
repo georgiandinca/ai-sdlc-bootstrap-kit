@@ -28,6 +28,18 @@ A root is a folder, walked recursively, or a single file (`"AGENTS.md"`). A root
 named in the manifest is ingested even when it is hidden (`.claude/skills/`);
 dot-directories below a root are skipped, and so is anything git-ignored.
 
+A `docs` or `code` namespace may take an `exclude` list, for tracked files the
+graph should not hold, such as the Markdown backlog an issue tracker replaced:
+
+```json
+"docs": { "kind": "docs", "db": "docs/.knowledge/graph.db", "roots": ["docs/"],
+          "exclude": ["product/backlog/", "*.draft.md"] }
+```
+
+Each entry is a path or a glob below a root of the namespace (`*` also crosses
+`/`), naming a file or a folder; it is tried against every root. A root that
+is a single file is not excluded this way: take it out of `roots`.
+
 ## Nodes
 
 | kind | id form | source |
@@ -45,6 +57,13 @@ dot-directories below a root are skipped, and so is anything git-ignored.
 Every node carries `namespace`, `path`, and (for docs) a `tier` from `ai-trust`,
 so retrieved context is always citable with its trust tier (`AGENTS.md §4.2`).
 
+A doc node keeps its frontmatter in `meta`, `status` included. A document with
+`status: superseded` stays in the graph, and search and trace leave it out
+unless asked (`--include-superseded`, or `include_superseded` on the MCP
+tools). A trace does not pass through it; it keeps the `supersedes` edge from
+the replacement and lists the ids it left out under `superseded`. A superseded
+document given as the id to trace is traced.
+
 ## Edges
 
 | kind | from → to | derived from |
@@ -53,12 +72,13 @@ so retrieved context is always citable with its trust tier (`AGENTS.md §4.2`).
 | `covers` | test → code | `test_x ↔ x` naming; frontmatter `covers:` |
 | `traces` | story → adr | frontmatter `traces:` |
 | `cites` | doc → source | frontmatter `cites:` |
-| `supersedes` | adr → adr | frontmatter `supersedes:` |
+| `supersedes` | doc → doc (the replacement → what it replaced) | frontmatter `supersedes:` |
 | `links` | doc → doc/code | relative markdown link `[text](path)` in a doc body |
 | `imports` | code → code | `ast`/regex (intra-namespace only) |
 | `contains` | code → symbol | `ast`/regex |
 | `touches` | commit → code | git numstat (optional) |
 | `part-of` | issue → issue | ledger `epic`/`parent` columns |
+| `depends-on` | issue → the issue it is blocked by | ledger `depends_on` column (optional; keys separated by spaces or commas) |
 | `references` | commit → issue | `Refs: KEY` in commit messages (optional commit layer) |
 
 Every edge stores `source_file` + `line` (its citation) and `resolved`
@@ -75,8 +95,22 @@ Every edge stores `source_file` + `line` (its citation) and `resolved`
   or code file → a `links` edge citing the line. External URLs, `#anchors`,
   images and fenced code are ignored; a folder link resolves to its `README.md`.
   A target that is not a node in any namespace is kept as `resolved=0`.
-- **JIRA keys:** a frontmatter link value matching `ABC-123` resolves to
-  `issue:<KEY>`, linking docs/stories/ADRs to imported issues.
+- **Issue keys:** a frontmatter link value that is an issue key resolves to
+  `issue:<KEY>`, linking docs/stories/ADRs to imported issues. A key looks like
+  `ABC-123` unless the `issues` namespace sets `key_pattern`, a Python regular
+  expression for the project's keys:
+
+  ```json
+  "issues": { "kind": "issues", "db": "…", "roots": ["…/issues.csv"], "key_pattern": "E\\d+-S\\d+" }
+  ```
+
+  The same pattern is searched for in commit messages (the `references` edge
+  and the `commit-msg` hook, which also reads it from the branch name), where
+  a key counts when it is not part of a longer word. Write it without `^`/`$`
+  anchors and without inline flags such as `(?i)`; a pattern that does not
+  compile stops the build, and the hook then falls back to `ABC-123`. A bare
+  key given to `--trace` or `kg_trace` resolves to its `issue:` node when it
+  matches the pattern or is a key in the ledger.
 
 ## Source-document frontmatter (unchanged)
 

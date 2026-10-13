@@ -11,7 +11,7 @@ import re
 from pathlib import Path
 from urllib.parse import unquote
 
-from graph_store import adr_id, story_id, doc_id, source_id, normalize_ref
+from graph_store import ISSUE_KEY, adr_id, story_id, doc_id, source_id, normalize_ref
 
 LINK_FIELDS = ("implements", "traces", "cites", "supersedes", "covers")
 _ADR_FILE_RE = re.compile(r"(ADR-\d{3,4})")
@@ -22,6 +22,16 @@ _FENCE_RE = re.compile(r"^\s*(```|~~~)")
 _SCHEME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:")
 # link targets that can be graph nodes (docs + ingest_code.CODE_SUFFIXES)
 LINKABLE_SUFFIXES = {".md", ".py", ".js", ".ts", ".sh", ".go", ".rb", ".java", ".rs"}
+
+
+def _scalar(val: str) -> str:
+    """A frontmatter value without its quotes or a trailing YAML comment:
+    `superseded   # replaced by x.md` -> `superseded`."""
+    val = val.strip()
+    if val[:1] in ("'", '"'):
+        end = val.find(val[0], 1)
+        return val[1:end] if end != -1 else val.strip('"\'')
+    return re.sub(r"(^|\s+)#.*$", "", val)
 
 
 def parse_frontmatter(text: str):
@@ -41,18 +51,20 @@ def parse_frontmatter(text: str):
         if raw.lstrip().startswith("- ") and key is not None:
             meta.setdefault(key, [])
             if isinstance(meta[key], list):
-                meta[key].append(raw.lstrip()[2:].strip().strip('"\''))
+                meta[key].append(_scalar(raw.lstrip()[2:]))
             continue
         m = re.match(r"^([A-Za-z0-9_-]+):\s*(.*)$", raw)
         if not m:
             continue
         key, val = m.group(1), m.group(2).strip()
+        if not val.startswith(("'", '"')):
+            val = _scalar(val)  # drop a trailing comment before reading a list
         if val == "":
             meta[key] = []  # a block list may follow
         elif val.startswith("[") and val.endswith("]"):
-            meta[key] = [x.strip().strip('"\'') for x in val[1:-1].split(",") if x.strip()]
+            meta[key] = [_scalar(x) for x in val[1:-1].split(",") if x.strip()]
         else:
-            meta[key] = val.strip('"\'')
+            meta[key] = _scalar(val)
     return meta, body
 
 
@@ -113,7 +125,7 @@ def body_links(body: str, rel_path: str, base: Path, line_offset: int = 0):
             yield path, line_offset + i
 
 
-def ingest_root(root: Path, namespace: str, base: Path):
+def ingest_root(root: Path, namespace: str, base: Path, issue_key: str = ISSUE_KEY):
     nodes, edges = [], []
     link_edges = []
     path_index = {}  # rels -> node id, to resolve in-root links in-pass
@@ -150,7 +162,7 @@ def ingest_root(root: Path, namespace: str, base: Path):
                       "meta": meta, "namespace": namespace})
         for field in LINK_FIELDS:
             for ref in _as_list(meta.get(field)):
-                edges.append({"src": nid, "dst": normalize_ref(str(ref)),
+                edges.append({"src": nid, "dst": normalize_ref(str(ref), issue_key),
                               "kind": field, "source_file": rels, "line": None,
                               "resolved": None, "namespace": namespace})
         path_index[rels] = nid

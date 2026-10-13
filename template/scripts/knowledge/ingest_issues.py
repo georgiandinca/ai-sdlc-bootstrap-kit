@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 # ADR-0001 — local docs+code knowledge graph
-"""Issue ingester: the JIRA CSV ledger -> issue nodes + part-of edges. Stdlib
-`csv` only. One row per issue; the `epic`/`parent` columns become `part-of`
-edges (resolved in-namespace when the referenced issue is in the same ledger,
-otherwise held for the global overlay)."""
+"""Issue ingester: the JIRA CSV ledger -> issue nodes + part-of and depends-on
+edges. Stdlib `csv` only. One row per issue; the `epic`/`parent` columns become
+`part-of` edges, and each key in the optional `depends_on` column (keys
+separated by spaces or commas) becomes a `depends-on` edge. An edge is resolved
+in-namespace when the referenced issue is in the same ledger, otherwise held
+for the global overlay, where a key no ledger holds stays unresolved."""
 from __future__ import annotations
 
 import csv
@@ -41,6 +43,15 @@ def ingest_root(root, namespace, base):
                 if ref and ref != key:
                     edges.append({"src": nid, "dst": issue_id(ref),
                                   "kind": "part-of", "source_file": rels,
+                                  "line": None, "resolved": None,
+                                  "namespace": namespace})
+            depends = (row.get("depends_on") or "").strip()
+            if depends:
+                meta["depends_on"] = depends
+            for ref in dict.fromkeys(depends.replace(",", " ").split()):
+                if ref != key:
+                    edges.append({"src": nid, "dst": issue_id(ref),
+                                  "kind": "depends-on", "source_file": rels,
                                   "line": None, "resolved": None,
                                   "namespace": namespace})
     return nodes, edges

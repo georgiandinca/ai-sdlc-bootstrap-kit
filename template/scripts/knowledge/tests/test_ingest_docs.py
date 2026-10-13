@@ -24,6 +24,25 @@ class ParseFrontmatterTests(unittest.TestCase):
                                          "docs/knowledge/sources/b.md"])
         self.assertEqual(body.strip(), "Body text here.")
 
+    def test_a_trailing_yaml_comment_is_not_part_of_the_value(self):
+        meta, _ = idoc.parse_frontmatter(
+            "---\n"
+            "status: superseded   # replaced by new.md\n"
+            "title: \"Notes # 1\"  # quoted, so the first # stays\n"
+            "owner: C# team\n"
+            "traces: [ADR-0001, AS-2]  # two\n"
+            "cites:\n"
+            "  - a.md  # first\n"
+            "# a comment line\n"
+            "empty:   # nothing\n"
+            "---\nbody\n")
+        self.assertEqual(meta["status"], "superseded")
+        self.assertEqual(meta["title"], "Notes # 1")
+        self.assertEqual(meta["owner"], "C# team")
+        self.assertEqual(meta["traces"], ["ADR-0001", "AS-2"])
+        self.assertEqual(meta["cites"], ["a.md"])
+        self.assertEqual(meta["empty"], [])
+
     def test_no_frontmatter(self):
         meta, body = idoc.parse_frontmatter("# Just a heading\n")
         self.assertEqual(meta, {})

@@ -84,6 +84,9 @@ def validate_file(path: Path) -> list[str]:
     for field in RECOMMENDED:
         if field not in fm:
             print(f"  warning: recommended field missing: {field}")
+    if str(fm.get("status")) == "superseded" and str(fm.get("ai-trust")) != "exploratory":
+        print("  warning: status is superseded and ai-trust is not exploratory "
+              "(AGENTS.md §4.2)")
     return errors
 
 

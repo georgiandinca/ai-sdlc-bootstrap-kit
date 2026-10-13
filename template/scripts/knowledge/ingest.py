@@ -9,11 +9,13 @@ federated queries/traces, each grounded on a source citation.
   ingest.py --freshness                   # built from the commits checked out now?
   ingest.py --query "text" [--scope NS | --federated]
   ingest.py --trace ADR-0001 [--scope NS | --federated] [--depth N]
+  ingest.py --query/--trace ... --include-superseded   # superseded docs are left out by default
   ingest.py ... --base DIR                # read and keep the graph under DIR
 """
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import json
 import os
 import subprocess
@@ -65,12 +67,47 @@ def _drop_ignored(nodes, edges, base, tree=None):
             [e for e in edges if e["src"] not in gone and e["dst"] not in gone])
 
 
+def _excluded(rel, patterns):
+    """`rel` is a file's path below its root. A pattern names the file or a
+    folder above it, literally or as a glob (`*` also crosses `/`)."""
+    parts = rel.split("/")
+    prefixes = ["/".join(parts[:i]) for i in range(1, len(parts) + 1)]
+    return any(fnmatch.fnmatchcase(p, pat) for pat in patterns for p in prefixes)
+
+
+def _drop_excluded(nodes, edges, root, base, patterns):
+    """Drop nodes (and their edges) whose file is under one of the namespace's
+    `exclude` patterns, each a path or glob below the root. A root that is a
+    single file has nothing below it to exclude."""
+    if isinstance(patterns, str):
+        patterns = [patterns]
+    patterns = [os.path.normpath(p.strip()).replace("\\", "/").strip("/")
+                for p in patterns or [] if isinstance(p, str) and p.strip()]
+    patterns = [p for p in patterns if p and p != "."]
+    root, base = Path(root).resolve(), Path(base).resolve()
+    if not patterns or root.is_file():
+        return nodes, edges
+    gone = set()
+    for nd in nodes:
+        if not nd.get("path"):
+            continue
+        try:
+            rel = Path(os.path.normpath(base / nd["path"])).relative_to(root)
+        except ValueError:
+            continue
+        if _excluded(str(rel).replace("\\", "/"), patterns):
+            gone.add(nd["id"])
+    return ([nd for nd in nodes if nd["id"] not in gone],
+            [e for e in edges if e["src"] not in gone and e["dst"] not in gone])
+
+
 def build(data=None, base=None):
     data = data or manifest_mod.load()
     base = base or manifest_mod.REPO_ROOT
     all_ids: set[str] = set()
     all_paths: dict[str, str] = {}
     held: list[dict] = []
+    issue_key = manifest_mod.issue_key_pattern(data)
     issues_present = any(spec.get("kind") == "issues"
                          for spec in data.get("namespaces", {}).values())
     freshness.forget(data, base)
@@ -88,8 +125,9 @@ def build(data=None, base=None):
             elif kind == "issues":
                 n, e = ingest_issues.ingest_root(root, name, base)
             else:
-                n, e = ingest_docs.ingest_root(root, name, base)
+                n, e = ingest_docs.ingest_root(root, name, base, issue_key)
             n, e = _drop_ignored(n, e, base, freshness.work_tree(root, base))
+            n, e = _drop_excluded(n, e, root, base, data["namespaces"][name].get("exclude"))
             ns_nodes += n
             ns_edges += e
         # commits are recorded for the base repository; a namespace read from
@@ -100,7 +138,7 @@ def build(data=None, base=None):
             ns_nodes += cn
             ns_edges += ce
             if issues_present:
-                ns_edges += link_issues.link(name, cn, base)
+                ns_edges += link_issues.link(name, cn, base, issue_key)
             for nd in ns_nodes:
                 if nd["id"] in attrib:
                     nd["meta"] = {**(nd.get("meta") or {}), **attrib[nd["id"]]}
@@ -180,6 +218,9 @@ def main():
     ap.add_argument("--depth", type=int, default=4, metavar="N",
                     help="how many edges --trace follows from the id (default 4; "
                          "1 = only what is tied to it directly)")
+    ap.add_argument("--include-superseded", action="store_true",
+                    help="--query and --trace leave out documents with `status: superseded`; "
+                         "this keeps them in")
     ap.add_argument("--base", metavar="DIR", type=Path,
                     help="read the files, and keep the graph, under DIR in place of this "
                          "checkout; this checkout's scripts and manifest are still used. "
@@ -210,9 +251,11 @@ def main():
         print(query_mod.EMPTY_HINT)
         return 1
     if a.query:
-        print(json.dumps(query_mod.search(kg, a.query), indent=2))
+        print(json.dumps(query_mod.search(kg, a.query, include_superseded=a.include_superseded),
+                         indent=2))
     else:
-        print(json.dumps(query_mod.trace(kg, a.trace, max_depth=max(1, a.depth)), indent=2))
+        print(json.dumps(query_mod.trace(kg, a.trace, max_depth=max(1, a.depth),
+                                         include_superseded=a.include_superseded), indent=2))
     return 0
 
 
