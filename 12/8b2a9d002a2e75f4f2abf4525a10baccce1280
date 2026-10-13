@@ -1,0 +1,19 @@
+template/AGENTS.md
+  s_bf654b1e71171c::t_063c7508d404da 136-137,204
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "128b2a9d002a2e75f4f2abf4525a10baccce1280",
+  "prompts": {},
+  "sessions": {
+    "s_bf654b1e71171c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9b9d1bef-5f65-4671-afbc-e7f504e3c03c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Georgian Dinca <geo@magnify.ro>"
+    }
+  }
+}
