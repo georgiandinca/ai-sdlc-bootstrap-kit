@@ -133,6 +133,8 @@ The `docs/` tree is **additive and demand-driven** — roles create topic folder
 
 **Naming a path is explicit.** For Exploratory and Restricted sources, "search the repo" or "look around" does **not** grant permission — the user must reference the specific file.
 
+**Superseded files.** A file with `status: superseded` is treated as **Exploratory**, whatever its `ai-trust` says: do not read, cite or ground on it unless the user names it. Whoever supersedes a file sets its `ai-trust: exploratory`.
+
 Maturity is signalled by **location + frontmatter**. Every long-lived Markdown deliverable carries:
 
 ```yaml
@@ -199,7 +201,7 @@ Per-seat data — git-comfort default, role playbook, MCP connectors, and the on
 
 ## 8. What to do when asked
 
-1. **Check the trust tier first** (§4.2). Cite Authoritative directly; flag Working with status; ignore Exploratory unless named.
+1. **Check the trust tier first** (§4.2). Cite Authoritative directly; flag Working with status; ignore Exploratory and superseded files unless named.
 2. **Ground on the knowledge layer** (§4.4) before answering from memory.
 3. **Distinguish "decided" from "recommended."** Treat unmarked claims as proposals until confirmed by a named seat or an approved ADR.
 4. **Flag deadlines & dependencies.**
