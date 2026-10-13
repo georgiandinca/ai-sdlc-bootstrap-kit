@@ -244,10 +244,18 @@ class ExcludeTests(unittest.TestCase):
             ingest.build(data=data, base=base)
             self.assertEqual(self._paths(base, data, "code"), {"src/app.py"})
 
+    def test_a_single_string_and_a_dot_slash_prefix_are_read(self):
+        nodes = [{"id": "doc:d:docs/old/a.md", "path": "docs/old/a.md"},
+                 {"id": "doc:d:docs/b.md", "path": "docs/b.md"}]
+        with tempfile.TemporaryDirectory() as t:
+            for patterns in ("old", ["./old/"], "./old"):
+                kept, _ = ingest._drop_excluded(nodes, [], Path(t) / "docs", t, patterns)
+                self.assertEqual([n["path"] for n in kept], ["docs/b.md"])
+
     def test_no_exclude_list_changes_nothing(self):
         nodes, edges = [{"id": "doc:d:docs/a.md", "path": "docs/a.md"}], []
         with tempfile.TemporaryDirectory() as t:
-            for patterns in (None, [], ["", "/"]):
+            for patterns in (None, [], ["", "/", ".", None]):
                 self.assertEqual(ingest._drop_excluded(nodes, edges, Path(t) / "docs", t, patterns),
                                  (nodes, edges))
 

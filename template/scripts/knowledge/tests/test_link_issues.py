@@ -44,6 +44,9 @@ class LinkIssuesTests(unittest.TestCase):
             commit_nodes = [{"id": f"commit:kit:{sha}", "meta": {"sha": sha}}]
             edges = li.link("kit", commit_nodes, base, r"E\d+-S\d+")
             self.assertEqual([e["dst"] for e in edges], ["issue:E03-S08"])
+            # a key that starts with a character that is not a letter or digit
+            edges = li.link("kit", commit_nodes, base, r"\(E\d+-S\d+\)")
+            self.assertEqual([e["dst"] for e in edges], ["issue:(E03-S08)"])
 
 
 if __name__ == "__main__":

@@ -48,7 +48,7 @@ instance. Find them at `<base>/rest/api/2/field` (Data Center) or
 
 - **issue → issue** (`part-of`) — from the `epic`/`parent` columns.
 - **issue → issue** (`depends-on`) — from an optional `depends_on` column: the
-  keys the issue is blocked by, separated by spaces. `export_jira.py` does not
+  keys the issue is blocked by, separated by spaces or commas. `export_jira.py` does not
   write this column; a ledger written by a project's own script can.
 - **commit → issue** (`references`) — from any issue key in a commit
   message (`ABC-123`, or the `key_pattern` set on the `issues` namespace of

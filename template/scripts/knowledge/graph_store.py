@@ -88,6 +88,12 @@ _STORY_RE = re.compile(r"^AS-\d+$", re.I)
 ISSUE_KEY = r"[A-Z][A-Z0-9]+-\d+"
 
 
+def issue_key_search(issue_key: str = ISSUE_KEY) -> str:
+    """The pattern as it is searched for in a commit message: a key that is
+    not part of a longer word."""
+    return rf"(?<!\w)(?:{issue_key})(?!\w)"
+
+
 def normalize_ref(ref: str, issue_key: str = ISSUE_KEY) -> str:
     """Frontmatter ref -> node id. ADR/story/issue key -> canonical id; a path
     -> a provisional 'path:<p>' id resolved later; anything else stays literal.

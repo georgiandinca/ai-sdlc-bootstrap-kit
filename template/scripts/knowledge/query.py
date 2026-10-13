@@ -158,7 +158,7 @@ def trace(kg, node_id, max_depth=4, include_superseded=False):
     if ":" not in node_id:
         # 'ADR-0001' -> 'adr:ADR-0001', 'AS-1' -> 'story:AS-1', 'PROJ-1' -> 'issue:PROJ-1'
         bare, node_id = node_id.strip(), normalize_ref(node_id, kg.issue_key)
-        if ":" not in node_id and get_node(kg, issue_id(bare)):
+        if not node_id.startswith(("adr:", "story:", "issue:")) and get_node(kg, issue_id(bare)):
             node_id = issue_id(bare)  # a key in the ledger that the pattern does not describe
     skip = set() if include_superseded else superseded_ids(kg) - {node_id}
     left_out = set()

@@ -64,7 +64,7 @@ def _text(obj):
 
 
 def call_tool(name, args):
-    keep = bool(args.get("include_superseded"))  # a client may send the key as null
+    keep = args.get("include_superseded") is True  # null, or the string "false", is not a yes
     if name == "kg_query":
         kg = query_mod.open_scoped(args["scope"])
         if not kg.aliases:

@@ -67,7 +67,7 @@ def main() -> int:
         return 0
 
     pattern = key_pattern()
-    if EXEMPT_RE.search(msg) or re.search(rf"\b(?:{pattern})\b", msg):
+    if EXEMPT_RE.search(msg) or re.search(rf"(?<!\w)(?:{pattern})(?!\w)", msg):
         return 0
 
     # Try to recover the key from the branch name and inject a trailer.

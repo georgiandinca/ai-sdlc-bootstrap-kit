@@ -11,7 +11,7 @@ import re
 import subprocess
 from pathlib import Path
 
-from graph_store import ISSUE_KEY, issue_id
+from graph_store import ISSUE_KEY, issue_id, issue_key_search
 
 
 def _message(base, sha):
@@ -23,7 +23,7 @@ def _message(base, sha):
 
 def link(namespace, commit_nodes, base, issue_key=ISSUE_KEY):
     base = Path(base)
-    key_re = re.compile(rf"\b(?:{issue_key})\b")
+    key_re = re.compile(issue_key_search(issue_key))
     edges = []
     for cn in commit_nodes:
         sha = (cn.get("meta") or {}).get("sha") or cn["id"].rsplit(":", 1)[-1]

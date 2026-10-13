@@ -24,6 +24,16 @@ _SCHEME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:")
 LINKABLE_SUFFIXES = {".md", ".py", ".js", ".ts", ".sh", ".go", ".rb", ".java", ".rs"}
 
 
+def _scalar(val: str) -> str:
+    """A frontmatter value without its quotes or a trailing YAML comment:
+    `superseded   # replaced by x.md` -> `superseded`."""
+    val = val.strip()
+    if val[:1] in ("'", '"'):
+        end = val.find(val[0], 1)
+        return val[1:end] if end != -1 else val.strip('"\'')
+    return re.sub(r"(^|\s+)#.*$", "", val)
+
+
 def parse_frontmatter(text: str):
     """Return (meta, body). Tolerant: no/again-unterminated frontmatter -> ({}, text)."""
     if not text.startswith("---"):
@@ -41,18 +51,20 @@ def parse_frontmatter(text: str):
         if raw.lstrip().startswith("- ") and key is not None:
             meta.setdefault(key, [])
             if isinstance(meta[key], list):
-                meta[key].append(raw.lstrip()[2:].strip().strip('"\''))
+                meta[key].append(_scalar(raw.lstrip()[2:]))
             continue
         m = re.match(r"^([A-Za-z0-9_-]+):\s*(.*)$", raw)
         if not m:
             continue
         key, val = m.group(1), m.group(2).strip()
+        if not val.startswith(("'", '"')):
+            val = _scalar(val)  # drop a trailing comment before reading a list
         if val == "":
             meta[key] = []  # a block list may follow
         elif val.startswith("[") and val.endswith("]"):
-            meta[key] = [x.strip().strip('"\'') for x in val[1:-1].split(",") if x.strip()]
+            meta[key] = [_scalar(x) for x in val[1:-1].split(",") if x.strip()]
         else:
-            meta[key] = val.strip('"\'')
+            meta[key] = _scalar(val)
     return meta, body
 
 

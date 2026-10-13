@@ -47,6 +47,9 @@ class KeyPatternTests(unittest.TestCase):
             mf.write_text(json.dumps({"namespaces": {"issues": {
                 "kind": "issues", "key_pattern": "E(\\d+"}}}))
             self.assertEqual(cmt.key_pattern(mf), cmt.DEFAULT_KEY)
+            mf.write_text(json.dumps({"namespaces": {"issues": {
+                "kind": "issues", "key_pattern": "(?i)e\\d+-s\\d+"}}}))
+            self.assertEqual(cmt.key_pattern(mf), cmt.DEFAULT_KEY)
 
 
 class HookTests(unittest.TestCase):
@@ -61,6 +64,8 @@ class HookTests(unittest.TestCase):
         self.assertEqual(run("feat: x (E03-S08)\n", pattern=pattern)[0], 0)
         self.assertEqual(run("feat: x (PROJ-12)\n", pattern=pattern)[0], 1)
         self.assertEqual(run("feat: x (XE03-S08)\n", pattern=pattern)[0], 1)  # inside a word
+        self.assertEqual(run("fixes #12\n", pattern="#\\d+")[0], 0)  # starts with a non-word character
+        self.assertEqual(run("fixes 12\n", pattern="#\\d+")[0], 1)
 
     def test_key_injected_from_the_branch_name(self):
         code, msg = run("feat: x\n", pattern="E\\d+-S\\d+", branch="feature/E03-S08-slug")

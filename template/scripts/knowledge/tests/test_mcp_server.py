@@ -97,6 +97,7 @@ class FreshnessToolTests(unittest.TestCase):
                                ("kg_federated_query", {"query": "x"}),
                                ("kg_trace", {"id": "code:kit:x"})):
                 for sent, want in (({}, False), ({"include_superseded": None}, False),
+                                   ({"include_superseded": "false"}, False),
                                    ({"include_superseded": True}, True)):
                     r = srv.handle({"jsonrpc": "2.0", "id": 22, "method": "tools/call",
                                     "params": {"name": name, "arguments": {**args, **sent}}})

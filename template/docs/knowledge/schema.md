@@ -78,7 +78,7 @@ document given as the id to trace is traced.
 | `contains` | code → symbol | `ast`/regex |
 | `touches` | commit → code | git numstat (optional) |
 | `part-of` | issue → issue | ledger `epic`/`parent` columns |
-| `depends-on` | issue → the issue it is blocked by | ledger `depends_on` column (optional; keys separated by spaces) |
+| `depends-on` | issue → the issue it is blocked by | ledger `depends_on` column (optional; keys separated by spaces or commas) |
 | `references` | commit → issue | `Refs: KEY` in commit messages (optional commit layer) |
 
 Every edge stores `source_file` + `line` (its citation) and `resolved`
@@ -105,7 +105,10 @@ Every edge stores `source_file` + `line` (its citation) and `resolved`
   ```
 
   The same pattern is searched for in commit messages (the `references` edge
-  and the `commit-msg` hook, which also reads it from the branch name). A bare
+  and the `commit-msg` hook, which also reads it from the branch name), where
+  a key counts when it is not part of a longer word. Write it without `^`/`$`
+  anchors and without inline flags such as `(?i)`; a pattern that does not
+  compile stops the build, and the hook then falls back to `ABC-123`. A bare
   key given to `--trace` or `kg_trace` resolves to its `issue:` node when it
   matches the pattern or is a key in the ledger.
 

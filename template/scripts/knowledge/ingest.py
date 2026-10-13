@@ -79,8 +79,11 @@ def _drop_excluded(nodes, edges, root, base, patterns):
     """Drop nodes (and their edges) whose file is under one of the namespace's
     `exclude` patterns, each a path or glob below the root. A root that is a
     single file has nothing below it to exclude."""
-    patterns = [p.strip().strip("/") for p in patterns or []]
-    patterns = [p for p in patterns if p]
+    if isinstance(patterns, str):
+        patterns = [patterns]
+    patterns = [os.path.normpath(p.strip()).replace("\\", "/").strip("/")
+                for p in patterns or [] if isinstance(p, str) and p.strip()]
+    patterns = [p for p in patterns if p and p != "."]
     root, base = Path(root).resolve(), Path(base).resolve()
     if not patterns or root.is_file():
         return nodes, edges

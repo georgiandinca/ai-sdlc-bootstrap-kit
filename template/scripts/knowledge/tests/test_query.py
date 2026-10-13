@@ -100,7 +100,9 @@ def _build_superseded(base):
     """ADR-0001 is superseded by ADR-0002; a guide links to both; a story
     traces to the old decision only."""
     import ingest
-    _adr(base, "0001", "Queue on a cron", "status: superseded\n", "The pigeon queue runs on a cron.")
+    # written as the ADR template writes it, with a comment after the value
+    _adr(base, "0001", "Queue on a cron", "status: superseded   # replaced by ADR-0002\n",
+         "The pigeon queue runs on a cron.")
     _adr(base, "0002", "Queue on events", "status: approved\nsupersedes: [ADR-0001]\n",
          "The pigeon queue runs on events.")
     (base / "docs/guide.md").write_text(

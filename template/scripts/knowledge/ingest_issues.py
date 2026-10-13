@@ -3,7 +3,7 @@
 """Issue ingester: the JIRA CSV ledger -> issue nodes + part-of and depends-on
 edges. Stdlib `csv` only. One row per issue; the `epic`/`parent` columns become
 `part-of` edges, and each key in the optional `depends_on` column (keys
-separated by spaces) becomes a `depends-on` edge. An edge is resolved
+separated by spaces or commas) becomes a `depends-on` edge. An edge is resolved
 in-namespace when the referenced issue is in the same ledger, otherwise held
 for the global overlay, where a key no ledger holds stays unresolved."""
 from __future__ import annotations
@@ -15,7 +15,7 @@ from graph_store import issue_id
 
 META_COLS = ("type", "status", "assignee", "reporter", "labels", "sprint",
              "epic", "parent", "priority", "story_points", "created", "updated",
-             "resolution", "url", "depends_on")
+             "resolution", "url")
 
 
 def ingest_root(root, namespace, base):
@@ -45,7 +45,10 @@ def ingest_root(root, namespace, base):
                                   "kind": "part-of", "source_file": rels,
                                   "line": None, "resolved": None,
                                   "namespace": namespace})
-            for ref in dict.fromkeys(meta["depends_on"].replace(",", " ").split()):
+            depends = (row.get("depends_on") or "").strip()
+            if depends:
+                meta["depends_on"] = depends
+            for ref in dict.fromkeys(depends.replace(",", " ").split()):
                 if ref != key:
                     edges.append({"src": nid, "dst": issue_id(ref),
                                   "kind": "depends-on", "source_file": rels,

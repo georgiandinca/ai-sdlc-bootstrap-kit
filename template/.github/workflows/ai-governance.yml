@@ -45,6 +45,9 @@ jobs:
           python3 scripts/knowledge/tests/test_end_to_end.py
           python3 scripts/knowledge/tests/test_export_html.py
           python3 scripts/knowledge/tests/test_freshness.py
+          python3 scripts/knowledge/tests/test_ingest_issues.py
+          python3 scripts/knowledge/tests/test_link_issues.py
+          python3 scripts/knowledge/tests/test_issue_chain.py
 
       - name: Run consumption/ROI unit tests (token-roi theme)
         run: |

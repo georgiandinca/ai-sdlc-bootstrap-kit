@@ -60,7 +60,7 @@ class IngestIssuesTests(unittest.TestCase):
             csv_path = self._write(base, "PROJ-2,Story,Child,To Do,,,,,PROJ-1,,,,,,,,\n")
             nodes, edges = ingest_issues.ingest_root(csv_path, "issues", base)
             self.assertEqual({e["kind"] for e in edges}, {"part-of"})
-            self.assertEqual(nodes[0]["meta"]["depends_on"], "")
+            self.assertNotIn("depends_on", nodes[0]["meta"])
 
     def test_build_resolves_a_dependency_in_the_ledger_and_reports_one_that_is_not(self):
         import query
@@ -113,7 +113,7 @@ class ProjectKeyPatternTests(unittest.TestCase):
     def _build(self, base, key_pattern=None):
         d = base / "docs/product/jira"
         d.mkdir(parents=True)
-        (d / "issues.csv").write_text("key,title\nE03-S08,Story eight\nstory42,Odd key\n",
+        (d / "issues.csv").write_text("key,title\nE03-S08,Story eight\nstory42,Odd key\nV1.0,Dotted\n",
                                       encoding="utf-8")
         (base / "docs/note.md").write_text(
             "---\ntitle: Note\ntraces: [E03-S08]\n---\n\nbody\n", encoding="utf-8")
@@ -151,7 +151,9 @@ class ProjectKeyPatternTests(unittest.TestCase):
             kg = self._build(Path(t))
             self.assertEqual(query.trace(kg, "story42")["root"], "issue:story42")
             self.assertEqual(query.trace(kg, "E03-S08")["root"], "issue:E03-S08")
+            self.assertEqual(query.trace(kg, "V1.0")["root"], "issue:V1.0")  # not taken for a path
             self.assertEqual(query.trace(kg, "nothing")["root"], "nothing")
+            self.assertEqual(query.trace(kg, "docs/note.md")["root"], "path:docs/note.md")
 
 
 if __name__ == "__main__":

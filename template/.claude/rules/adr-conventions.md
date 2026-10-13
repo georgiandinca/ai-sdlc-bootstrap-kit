@@ -9,4 +9,4 @@ When creating or editing an Architecture Decision Record:
 - Carry the frontmatter contract (title, status, owner, classification, ai-trust).
 - Structure: **Context** → **Decision** → **Consequences**. State the decision as a completed choice ("We will …"), not a proposal.
 - `status: approved` only after the accountable seat signs off; until then `draft` / `under-review`.
-- Supersede rather than delete: set the old ADR `status: superseded` and link the replacement.
+- Supersede rather than delete: set the old ADR `status: superseded` and `ai-trust: exploratory` (`AGENTS.md` §4.2), and link the replacement.

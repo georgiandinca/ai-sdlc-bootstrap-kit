@@ -49,6 +49,10 @@ class ManifestTests(unittest.TestCase):
         with self.assertRaises(ValueError) as ctx:
             m.issue_key_pattern({"namespaces": {"issues": {"kind": "issues", "key_pattern": "E(\\d+"}}})
         self.assertIn("issues", str(ctx.exception))
+        # an inline flag compiles alone and not in the form the readers search with
+        with self.assertRaises(ValueError):
+            m.issue_key_pattern({"namespaces": {"issues": {"kind": "issues",
+                                                           "key_pattern": "(?i)e\\d+-s\\d+"}}})
 
 
 if __name__ == "__main__":
