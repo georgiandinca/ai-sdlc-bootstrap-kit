@@ -1,0 +1,21 @@
+README.md
+  s_93c0358cad30a3::t_e439f3f357a720 45-52
+CHANGELOG.md
+  s_93c0358cad30a3::t_1a7d5d197c2b83 35-37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2671d5fd67879939a3d8a1ab169d5eceb249b7c4",
+  "prompts": {},
+  "sessions": {
+    "s_93c0358cad30a3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bad6145a-5b92-4560-94c6-fc7985bbfb04",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Georgian Dinca <geo@magnify.ro>"
+    }
+  }
+}
