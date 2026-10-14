@@ -32,6 +32,19 @@ An entry says what a project that installs or updates the kit will notice.
 - **Knowledge graph: `exclude`** — a `docs` or `code` namespace takes a list of
   paths or globs below its roots that the graph leaves out. ([#8])
 - This changelog.
+- **Install with the skills CLI** — `npx skills add
+  georgiandinca/ai-sdlc-bootstrap-kit` puts the installer skill into a project
+  for any agent the CLI supports. The README documents it.
+
+### Changed
+
+- **The plugin is now `ai-sdlc-bootstrap-kit`, in its own folder** — the
+  installer skill, its manifests and a new listing icon moved to
+  `plugins/ai-sdlc-bootstrap-kit/`. Before this, the whole repository was the
+  plugin, so the plugin directory scanned `docs/` and `template/` as plugin
+  code. The plugin was renamed from `ai-sdlc-kit` because that name was too
+  close to an existing listing. `.claude/skills/install-ai-sdlc-kit` is now a
+  symlink to the moved skill. ([#10])
 
 ### Fixed
 
@@ -45,6 +58,11 @@ An entry says what a project that installs or updates the kit will notice.
 - When superseding a file, set `ai-trust: exploratory` as well as
   `status: superseded`. Rebuild the graph after updating
   (`python3 scripts/knowledge/ingest.py --build`).
+- If you installed the plugin as `ai-sdlc-kit`, reinstall it under its new
+  name: `claude plugin uninstall ai-sdlc-kit@ai-sdlc-bootstrap-kit`, then
+  `claude plugin marketplace update ai-sdlc-bootstrap-kit` and
+  `claude plugin install ai-sdlc-bootstrap-kit@ai-sdlc-bootstrap-kit`. The
+  skill is now invoked as `/ai-sdlc-bootstrap-kit:install-ai-sdlc-kit`.
 
 ## [0.1.0] — 2026-10-13
 
@@ -158,4 +176,5 @@ seat, grouped by the date a change was merged to `main`.
 [#5]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/pull/5
 [#6]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/pull/6
 [#8]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/pull/8
+[#10]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/issues/10
 [0.1.0]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/releases/tag/v0.1.0

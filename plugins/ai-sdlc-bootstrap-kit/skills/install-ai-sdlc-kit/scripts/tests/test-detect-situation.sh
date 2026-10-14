@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Functional test for detect-situation.sh (no framework). Exits non-zero on any failure.
 set -uo pipefail
-HERE=$(cd "$(dirname "$0")" && pwd)
+HERE=$(cd "$(dirname "$0")" && pwd -P)
 DETECT="$HERE/../detect-situation.sh"
 fails=0
 
@@ -94,12 +94,12 @@ fi
 
 # --- Case I: plugin manifests stay in step -----------------------------------------
 # Claude Code and Codex read .claude-plugin/plugin.json; Antigravity reads plugin.json
-# at the repo root. They are the same manifest and must not drift.
-ROOT=$(cd "$HERE/../../../../.." && pwd)
+# at the plugin root. They are the same manifest and must not drift.
+ROOT=$(cd "$HERE/../../../.." && pwd)
 if [ -f "$ROOT/.claude-plugin/plugin.json" ]; then
   check I_manifests_match "$(cmp -s "$ROOT/plugin.json" "$ROOT/.claude-plugin/plugin.json" && printf same || printf differ)" "same"
 else
-  echo "skip I_manifests_match (not running inside the kit repo)"
+  echo "skip I_manifests_match (not running inside the plugin folder)"
 fi
 
 echo "---"

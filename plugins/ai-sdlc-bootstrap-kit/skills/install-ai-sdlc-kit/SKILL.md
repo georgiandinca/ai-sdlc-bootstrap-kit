@@ -20,7 +20,7 @@ Run the situation check before asking the user anything:
 bash "<directory of this SKILL.md>/scripts/detect-situation.sh"
 ```
 
-The script sits beside this file, at `scripts/detect-situation.sh` — resolve it from wherever this `SKILL.md` was loaded, in any agent. (In Claude Code that is `$CLAUDE_PLUGIN_ROOT/.claude/skills/install-ai-sdlc-kit/scripts/detect-situation.sh`; with the kit repo itself open, `.claude/skills/install-ai-sdlc-kit/scripts/detect-situation.sh`.)
+The script sits beside this file, at `scripts/detect-situation.sh` — resolve it from wherever this `SKILL.md` was loaded, in any agent. (In Claude Code that is `$CLAUDE_PLUGIN_ROOT/skills/install-ai-sdlc-kit/scripts/detect-situation.sh`; with the kit repo itself open, `.claude/skills/install-ai-sdlc-kit/scripts/detect-situation.sh`.)
 
 It prints one JSON object and writes nothing — no temp files either, so it runs in a read-only sandbox. Read it, then take exactly one path:
 

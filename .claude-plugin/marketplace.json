@@ -1,14 +1,21 @@
 {
   "name": "ai-sdlc-bootstrap-kit",
-  "owner": { "name": "Georgian Dinca" },
+  "owner": {
+    "name": "Georgian Dinca"
+  },
   "description": "The AI-SDLC Bootstrap Kit and its installer.",
   "plugins": [
     {
-      "name": "ai-sdlc-kit",
-      "source": "./",
+      "name": "ai-sdlc-bootstrap-kit",
+      "source": "./plugins/ai-sdlc-bootstrap-kit",
       "displayName": "AI-SDLC Bootstrap Kit",
       "description": "Install the kit into any project and onboard people to it.",
-      "keywords": ["sdlc", "governance", "bootstrap", "onboarding"]
+      "keywords": [
+        "sdlc",
+        "governance",
+        "bootstrap",
+        "onboarding"
+      ]
     }
   ]
 }

@@ -9,7 +9,7 @@
 # Usage: detect-situation.sh [--dir <path>]
 set -uo pipefail
 
-dir="$PWD"
+dir=$(pwd)
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --dir) dir=${2:?}; shift 2 ;;
@@ -18,7 +18,7 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 cd "$dir" 2>/dev/null || { echo "detect-situation: no such directory: $dir" >&2; exit 2; }
-dir=$PWD
+dir=$(pwd)
 
 # --- JSON helpers (no jq dependency) ---------------------------------------------
 json_str() {  # escape a bash string as a JSON string literal
