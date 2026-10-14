@@ -11,6 +11,7 @@ It turns a hand-drawn operating model (one whiteboard, titled *AUTOMATIZARE*) in
 ```
 AI-SDLC-Bootstrap-Kit/
 ├── README.md                # you are here — what the kit is, how to use it
+├── plugins/ai-sdlc-bootstrap-kit/  # THE PLUGIN — the installer skill, manifests and icon
 ├── docs/                    # THE KIT's own docs (not a generated project's)
 │   ├── SPEC.md              # specification of the template
 │   ├── visuals/             # framework diagrams (Excalidraw + Mermaid)
@@ -54,16 +55,16 @@ Then ask the agent to set up the kit. The skill clones the kit itself, so only t
 
 ```bash
 claude plugin marketplace add georgiandinca/ai-sdlc-bootstrap-kit
-claude plugin install ai-sdlc-kit@ai-sdlc-bootstrap-kit
+claude plugin install ai-sdlc-bootstrap-kit@ai-sdlc-bootstrap-kit
 ```
 
-Then, in that project, ask the agent to set up the kit — for example `/ai-sdlc-kit:install-ai-sdlc-kit` — and it drives detection, layout choice and merge for you.
+Then, in that project, ask the agent to set up the kit — for example `/ai-sdlc-bootstrap-kit:install-ai-sdlc-kit` — and it drives detection, layout choice and merge for you.
 
 **Codex plugin.** Same two steps, with Codex's commands:
 
 ```bash
 codex plugin marketplace add georgiandinca/ai-sdlc-bootstrap-kit
-codex plugin add ai-sdlc-kit@ai-sdlc-bootstrap-kit
+codex plugin add ai-sdlc-bootstrap-kit@ai-sdlc-bootstrap-kit
 ```
 
 Then ask Codex to set up the kit. The situation check writes nothing, so it runs in Codex's read-only sandbox.
@@ -72,7 +73,7 @@ Then ask Codex to set up the kit. The situation check writes nothing, so it runs
 
 ```bash
 git clone --depth 1 https://github.com/georgiandinca/ai-sdlc-bootstrap-kit /tmp/ai-sdlc-kit
-agy plugin install /tmp/ai-sdlc-kit
+agy plugin install /tmp/ai-sdlc-kit/plugins/ai-sdlc-bootstrap-kit
 ```
 
 Then ask Antigravity to set up the kit.
@@ -83,7 +84,7 @@ Then ask Antigravity to set up the kit.
 git clone https://github.com/georgiandinca/ai-sdlc-bootstrap-kit /tmp/ai-sdlc-kit
 ```
 
-Point the agent at `/tmp/ai-sdlc-kit/.claude/skills/install-ai-sdlc-kit/SKILL.md` and ask it to follow those instructions for your project.
+Point the agent at `/tmp/ai-sdlc-kit/plugins/ai-sdlc-bootstrap-kit/skills/install-ai-sdlc-kit/SKILL.md` and ask it to follow those instructions for your project.
 
 **Terminal, no agent.** Run `bootstrap.sh` directly. `--layout` picks where the kit sits relative to the project's code — `embedded` (default), `monorepo`, `sidecar` or `parent`; run `--help` for what each means. `--merge` makes the install non-destructive: on a non-empty target it merges file-by-file / block-by-block instead of clobbering, and the pre-existing files stay untouched wherever the kit has nothing to add.
 

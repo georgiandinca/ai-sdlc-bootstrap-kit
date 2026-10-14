@@ -23,9 +23,9 @@ jobs:
       - name: Validate Agent Skills (agentskills.io)
         run: |
           python3 template/scripts/validate-skills.py
-          python3 template/scripts/validate-skills.py .claude/skills
+          python3 template/scripts/validate-skills.py plugins
       - name: Installer skill — situation-check tests
-        run: bash .claude/skills/install-ai-sdlc-kit/scripts/tests/test-detect-situation.sh
+        run: bash plugins/ai-sdlc-bootstrap-kit/skills/install-ai-sdlc-kit/scripts/tests/test-detect-situation.sh
       - name: Validate doc frontmatter contract (AGENTS.md §4.2)
         run: python3 template/scripts/validate-frontmatter.py
       - name: Validate session lifecycle-moments manifest
