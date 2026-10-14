@@ -42,6 +42,14 @@ The kit operationalises an AI-augmented SDLC as seven pillars — see [`template
 
 Pick whichever route fits your setup.
 
+**Any agent, one command.** The [skills CLI](https://github.com/vercel-labs/skills) copies the installer skill into the project for Claude Code, Codex, Cursor and the other agents it supports ([listing on skills.sh](https://skills.sh/georgiandinca/ai-sdlc-bootstrap-kit/install-ai-sdlc-kit)):
+
+```bash
+npx skills add georgiandinca/ai-sdlc-bootstrap-kit
+```
+
+Then ask the agent to set up the kit. The skill clones the kit itself, so only the skill needs installing.
+
 **Claude Code plugin.** In any project, install the kit's marketplace once, then the plugin:
 
 ```bash

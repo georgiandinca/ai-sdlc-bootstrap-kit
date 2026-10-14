@@ -32,6 +32,9 @@ An entry says what a project that installs or updates the kit will notice.
 - **Knowledge graph: `exclude`** — a `docs` or `code` namespace takes a list of
   paths or globs below its roots that the graph leaves out. ([#8])
 - This changelog.
+- **Install with the skills CLI** — `npx skills add
+  georgiandinca/ai-sdlc-bootstrap-kit` puts the installer skill into a project
+  for any agent the CLI supports. The README documents it.
 
 ### Fixed
 
