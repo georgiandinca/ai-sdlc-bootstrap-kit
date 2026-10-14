@@ -128,6 +128,10 @@ These are the same gates the generated project's CI runs ([`template/.github/wor
 
 Distilled from a real multi-repo programme's governance setup, generalised and stripped of all project specifics, and aligned to the *AUTOMATIZARE* whiteboard model.
 
+## Privacy
+
+The kit has no server and no telemetry. Onboarding writes your name and email to a local, git-ignored `USER.md`. See [`PRIVACY.md`](./PRIVACY.md).
+
 ## Contributing
 
 Contributions are welcome — see [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the

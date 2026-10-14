@@ -36,6 +36,10 @@ An entry says what a project that installs or updates the kit will notice.
   georgiandinca/ai-sdlc-bootstrap-kit` puts the installer skill into a project
   for any agent the CLI supports. The README documents it.
 
+- **Privacy policy** — `PRIVACY.md` covers what the plugin reads and what
+  onboarding stores. The plugin manifests link to it as `privacyPolicyUrl`,
+  and the README links to it from a new Privacy section.
+
 ### Changed
 
 - **The plugin is now `ai-sdlc-bootstrap-kit`, in its own folder** — the
