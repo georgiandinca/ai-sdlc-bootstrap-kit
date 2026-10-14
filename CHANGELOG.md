@@ -15,6 +15,11 @@ An entry says what a project that installs or updates the kit will notice.
 
 ## Unreleased
 
+## [0.1.1] — 2026-10-14
+
+The plugin is listed in the Claude plugin directory, and the installer skill
+can be installed with `npx skills add`.
+
 ### Added
 
 - **Superseded documents are ignored** — `AGENTS.md` §4.2 treats a file with
@@ -186,4 +191,5 @@ seat, grouped by the date a change was merged to `main`.
 [#8]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/pull/8
 [#10]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/issues/10
 [#13]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/issues/13
+[0.1.1]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/releases/tag/v0.1.1
 [0.1.0]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/releases/tag/v0.1.0

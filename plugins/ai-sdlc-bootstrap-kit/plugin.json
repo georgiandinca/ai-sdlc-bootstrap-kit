@@ -2,7 +2,7 @@
   "name": "ai-sdlc-bootstrap-kit",
   "displayName": "AI-SDLC Bootstrap Kit",
   "description": "Install the AI-SDLC Bootstrap Kit into any project and onboard people to it.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": {
     "name": "Georgian Dinca"
   },
