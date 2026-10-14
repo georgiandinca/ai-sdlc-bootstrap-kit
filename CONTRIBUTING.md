@@ -48,6 +48,7 @@ python3 template/scripts/tests/test_validate_moments.py
 python3 template/scripts/tests/test_validate_seat_profiles.py
 python3 template/dashboard/tests/test_schema.py
 python3 template/dashboard/tests/test_roi.py
+bash tests/installer/test-detect-situation.sh   # the plugin's situation check
 # …see .github/workflows/ci.yml for the full list
 
 # Knowledge-graph build + traceability smoke test

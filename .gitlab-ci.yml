@@ -34,7 +34,7 @@ ai-governance:
   - python3 template/scripts/validate-skills.py
   - python3 template/scripts/validate-skills.py plugins
   - echo "Installer skill — situation-check tests…"
-  - bash plugins/ai-sdlc-bootstrap-kit/skills/install-ai-sdlc-kit/scripts/tests/test-detect-situation.sh
+  - bash tests/installer/test-detect-situation.sh
   - echo "Validating doc frontmatter contract (AGENTS.md §4.2)…"
   - python3 template/scripts/validate-frontmatter.py
   - echo "Validating session lifecycle-moments manifest…"

@@ -52,6 +52,10 @@ An entry says what a project that installs or updates the kit will notice.
 
 ### Fixed
 
+- The plugin no longer ships the situation-check test. Its monorepo case
+  creates a `pnpm-workspace.yaml`, which the plugin directory blocked as
+  redirecting the package registry. The test moved to `tests/installer/`,
+  and CI still runs it. ([#13])
 - The frontmatter parser of the knowledge graph kept a trailing YAML comment
   as part of a value (`status: approved  # …`). ([#8])
 - The `ai-governance` workflow shipped to projects did not run the three issue
@@ -181,4 +185,5 @@ seat, grouped by the date a change was merged to `main`.
 [#6]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/pull/6
 [#8]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/pull/8
 [#10]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/issues/10
+[#13]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/issues/13
 [0.1.0]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/releases/tag/v0.1.0

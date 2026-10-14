@@ -2,7 +2,8 @@
 # Functional test for detect-situation.sh (no framework). Exits non-zero on any failure.
 set -uo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd -P)
-DETECT="$HERE/../detect-situation.sh"
+PLUGIN="$HERE/../../plugins/ai-sdlc-bootstrap-kit"
+DETECT="$PLUGIN/skills/install-ai-sdlc-kit/scripts/detect-situation.sh"
 fails=0
 
 check() { if [ "$2" = "$3" ]; then echo "ok   $1"; else echo "FAIL $1: got '$2' want '$3'"; fails=$((fails+1)); fi; }
@@ -95,12 +96,7 @@ fi
 # --- Case I: plugin manifests stay in step -----------------------------------------
 # Claude Code and Codex read .claude-plugin/plugin.json; Antigravity reads plugin.json
 # at the plugin root. They are the same manifest and must not drift.
-ROOT=$(cd "$HERE/../../../.." && pwd)
-if [ -f "$ROOT/.claude-plugin/plugin.json" ]; then
-  check I_manifests_match "$(cmp -s "$ROOT/plugin.json" "$ROOT/.claude-plugin/plugin.json" && printf same || printf differ)" "same"
-else
-  echo "skip I_manifests_match (not running inside the plugin folder)"
-fi
+check I_manifests_match "$(cmp -s "$PLUGIN/plugin.json" "$PLUGIN/.claude-plugin/plugin.json" && printf same || printf differ)" "same"
 
 echo "---"
 [ "$fails" -eq 0 ] && echo "all detect-situation tests passed" || echo "$fails test(s) failed"
