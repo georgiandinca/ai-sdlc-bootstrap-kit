@@ -1,0 +1,27 @@
+plugins/ai-sdlc-bootstrap-kit/.claude-plugin/plugin.json
+  s_93c0358cad30a3::t_c8dd1d674e31ed 11
+README.md
+  s_93c0358cad30a3::t_c8dd1d674e31ed 131-134
+PRIVACY.md
+  s_93c0358cad30a3::t_2fe25801097a9f 1-61
+CHANGELOG.md
+  s_93c0358cad30a3::t_c8dd1d674e31ed 39-42
+plugins/ai-sdlc-bootstrap-kit/plugin.json
+  s_93c0358cad30a3::t_c8dd1d674e31ed 11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "53c958e6de8c1bc35578834488057ff98ab1d411",
+  "prompts": {},
+  "sessions": {
+    "s_93c0358cad30a3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bad6145a-5b92-4560-94c6-fc7985bbfb04",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Georgian Dinca <geo@magnify.ro>"
+    }
+  }
+}
