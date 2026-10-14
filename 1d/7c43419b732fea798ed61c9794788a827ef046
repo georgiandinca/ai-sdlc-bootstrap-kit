@@ -1,0 +1,23 @@
+CHANGELOG.md
+  s_93c0358cad30a3::t_cb3e34a42a6367 18-22,194
+plugins/ai-sdlc-bootstrap-kit/.claude-plugin/plugin.json
+  s_93c0358cad30a3::t_9fba045d51c552 5
+plugins/ai-sdlc-bootstrap-kit/plugin.json
+  s_93c0358cad30a3::t_f45d989dad7911 5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1d7c43419b732fea798ed61c9794788a827ef046",
+  "prompts": {},
+  "sessions": {
+    "s_93c0358cad30a3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bad6145a-5b92-4560-94c6-fc7985bbfb04",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Georgian Dinca <geo@magnify.ro>"
+    }
+  }
+}
