@@ -509,6 +509,23 @@ check ci_seats_skip     "$(grep -c 'skipped: scripts/session/seat-profiles.json 
 check ci_moments_green  "$?" "0"
 ( cd "$tmp/g" && python3 scripts/validate-seat-profiles.py >/dev/null 2>&1 )
 check ci_seats_green    "$?" "0"
+# Run each step's own `run:` block: skips (exit 0) when the manifest is gone,
+# and fails when the manifest is invalid.
+step_run() { python3 -c "import sys,yaml
+for st in yaml.safe_load(open(sys.argv[1]))['jobs']['governance']['steps']:
+    if st.get('name')==sys.argv[2]: print(st['run'])" "$wf" "$1"; }
+for pair in "Validate session lifecycle-moments manifest|moments.json" \
+            "Validate per-seat profiles manifest|seat-profiles.json"; do
+  step=${pair%%|*}; man="$tmp/g/scripts/session/${pair##*|}"; cp "$man" "$man.bak"
+  rm "$man"
+  out=$(cd "$tmp/g" && bash -c "$(step_run "$step")" 2>&1); rc=$?
+  check "ci_skip_exit_${pair##*|}" "$rc" "0"
+  check "ci_skip_msg_${pair##*|}"  "$(echo "$out" | grep -c '^skipped:')" "1"
+  printf '{ not json' > "$man"
+  ( cd "$tmp/g" && bash -c "$(step_run "$step")" >/dev/null 2>&1 )
+  check "ci_invalid_fails_${pair##*|}" "$([ $? -ne 0 ] && echo yes)" "yes"
+  mv "$man.bak" "$man"
+done
 rm -rf "$tmp"
 
 echo "---"
