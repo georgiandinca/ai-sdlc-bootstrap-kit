@@ -1,0 +1,23 @@
+CHANGELOG.md
+  s_311e49fedc7547::t_fcdaf9790bea53 29-33,218
+template/.github/workflows/ai-governance.yml
+  s_311e49fedc7547::t_5ed57c77793152 37-47
+template/scripts/tests/test_bootstrap.sh
+  s_311e49fedc7547::t_6056a306ddc098 498-513
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4562eab18389cee2d7501706809ce02cf7a174ec",
+  "prompts": {},
+  "sessions": {
+    "s_311e49fedc7547": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6ea43dd3-6a42-4313-891f-125da1467c5f",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Georgian Dinca <geo@magnify.ro>"
+    }
+  }
+}
