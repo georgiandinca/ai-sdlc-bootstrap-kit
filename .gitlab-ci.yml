@@ -37,6 +37,8 @@ ai-governance:
   - bash tests/installer/test-detect-situation.sh
   - echo "Validating doc frontmatter contract (AGENTS.md §4.2)…"
   - python3 template/scripts/validate-frontmatter.py
+  - echo "Frontmatter validator unit tests (debt baseline)…"
+  - python3 template/scripts/tests/test_validate_frontmatter.py
   - echo "Validating session lifecycle-moments manifest…"
   - python3 template/scripts/validate-moments.py
   - echo "Running validator unit tests…"

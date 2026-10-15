@@ -31,6 +31,8 @@ jobs:
 
       - name: Validate doc frontmatter contract (AGENTS.md §4.2)
         run: python3 scripts/validate-frontmatter.py
+      - name: Frontmatter validator unit tests (debt baseline)
+        run: python3 scripts/tests/test_validate_frontmatter.py
 
       - name: Run knowledge-graph unit tests
         run: |

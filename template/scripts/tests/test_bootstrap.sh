@@ -454,6 +454,47 @@ tmp=$(mktemp -d)
 check diagram_embedded "$(grep -c "project's own code, untouched" "$tmp/emb/README.md")" "1"
 rm -rf "$tmp"
 
+# --- 16. M01: a brownfield --merge install starts with the frontmatter gate green ----
+# Docs the project wrote before adopting the kit are recorded once as debt in
+# .ai-sdlc/frontmatter-baseline.txt; the install report says how many.
+tmp=$(mktemp -d); proj="$tmp/legacy"; mkdir -p "$proj/docs/notes" "$proj/docs/transcripts"
+i=1
+while [ "$i" -le 10 ]; do
+  printf '# Legacy note %s\n\nWritten before the kit.\n' "$i" > "$proj/docs/notes/note-$i.md"
+  i=$((i + 1))
+done
+printf 'docs/transcripts/\n' > "$proj/.gitignore"
+printf '# a transcript\n' > "$proj/docs/transcripts/session.md"
+( cd "$proj" && git init -q && git add -A && git commit -qm init )
+"$BOOT" --name "Legacy" --slug legacy --dir "$proj" --desc "d" --ticket LEG \
+        --layout embedded --merge --hooks none --non-interactive >"$tmp/log.txt" 2>&1
+check baseline_exit    "$?" "0"
+bl="$proj/.ai-sdlc/frontmatter-baseline.txt"
+check baseline_written "$([ -f "$bl" ] && echo yes || echo no)" "yes"
+check baseline_count   "$(grep -vc '^#' "$bl")" "10"
+check baseline_no_ignored "$(grep -c 'transcripts' "$bl")" "0"
+check baseline_report  "$(grep -c '10 pre-existing doc(s)' "$proj/.ai-sdlc/install-report.md")" "1"
+check baseline_listed  "$(grep -c '^- created .ai-sdlc/frontmatter-baseline.txt' "$proj/.ai-sdlc/install-report.md")" "1"
+( cd "$proj" && python3 scripts/validate-frontmatter.py >/dev/null 2>&1 )
+check baseline_gate_green "$?" "0"
+printf '# Written after adoption\n' > "$proj/docs/notes/new.md"
+( cd "$proj" && python3 scripts/validate-frontmatter.py >/dev/null 2>&1 )
+check baseline_new_fails "$?" "1"
+# A repeat --merge run keeps the existing baseline: the new doc is not adopted.
+"$BOOT" --name "Legacy" --slug legacy --dir "$proj" --desc "d" --ticket LEG \
+        --layout embedded --merge --hooks none --non-interactive >/dev/null 2>&1
+check baseline_rerun_exit  "$?" "0"
+check baseline_rerun_kept  "$(grep -vc '^#' "$bl")" "10"
+check baseline_rerun_nonew "$(grep -c 'new.md' "$bl")" "0"
+rm -rf "$tmp"
+
+# A fresh (non-merge) install has nothing inherited, so no baseline is written.
+tmp=$(mktemp -d)
+"$BOOT" --name "Fresh" --slug fresh --dir "$tmp/f" --desc "d" --ticket F \
+        --layout embedded --hooks none --non-interactive >/dev/null 2>&1
+check baseline_fresh_none "$([ -f "$tmp/f/.ai-sdlc/frontmatter-baseline.txt" ] && echo yes || echo no)" "no"
+rm -rf "$tmp"
+
 echo "---"
 [ "$fails" -eq 0 ] && echo "all bootstrap tests passed" || echo "$fails test(s) failed"
 exit "$fails"
