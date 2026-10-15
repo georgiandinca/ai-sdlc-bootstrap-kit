@@ -557,8 +557,11 @@ tmp=$(mktemp -d); proj="$tmp/own"; mkdir -p "$proj"
 python3 -c "print('# Our brief\n' + 'x' * 3000)" > "$proj/AGENTS.md"
 ( cd "$proj" && git init -q && git add -A && git commit -qm init )
 "$BOOT" --name "Own" --slug own --dir "$proj" --desc "d" --ticket OWN \
-        --layout embedded --merge --hooks none --non-interactive >/dev/null 2>&1
+        --layout embedded --merge --hooks none --non-interactive >"$tmp/log.txt" 2>&1
 lim="$proj/scripts/context-budget.json"
+check budget_merge_sized_for "$(jqp "$lim" sized_for)" '"project"'
+check budget_merge_listed "$(grep -c '^- merged scripts/context-budget.json (sized to this project)' "$proj/.ai-sdlc/install-report.md")" "1"
+check budget_next_step "$(grep -c 'python3 scripts/check-context-budget.py --write-limits' "$tmp/log.txt")" "1"
 check budget_merge_rewritten "$(cmp -s "$lim" "$SRC_ROOT/scripts/context-budget.json" && echo same || echo set)" "set"
 out=$(cd "$proj" && python3 scripts/check-context-budget.py 2>&1); rc=$?
 check budget_merge_green  "$rc" "0"

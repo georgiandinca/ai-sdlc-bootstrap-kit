@@ -29,7 +29,8 @@ Usage:
   check-context-budget.py --json          # sizes and limits as JSON
   check-context-budget.py --write-limits  # set every group limit to today's
                                           # size plus headroom_pct (never
-                                          # touches description_max)
+                                          # touches description_max) and mark
+                                          # the file sized_for: project
 Exit 0 if within budget (warnings allowed), 1 over budget, 2 on bad usage or
 a missing / malformed limits file.
 """
@@ -55,11 +56,33 @@ TOTAL = "total"
 KEYS = FILES + [RULES, DESCRIPTIONS, TOTAL]
 DEFAULTS = {"description_max": 500, "warn_slack_pct": 15, "headroom_pct": 6}
 CHARS_PER_TOKEN = 4
+# "kit" while the file still holds the kit's starting limits; --write-limits
+# sets "project". The kit's limits fit an unfilled AGENTS.md, so an overflow
+# then most likely means the placeholders were filled, not that text crept in.
+SIZED_FOR_KIT = "kit"
+SIZED_FOR_PROJECT = "project"
 
 
-def description(skill_md: Path) -> str:
+class ReadError(Exception):
+    """A measured file that cannot be read as UTF-8 text."""
+
+
+def read(path: Path, root: Path) -> str:
+    try:
+        return path.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        raise ReadError(f"{path.relative_to(root).as_posix()} is not UTF-8") from None
+    except OSError as exc:
+        raise ReadError(f"{path.relative_to(root).as_posix()} cannot be read: {exc}") from None
+
+
+def is_count(v) -> bool:
+    return type(v) is int and v >= 0
+
+
+def description(skill_md: Path, root: Path) -> str:
     """The frontmatter description of a SKILL.md ('' when it has none)."""
-    text = skill_md.read_text(encoding="utf-8")
+    text = read(skill_md, root)
     lines = text.splitlines()
     if not lines or lines[0].strip() != "---":
         return ""
@@ -76,12 +99,13 @@ def description(skill_md: Path) -> str:
 
 def measure(root: Path) -> dict:
     """Sizes of everything always loaded, by file, rule, skill and group."""
-    files = {f: (len((root / f).read_text(encoding="utf-8")) if (root / f).is_file() else 0)
-             for f in FILES}
-    rules = {p.relative_to(root).as_posix(): len(p.read_text(encoding="utf-8"))
+    files = {f: (len(read(root / f, root)) if (root / f).is_file() else 0) for f in FILES}
+    rules = {p.relative_to(root).as_posix(): len(read(p, root))
              for p in sorted((root / RULES).rglob("*.md"))} if (root / RULES).is_dir() else {}
-    skills = {p.parent.name: len(description(p))
-              for p in sorted((root / SKILLS).rglob("SKILL.md"))} if (root / SKILLS).is_dir() else {}
+    # Only top-level skills are discovered; a SKILL.md nested inside a skill
+    # (an example, a fixture) is not loaded.
+    skills = {p.relative_to(root).as_posix(): len(description(p, root))
+              for p in sorted((root / SKILLS).glob("*/SKILL.md"))} if (root / SKILLS).is_dir() else {}
     sizes = dict(files)
     sizes[RULES] = sum(rules.values())
     sizes[DESCRIPTIONS] = sum(skills.values())
@@ -115,11 +139,14 @@ def load_limits(path: Path) -> tuple[dict | None, str]:
         return None, f"{LIMITS_REL} is not valid JSON: {exc}"
     if not isinstance(data, dict) or not isinstance(data.get("limits"), dict):
         return None, f"{LIMITS_REL} must be an object with a 'limits' object"
-    missing = [k for k in KEYS if not isinstance(data["limits"].get(k), int)]
+    missing = [k for k in KEYS if not is_count(data["limits"].get(k))]
     if missing:
-        return None, f"{LIMITS_REL}: no integer limit for {', '.join(missing)}"
+        return None, f"{LIMITS_REL}: no non-negative integer limit for {', '.join(missing)}"
     for k, v in DEFAULTS.items():
         data.setdefault(k, v)
+    bad = [k for k in DEFAULTS if not is_count(data[k])]
+    if bad:
+        return None, f"{LIMITS_REL}: {', '.join(bad)} must be a non-negative integer"
     return data, ""
 
 
@@ -134,7 +161,9 @@ def write_limits(path: Path, m: dict) -> dict:
         data = {}
     data.setdefault("version", 1)
     for k, v in DEFAULTS.items():
-        data.setdefault(k, v)
+        if not is_count(data.get(k)):
+            data[k] = v
+    data["sized_for"] = SIZED_FOR_PROJECT
     data["limits"] = {k: with_headroom(m["sizes"][k], data["headroom_pct"]) for k in KEYS}
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
@@ -175,7 +204,7 @@ def report(m: dict, cfg: dict, root: Path) -> int:
     if seat_rows:
         print("\nSeats (each seat's playbook description):")
         for sid, playbook in seat_rows:
-            n = m["skills"].get(playbook)
+            n = m["skills"].get(f"{SKILLS}/{playbook}/SKILL.md")
             if n is None:
                 print(f"  {sid:<10} {playbook:<24} not installed")
             else:
@@ -193,7 +222,11 @@ def main(argv: list[str]) -> int:
     if args - {"--json", "--write-limits"}:
         print(__doc__, file=sys.stderr)
         return 2
-    m = measure(root)
+    try:
+        m = measure(root)
+    except ReadError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
     path = root / LIMITS_REL
 
     if "--write-limits" in args:
@@ -211,6 +244,10 @@ def main(argv: list[str]) -> int:
     if over:
         print(f"{over} item(s) over budget. Cut the text, or raise the limit in "
               f"{LIMITS_REL} with the reason in the CHANGELOG.")
+        if cfg.get("sized_for") == SIZED_FOR_KIT:
+            print("These are the kit's starting limits. After filling the placeholders, run "
+                  "`python3 scripts/check-context-budget.py --write-limits` once and commit "
+                  "the result.")
         return 1
     return 0
 

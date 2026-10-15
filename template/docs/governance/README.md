@@ -28,4 +28,6 @@ Every session loads `AGENTS.md`, `CLAUDE.md`, the `.claude/rules/` files and the
 
 - **Over a limit:** the check fails and says how many characters to cut. Cut first. Raise a limit only together with the text that needs it, and say why in the CHANGELOG.
 - **Slack limit:** a limit more than `warn_slack_pct` (15%) above the real size warns and says what to lower it to, so freed space is not quietly refilled.
-- **Resizing:** `python3 scripts/check-context-budget.py --write-limits` sets every limit to today's size plus `headroom_pct` (6%). It never raises `description_max`. Review that diff like any other change to a gate.
+- **Resizing:** `python3 scripts/check-context-budget.py --write-limits` sets every limit to today's size plus `headroom_pct` (6%) and marks the file `"sized_for": "project"`. It never raises `description_max`. Review that diff like any other change to a gate.
+- **First sizing:** the file ships with the kit's starting limits (`"sized_for": "kit"`), which fit an unfilled `AGENTS.md`. Once the placeholders are filled in, run `--write-limits` once and commit the result. Until then an overflow still fails, and the message says so.
+- **Where warnings show:** pre-commit hides the output of hooks that pass, so the slack warnings are in practice seen only in the CI log, or when you run the script yourself.

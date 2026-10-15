@@ -570,6 +570,7 @@ if [ "$merge" -eq 1 ]; then
     budget_out=$(cd "$dir" && python3 scripts/check-context-budget.py --write-limits 2>&1) || budget_rc=$?
     budget_total=$(printf '%s\n' "$budget_out" | sed -n 's/^always loaded: \([0-9]*\) characters.*/\1/p')
     if [ -n "$budget_total" ]; then
+      record_outcome "$budget_rel" merged "sized to this project"
       budget_note="Context budget: \`$budget_rel\` was set to this project's sizes plus headroom ($budget_total characters always loaded). Lower the limits as you trim; raise one only with a reason in the CHANGELOG."
       [ "$budget_rc" -ne 0 ] && budget_note="$budget_note Some skill descriptions are over the description limit; run \`python3 scripts/check-context-budget.py\` to see which."
       echo "[bootstrap] context budget: limits set to this project's sizes ($budget_total characters always loaded)."
@@ -628,7 +629,9 @@ cat <<EOF
 [bootstrap] Done. Next:
   1. cd $dir
   2. Open in Claude Code — it will run ONBOARDING.md (creates your USER.md).
-  3. Fill the remaining <PLACEHOLDERS> listed above (start with AGENTS.md §1, §3, §4).
+  3. Fill the remaining <PLACEHOLDERS> listed above (start with AGENTS.md §1, §3, §4),
+     then size the context budget to the result once and commit it:
+     python3 scripts/check-context-budget.py --write-limits
   4. (optional) add knowledge sources under docs/knowledge/sources/ and run
      python3 scripts/knowledge/ingest.py --build
 EOF

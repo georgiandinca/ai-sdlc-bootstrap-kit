@@ -180,6 +180,65 @@ class TestCheckContextBudget(unittest.TestCase):
         self.assertEqual(set(data["limits"]), {"AGENTS.md", "CLAUDE.md", ".claude/rules",
                                                "skill-descriptions", "total"})
 
+    def test_kit_limits_over_budget_say_to_resize_once(self):
+        self.repo.limits({"AGENTS.md": 1060, "CLAUDE.md": 210, ".claude/rules": 420,
+                          "skill-descriptions": 160, "total": 1850}, sized_for="kit")
+        self.repo.write("AGENTS.md", "a" * 1100)       # placeholders filled in
+        r = self.repo.run()
+        self.assertEqual(r.returncode, 1)              # still fails
+        self.assertIn("kit's starting limits", r.stdout)
+        self.assertIn("--write-limits", r.stdout)
+
+    def test_project_limits_over_budget_do_not_suggest_resizing(self):
+        self.repo.limits({"AGENTS.md": 1060, "CLAUDE.md": 210, ".claude/rules": 420,
+                          "skill-descriptions": 160, "total": 1850}, sized_for="project")
+        self.repo.write("AGENTS.md", "a" * 1100)
+        r = self.repo.run()
+        self.assertEqual(r.returncode, 1)
+        self.assertNotIn("kit's starting limits", r.stdout)
+
+    def test_write_limits_marks_the_file_sized_for_the_project(self):
+        self.repo.limits({"AGENTS.md": 1060, "CLAUDE.md": 210, ".claude/rules": 420,
+                          "skill-descriptions": 160, "total": 1850}, sized_for="kit")
+        self.repo.write("AGENTS.md", "a" * 1100)
+        self.assertEqual(self.repo.run("--write-limits").returncode, 0)
+        self.assertEqual(self.repo.read_limits()["sized_for"], "project")
+        self.assertEqual(self.repo.run().returncode, 0)
+
+    def test_non_utf8_file_is_a_usage_error(self):
+        (self.repo.root / "AGENTS.md").write_bytes(b"\xff\xfe broken")
+        r = self.repo.run()
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("AGENTS.md is not UTF-8", r.stderr)
+
+    def test_non_utf8_skill_is_a_usage_error(self):
+        (self.repo.root / ".claude/skills/helper/SKILL.md").write_bytes(b"---\n\xff\n---\n")
+        r = self.repo.run()
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("helper/SKILL.md is not UTF-8", r.stderr)
+
+    def test_nested_skill_files_are_not_counted(self):
+        self.repo.write(".claude/skills/helper/examples/helper/SKILL.md",
+                        skill_md("helper", "n" * 400))
+        r = self.repo.run()
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("150 / 160", r.stdout)           # descriptions group unchanged
+        self.assertNotIn("examples", r.stdout)
+
+    def test_non_integer_settings_are_usage_errors(self):
+        base = {"AGENTS.md": 1060, "CLAUDE.md": 210, ".claude/rules": 420,
+                "skill-descriptions": 160, "total": 1850}
+        for limits, extra in (({**base, "total": True}, {}),
+                              ({**base, "CLAUDE.md": -1}, {}),
+                              (base, {"description_max": "500"}),
+                              (base, {"warn_slack_pct": 1.5}),
+                              (base, {"headroom_pct": None})):
+            with self.subTest(limits=limits, extra=extra):
+                self.repo.limits(limits, **extra)
+                r = self.repo.run()
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertNotIn("Traceback", r.stderr)
+
     def test_write_limits_never_raises_the_description_cap(self):
         self.repo.skill("helper", "h" * 600)
         r = self.repo.run("--write-limits")
@@ -233,6 +292,7 @@ class TestKitTemplateBudget(unittest.TestCase):
         """Sized from what an install holds: bootstrap adds a pointer block to CLAUDE.md."""
         limits = json.loads((TEMPLATE / LIMITS_REL).read_text(encoding="utf-8"))
         self.assertEqual(limits["description_max"], 500)
+        self.assertEqual(limits["sized_for"], "kit")
         with tempfile.TemporaryDirectory() as tmp:
             proj = Path(tmp) / "fresh"
             b = subprocess.run(["bash", str(SCRIPTS / "bootstrap.sh"), "--name", "Fresh",

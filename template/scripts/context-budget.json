@@ -1,6 +1,7 @@
 {
   "_note": "Character limits for the always-loaded instructions; checked by scripts/check-context-budget.py. Raise a limit only with the text that needs it, and say why in the CHANGELOG.",
   "version": 1,
+  "sized_for": "kit",
   "description_max": 500,
   "warn_slack_pct": 15,
   "headroom_pct": 6,

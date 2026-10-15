@@ -38,9 +38,11 @@ An entry says what a project that installs or updates the kit will notice.
   and says how much to cut, and warns when a limit is more than 15% above the
   real size. Skill descriptions are capped at 500 characters, also in
   `validate-skills.py`. Runs in pre-commit and the generated CI.
-  `bootstrap.sh --merge` sets the limits to the project's own sizes on first
-  install. The installer skill's description is shortened to fit. Concept from
-  Emil Dan's fork. ([#19])
+  The limits ship sized for the kit; after filling the placeholders, run
+  `python3 scripts/check-context-budget.py --write-limits` once to size them
+  to the project (bootstrap's next steps say so). `bootstrap.sh --merge` does
+  this on first install. The installer skill's description is shortened to
+  fit. Concept from Emil Dan's fork. ([#19])
 
 ### Updating
 
