@@ -526,6 +526,49 @@ for pair in "Validate session lifecycle-moments manifest|moments.json" \
   check "ci_invalid_fails_${pair##*|}" "$([ $? -ne 0 ] && echo yes)" "yes"
   mv "$man.bak" "$man"
 done
+# The context budget: a CI step and a pre-commit hook, green on a fresh install
+# (the §2 repo table included), skipped without its limits file, red when over.
+check ci_budget_step  "$(grep -c 'python3 scripts/check-context-budget.py' "$wf")" "1"
+check hook_budget     "$(grep -c 'id: check-context-budget' "$tmp/g/.pre-commit-config.yaml")" "1"
+( cd "$tmp/g" && python3 scripts/check-context-budget.py >/dev/null 2>&1 )
+check budget_green_fresh "$?" "0"
+step="Context budget for always-loaded instructions"; lim="$tmp/g/scripts/context-budget.json"
+mv "$lim" "$lim.bak"
+out=$(cd "$tmp/g" && bash -c "$(step_run "$step")" 2>&1); rc=$?
+check ci_budget_skip_exit "$rc" "0"
+check ci_budget_skip_msg  "$(echo "$out" | grep -c '^skipped:')" "1"
+mv "$lim.bak" "$lim"
+python3 -c "import sys; print('x' * 2000)" >> "$tmp/g/CLAUDE.md"
+( cd "$tmp/g" && bash -c "$(step_run "$step")" >/dev/null 2>&1 )
+check ci_budget_over_fails "$([ $? -ne 0 ] && echo yes)" "yes"
+rm -rf "$tmp"
+tmp=$(mktemp -d)
+"$BOOT" --name "Repos" --slug repos --dir "$tmp/r" --desc "d" --ticket R --layout embedded \
+        --repos "../a=backend:nopointer,../b=frontend:nopointer,../c=mobile:nopointer" \
+        --hooks none --non-interactive >/dev/null 2>&1
+( cd "$tmp/r" && python3 scripts/check-context-budget.py >/dev/null 2>&1 )
+check budget_green_repos "$?" "0"
+rm -rf "$tmp"
+
+# A --merge install keeps the project's own AGENTS.md and adds a pointer to
+# CLAUDE.md, so the kit's limits do not fit: bootstrap sets them to the
+# project's sizes once, and a repeat run leaves them alone.
+tmp=$(mktemp -d); proj="$tmp/own"; mkdir -p "$proj"
+python3 -c "print('# Our brief\n' + 'x' * 3000)" > "$proj/AGENTS.md"
+( cd "$proj" && git init -q && git add -A && git commit -qm init )
+"$BOOT" --name "Own" --slug own --dir "$proj" --desc "d" --ticket OWN \
+        --layout embedded --merge --hooks none --non-interactive >/dev/null 2>&1
+lim="$proj/scripts/context-budget.json"
+check budget_merge_rewritten "$(cmp -s "$lim" "$SRC_ROOT/scripts/context-budget.json" && echo same || echo set)" "set"
+out=$(cd "$proj" && python3 scripts/check-context-budget.py 2>&1); rc=$?
+check budget_merge_green  "$rc" "0"
+check budget_merge_nowarn "$(echo "$out" | grep -c '^warn')" "0"
+check budget_merge_report "$(grep -c '^Context budget: `scripts/context-budget.json` was set' "$proj/.ai-sdlc/install-report.md")" "1"
+python3 -c "import sys; print('y' * 500)" >> "$proj/AGENTS.md"
+before=$(cat "$lim")
+"$BOOT" --name "Own" --slug own --dir "$proj" --desc "d" --ticket OWN \
+        --layout embedded --merge --hooks none --non-interactive >/dev/null 2>&1
+check budget_rerun_kept "$([ "$(cat "$lim")" = "$before" ] && echo yes)" "yes"
 rm -rf "$tmp"
 
 echo "---"

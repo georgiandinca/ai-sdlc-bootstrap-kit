@@ -7,7 +7,10 @@ Checks each SKILL.md for:
   - YAML frontmatter present, followed by a non-empty Markdown body
   - name        (required): 1-64 chars, lowercase a-z/0-9/hyphen, no leading,
                 trailing, or consecutive hyphens, equal to the parent dir name
-  - description (required): 1-1024 chars, non-empty
+  - description (required): 1-1024 chars, non-empty, and within the
+                context budget's description_max (default 500; read from
+                scripts/context-budget.json): every description is loaded
+                into every session
   - compatibility (optional): 1-500 chars
   - license     (optional): string
   - metadata    (optional): mapping of string -> string
@@ -23,6 +26,7 @@ Exit code 0 if all valid, 1 otherwise. Zero network dependency for CI.
 """
 from __future__ import annotations
 
+import json
 import re
 import sys
 from pathlib import Path
@@ -39,6 +43,19 @@ KNOWN_FIELDS = {"name", "description", "license", "compatibility", "metadata", "
 # repo root (the parent of this script's `scripts/` directory).
 DEFAULT_ROOTS = [".claude/skills", "docs/ai-context/skills"]
 
+# The context budget (check-context-budget.py) owns the description cap; a
+# project raises it there, with the reason in its CHANGELOG.
+BUDGET_REL = "scripts/context-budget.json"
+DEFAULT_DESCRIPTION_MAX = 500
+
+
+def description_max(repo_root: Path) -> int:
+    try:
+        value = json.loads((repo_root / BUDGET_REL).read_text(encoding="utf-8"))["description_max"]
+    except (OSError, ValueError, KeyError, TypeError):
+        return DEFAULT_DESCRIPTION_MAX
+    return value if isinstance(value, int) and value > 0 else DEFAULT_DESCRIPTION_MAX
+
 
 def split_frontmatter(text: str):
     """Return (frontmatter_str, body_str) or (None, reason) on failure."""
@@ -53,7 +70,7 @@ def split_frontmatter(text: str):
     return None, "unterminated frontmatter (missing closing '---')"
 
 
-def validate_file(path: Path) -> list[str]:
+def validate_file(path: Path, desc_max: int = DEFAULT_DESCRIPTION_MAX) -> list[str]:
     """Return a list of error strings ([] means valid). Warnings print inline."""
     errors: list[str] = []
     try:
@@ -100,6 +117,9 @@ def validate_file(path: Path) -> list[str]:
         errors.append(f"description must be 1-1024 chars (got {len(desc)})")
     elif not desc.strip():
         errors.append("description must be non-empty")
+    elif len(desc) > desc_max:
+        errors.append(f"description has {len(desc)} chars; the context budget allows "
+                      f"{desc_max} (cut {len(desc) - desc_max}; {BUDGET_REL})")
 
     compat = fm.get("compatibility")
     if compat is not None and (not isinstance(compat, str) or not (1 <= len(compat) <= 500)):
@@ -162,13 +182,14 @@ def main() -> int:
         print("No SKILL.md files found to validate.")
         return 0
 
+    desc_max = description_max(repo_root)
     failed = 0
     for path in targets:
         try:
             rel = path.resolve().relative_to(repo_root)
         except ValueError:
             rel = path
-        errs = validate_file(path)
+        errs = validate_file(path, desc_max)
         if errs:
             failed += 1
             print(f"FAIL  {rel}")
