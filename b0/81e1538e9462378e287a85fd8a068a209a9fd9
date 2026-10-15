@@ -1,0 +1,40 @@
+template/scripts/tests/test_check_context_budget.py
+  s_311e49fedc7547::t_16c8c529765578 183-241
+  s_311e49fedc7547::t_81c59348b680f5 295
+CHANGELOG.md
+  s_311e49fedc7547::t_80c8529969df71 41-45
+template/docs/governance/README.md
+  s_311e49fedc7547::t_5924329d374400 31-33
+template/scripts/bootstrap.sh
+  s_311e49fedc7547::t_1fb866687707cf 573,632-634
+template/scripts/check-context-budget.py
+  s_311e49fedc7547::t_7a26bca444cea9 32-33,59-63,66-83,85,102-103,105-108,142,144,147-149,164-166,207,225-229,247-250
+template/scripts/context-budget.json
+  s_311e49fedc7547::t_0ec95d2737d0e6 4
+template/scripts/tests/test_bootstrap.sh
+  s_a3f7c8ae86b723::t_3722b058eb37dd 560,562-564
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b081e1538e9462378e287a85fd8a068a209a9fd9",
+  "prompts": {},
+  "sessions": {
+    "s_311e49fedc7547": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6ea43dd3-6a42-4313-891f-125da1467c5f",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Georgian Dinca <geo@magnify.ro>"
+    },
+    "s_a3f7c8ae86b723": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a3ae3845-5646-438c-9b4d-ce73a5f9bc87",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Georgian Dinca <geo@magnify.ro>"
+    }
+  }
+}
