@@ -34,6 +34,17 @@ jobs:
       - name: Frontmatter validator unit tests (debt baseline)
         run: python3 scripts/tests/test_validate_frontmatter.py
 
+      # scripts/session/ ships with the 'standard' and 'full' profiles; skipped on 'minimal'.
+      - name: Validate session lifecycle-moments manifest
+        run: |
+          if [ ! -f scripts/session/moments.json ]; then echo "skipped: scripts/session/moments.json not installed"; exit 0; fi
+          python3 scripts/validate-moments.py
+
+      - name: Validate per-seat profiles manifest
+        run: |
+          if [ ! -f scripts/session/seat-profiles.json ]; then echo "skipped: scripts/session/seat-profiles.json not installed"; exit 0; fi
+          python3 scripts/validate-seat-profiles.py
+
       - name: Run knowledge-graph unit tests
         run: |
           python3 scripts/knowledge/tests/test_graph_store.py

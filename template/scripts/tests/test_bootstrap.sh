@@ -495,6 +495,22 @@ tmp=$(mktemp -d)
 check baseline_fresh_none "$([ -f "$tmp/f/.ai-sdlc/frontmatter-baseline.txt" ] && echo yes || echo no)" "no"
 rm -rf "$tmp"
 
+# The generated CI workflow runs both manifest validators, each skipped when its
+# manifest is not installed, and the validators pass on a fresh install.
+tmp=$(mktemp -d)
+"$BOOT" --name "Gate" --slug gate --dir "$tmp/g" --desc "d" --ticket G \
+        --layout embedded --hooks none --non-interactive >/dev/null 2>&1
+wf="$tmp/g/.github/workflows/ai-governance.yml"
+check ci_moments_step   "$(grep -c 'python3 scripts/validate-moments.py' "$wf")" "1"
+check ci_seats_step     "$(grep -c 'python3 scripts/validate-seat-profiles.py' "$wf")" "1"
+check ci_moments_skip   "$(grep -c 'skipped: scripts/session/moments.json not installed' "$wf")" "1"
+check ci_seats_skip     "$(grep -c 'skipped: scripts/session/seat-profiles.json not installed' "$wf")" "1"
+( cd "$tmp/g" && python3 scripts/validate-moments.py >/dev/null 2>&1 )
+check ci_moments_green  "$?" "0"
+( cd "$tmp/g" && python3 scripts/validate-seat-profiles.py >/dev/null 2>&1 )
+check ci_seats_green    "$?" "0"
+rm -rf "$tmp"
+
 echo "---"
 [ "$fails" -eq 0 ] && echo "all bootstrap tests passed" || echo "$fails test(s) failed"
 exit "$fails"
