@@ -1,0 +1,23 @@
+template/docs/governance/README.md
+  s_311e49fedc7547::t_527880fde03c73 23
+template/scripts/tests/test_validate_frontmatter.py
+  s_311e49fedc7547::t_9d6d3ecc3abe45 91-96,151-166,209-221
+template/scripts/validate-frontmatter.py
+  s_311e49fedc7547::t_b85655022a7cc2 37,156-157,160-161,168,224-226,232-233,235
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "eee7dd1a8e75d90aa794cc740c2a54339be439e5",
+  "prompts": {},
+  "sessions": {
+    "s_311e49fedc7547": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6ea43dd3-6a42-4313-891f-125da1467c5f",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Georgian Dinca <geo@magnify.ro>"
+    }
+  }
+}
