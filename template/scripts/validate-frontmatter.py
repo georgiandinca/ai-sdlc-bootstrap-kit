@@ -34,6 +34,7 @@ Exit 0 if all valid (baselined debt excepted), 1 otherwise, 2 on bad usage.
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -152,17 +153,19 @@ def git_ignored(repo_root: Path, paths: list[Path]) -> set[Path]:
     """The subset of `paths` git ignores. Empty outside a git work tree."""
     if not paths:
         return set()
+    # -z: NUL-separated and unquoted, so non-ASCII paths (which core.quotePath
+    # would otherwise C-quote) come back exactly as given.
     try:
         out = subprocess.run(
-            ["git", "-C", str(repo_root), "check-ignore", "--stdin"],
-            input="\n".join(str(p) for p in paths), text=True,
+            ["git", "-C", str(repo_root), "check-ignore", "-z", "--stdin"],
+            input=b"\0".join(os.fsencode(p) for p in paths),
             capture_output=True, timeout=30)
     except (OSError, subprocess.SubprocessError):
         return set()
     # Exit 1 means "nothing ignored"; 128 means "not a git repo".
     if out.returncode not in (0, 1):
         return set()
-    return {Path(line) for line in out.stdout.splitlines() if line.strip()}
+    return {Path(os.fsdecode(p)) for p in out.stdout.split(b"\0") if p}
 
 
 def rel_of(path: Path, repo_root: Path) -> str:
@@ -218,15 +221,18 @@ def main(argv: list[str] | None = None) -> int:
             debt.append(rel)
             print(f"debt  {rel}  (baselined)")
             continue
+        if args.write_baseline and baseline is None:
+            print(f"debt  {rel}  (adopting into the baseline)")
+            continue
         failed.append(rel)
         print(f"FAIL  {rel}")
         for e in errs:
             print(f"  - {e}")
 
-    # A baselined file that no longer exists is debt that is gone.
+    # A baselined file the full scan no longer covers (deleted, moved, renamed
+    # to an exempt name, now git-ignored) is debt that is gone.
     scanned = {rel_of(p, repo_root) for p in targets}
-    stale = sorted(r for r in known - scanned if not (repo_root / r).exists()) \
-        if full_scan else []
+    stale = sorted(known - scanned) if full_scan else []
 
     if args.write_baseline:
         if baseline is None:

@@ -88,6 +88,12 @@ class BaselineTests(unittest.TestCase):
         self.assertIn("docs/area0/legacy-0.md", entries)
         self.assertNotIn("docs/ok.md", entries)
 
+    def test_first_adoption_lists_inherited_docs_as_debt_not_failures(self):
+        r = self.adopt_ten()
+        self.assertNotIn("FAIL", r.stdout)
+        self.assertNotIn("missing YAML frontmatter", r.stdout)
+        self.assertIn("debt  docs/area0/legacy-0.md", r.stdout)
+
     def test_baselined_docs_pass_the_gate_as_debt(self):
         self.adopt_ten()
         r = self.repo.run()
@@ -142,6 +148,22 @@ class BaselineTests(unittest.TestCase):
         self.repo.run("--write-baseline")
         self.assertNotIn("docs/area2/legacy-2.md", self.repo.baseline())
 
+    def test_baselined_doc_moved_out_of_scope_is_reported_stale(self):
+        self.adopt_ten()
+        src = self.repo.root / "docs/area2/legacy-2.md"
+        (self.repo.root / "docs/drafts").mkdir()
+        src.rename(self.repo.root / "docs/drafts/legacy-2.md")
+        # Still on disk, but git now ignores it: out of scope all the same.
+        (self.repo.root / ".gitignore").write_text("docs/area2/legacy-5.md\n",
+                                                   encoding="utf-8")
+        r = self.repo.run()
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("remove from baseline", r.stdout)
+        self.assertIn("docs/area2/legacy-2.md", r.stdout)
+        self.assertIn("docs/area2/legacy-5.md", r.stdout)
+        self.repo.run("--write-baseline")
+        self.assertEqual(len(self.repo.baseline()), 8)
+
     def test_no_baseline_flag_fails_on_debt(self):
         self.adopt_ten()
         r = self.repo.run("--no-baseline")
@@ -179,6 +201,19 @@ class GitIgnoredTests(unittest.TestCase):
         r = repo.run()
         self.assertEqual(r.returncode, 0, r.stdout)
         self.assertNotIn("transcripts", r.stdout)
+        r = repo.run(str(ignored))
+        self.assertEqual(r.returncode, 0, r.stdout)
+        repo.run("--write-baseline")
+        self.assertEqual(repo.baseline(), [])
+
+    def test_git_ignored_non_ascii_paths_are_skipped(self):
+        repo = Repo(Path(self._tmp.name) / "proj")
+        (repo.root / ".gitignore").write_text("docs/\u00fc/\n", encoding="utf-8")
+        ignored = repo.doc("\u00fc/\u00e9.md")
+        repo.doc("ok.md", GOOD)
+        r = repo.run()
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertNotIn("FAIL", r.stdout)
         r = repo.run(str(ignored))
         self.assertEqual(r.returncode, 0, r.stdout)
         repo.run("--write-baseline")
