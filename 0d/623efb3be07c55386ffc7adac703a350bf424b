@@ -1,0 +1,43 @@
+template/scripts/tests/test_validate_frontmatter.py
+  s_311e49fedc7547::t_16d3691c737492 1-196
+template/scripts/bootstrap.sh
+  s_311e49fedc7547::t_ccb040aa0cbdec 530-557
+  s_311e49fedc7547::t_61f0d7a068d378 580-583
+  s_311e49fedc7547::t_2a62c3467f3261 31-32
+.github/workflows/ci.yml
+  s_311e49fedc7547::t_83f099bd835178 31-32
+.gitlab-ci.yml
+  s_311e49fedc7547::t_92b15492a294b3 40-41
+CHANGELOG.md
+  s_311e49fedc7547::t_b68271403cc191 18-35,212
+CONTRIBUTING.md
+  s_311e49fedc7547::t_bb48e9952a1469 47
+LICENSE
+  s_311e49fedc7547::t_ec4c05e74b67ae 4
+plugins/ai-sdlc-bootstrap-kit/skills/install-ai-sdlc-kit/SKILL.md
+  s_311e49fedc7547::t_796eb7c41d6cac 90
+template/.github/workflows/ai-governance.yml
+  s_311e49fedc7547::t_bdfff520f63ed1 34-35
+template/docs/governance/README.md
+  s_311e49fedc7547::t_2c2783dfe8b22d 12-23
+template/scripts/tests/test_bootstrap.sh
+  s_311e49fedc7547::t_e8f4206106e0fd 457-497
+template/scripts/validate-frontmatter.py
+  s_311e49fedc7547::t_ac932fe276c358 16-24,27-30,32,36-37,58-66,134-187,189-197,199-201,204-207,209,211,213-245,248-253
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0d623efb3be07c55386ffc7adac703a350bf424b",
+  "prompts": {},
+  "sessions": {
+    "s_311e49fedc7547": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6ea43dd3-6a42-4313-891f-125da1467c5f",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Georgian Dinca <geo@magnify.ro>"
+    }
+  }
+}
