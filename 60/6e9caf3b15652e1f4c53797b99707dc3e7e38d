@@ -1,0 +1,54 @@
+template/scripts/lib/redact.py
+  s_311e49fedc7547::t_3a030f8efabfae 318-326,329-333
+  s_311e49fedc7547::t_a6f83318649e14 1-317,327-328,334-340
+template/FOLDER-INDEX.md
+  s_311e49fedc7547::t_4d3fe0320f413a 42
+template/scripts/tests/test_redact.py
+  s_311e49fedc7547::t_fea59469684b49 1-436
+.github/workflows/ci.yml
+  s_311e49fedc7547::t_07a38b60881297 45-46
+.gitlab-ci.yml
+  s_311e49fedc7547::t_b16d352aef7bac 54-55
+CHANGELOG.md
+  s_311e49fedc7547::t_a063d4b139a27e 46-56,246
+CONTRIBUTING.md
+  s_311e49fedc7547::t_47b04cf09f1468 52
+template/.github/workflows/ai-governance.yml
+  s_311e49fedc7547::t_f9f42004a9a5cc 81
+template/docs/metrics/sessions/README.md
+  s_311e49fedc7547::t_0438708a04e893 18-22
+template/scripts/session/collect-usage.sh
+  s_311e49fedc7547::t_58f102fe1d58fd 6,17-32,60,63,67-68
+template/scripts/spend/README.md
+  s_311e49fedc7547::t_4c16848586d713 34-38
+template/scripts/spend/export_sessions.py
+  s_311e49fedc7547::t_701f3529c6ba76 7-8,26-27,32-47,138-140
+template/scripts/spend/import_sessions.py
+  s_311e49fedc7547::t_252419b43e5c5b 9-10,24-26,38,61-63
+template/scripts/spend/parse_transcript.py
+  s_311e49fedc7547::t_07530faaf4e4d2 7-9,26-30,107-116,169-179,182
+template/scripts/spend/tests/test_collect_usage.py
+  s_311e49fedc7547::t_023d24e191d6b8 64-79
+template/scripts/spend/tests/test_export_sessions.py
+  s_311e49fedc7547::t_c51087830aa676 113-137
+template/scripts/spend/tests/test_import_sessions.py
+  s_311e49fedc7547::t_3a6098f9cd6169 58,76-77,116-136
+template/scripts/spend/tests/test_parse_transcript.py
+  s_311e49fedc7547::t_2c392c0f55225a 126-160
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "606e9caf3b15652e1f4c53797b99707dc3e7e38d",
+  "prompts": {},
+  "sessions": {
+    "s_311e49fedc7547": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6ea43dd3-6a42-4313-891f-125da1467c5f",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Georgian Dinca <geo@magnify.ro>"
+    }
+  }
+}
