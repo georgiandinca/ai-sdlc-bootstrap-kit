@@ -123,5 +123,40 @@ class TestMainUpsert(unittest.TestCase):
                 "SELECT user FROM sessions WHERE session_id='sess-u'").fetchone()[0], "geo")
 
 
+# Planted secrets: synthetic, built from parts so no scanner mistakes them for real ones.
+PLANTED_TOKEN = "ghp_" + "a1B2c3D4e5F6g7H8i9J0" + "k1L2m3N4o5P6q7R8"
+PLANTED_PASSWORD = "hunter" + "2-planted"
+
+
+class TestPlantedSecrets(unittest.TestCase):
+    """Nothing the transcript or the hook hands over reaches the DB unredacted."""
+
+    def test_db_row_is_redacted_and_notes_hold_counts_only(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            transcript = Path(tmp) / "t.jsonl"
+            transcript.write_text("\n".join(json.dumps(r) for r in (
+                {"type": "user", "message": {"role": "user",
+                                             "content": f"password={PLANTED_PASSWORD}"}},
+                {"type": "assistant", "message": {
+                    "role": "assistant", "model": f"model-{PLANTED_TOKEN}",
+                    "usage": {"input_tokens": 10, "output_tokens": 2}}},
+            )) + "\n", encoding="utf-8")
+            db = Path(tmp) / "u.db"
+            rc = pt.main(["--transcript", str(transcript), "--session-id", "planted-1",
+                          "--task", f"rotate password={PLANTED_PASSWORD}",
+                          "--db", str(db)])
+            self.assertEqual(rc, 0)
+            conn = sqlite3.connect(db)
+            dump = "\n".join(conn.iterdump())
+            row = conn.execute("SELECT task, model, notes FROM sessions "
+                               "WHERE session_id='planted-1'").fetchone()
+            conn.close()
+            self.assertNotIn(PLANTED_TOKEN, dump)
+            self.assertNotIn(PLANTED_PASSWORD, dump)
+            self.assertEqual(row[0], "rotate password=<redacted:key_value>")
+            self.assertEqual(row[1], "model-<redacted:token_shape>")
+            self.assertIn("redacted: 1 key_value, 2 token_shape", row[2])
+
+
 if __name__ == "__main__":
     unittest.main()

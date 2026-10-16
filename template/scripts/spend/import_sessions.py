@@ -6,6 +6,8 @@ Upsert by session_id; an existing row is replaced only when the incoming
 tokens_in + tokens_out is >= the existing total — sessions only grow, so a
 fresher local parse never loses to an older committed CSV. Malformed files
 fail LOUDLY (ValueError naming file + line): never silently skip money data.
+Free-text columns are redacted (scripts/lib/redact.py) before the upsert, so
+a ledger written by an older kit cannot carry a secret into the DB.
 Stdlib only.
 
 Usage:  import_sessions.py [--dir docs/metrics/sessions] [--db dashboard/utilization.db]
@@ -19,7 +21,9 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from export_sessions import HEADER  # noqa: E402  (single source for the format)
+sys.path.insert(0, str(HERE.parent / "lib"))
+from export_sessions import HEADER, TEXT_COLUMNS  # noqa: E402  (single source for the format)
+import redact  # noqa: E402
 
 _INT_FIELDS = ("tokens_in", "tokens_out", "cache_read_tokens", "grounded")
 
@@ -28,9 +32,11 @@ def rows_from_csv(fileobj, stem, filename):
     reader = csv.reader(fileobj)
     header = next(reader, None)
     if header != HEADER:
-        raise ValueError(f"{filename}: unexpected header {header!r} "
+        shown = redact.redact_text(repr(header))[0]   # a header cell may hold anything
+        raise ValueError(f"{filename}: unexpected header {shown} "
                          f"(want {HEADER!r}) — schema drift, refusing to guess")
     rows = []
+    r = redact.Redactor()
     for i, rec in enumerate(reader, start=2):
         if len(rec) != len(HEADER):
             raise ValueError(f"{filename} line {i}: {len(rec)} fields, "
@@ -41,9 +47,11 @@ def rows_from_csv(fileobj, stem, filename):
         try:
             for key in _INT_FIELDS:
                 row[key] = int(row[key] or 0)
+            key = "cost_usd"
             row["cost_usd"] = float(row["cost_usd"] or 0)
-        except ValueError as exc:
-            raise ValueError(f"{filename} line {i}: {exc}") from exc
+        except ValueError:
+            # The cell's value is not echoed: a misplaced column may hold a secret.
+            raise ValueError(f"{filename} line {i}: {key} is not a number") from None
         for key in ("task", "ticket", "model", "notes"):
             row[key] = row[key] or None
         row["seat"] = row["seat"] or "unknown"
@@ -53,6 +61,9 @@ def rows_from_csv(fileobj, stem, filename):
             note = f"user column '{row['user']}' != file stem '{stem}'"
             row["notes"] = f"{row['notes']}; {note}" if row["notes"] else note
             row["user"] = stem  # files are per-user by contract (design §7)
+        for key in TEXT_COLUMNS:
+            if row[key]:
+                row[key] = r.text(row[key])
         rows.append(row)
     return rows
 

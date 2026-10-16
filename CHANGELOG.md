@@ -15,6 +15,20 @@ An entry says what a project that installs or updates the kit will notice.
 
 ## Unreleased
 
+### Added
+
+- **Secret redaction** — `scripts/lib/redact.py` replaces secrets with
+  `<redacted:KIND>` and reports counts per kind, never a value: your own
+  secrets, Authorization headers, JWTs, cookies and anti-forgery tokens,
+  credentials in URLs, secret-named `name=value` pairs, environment dumps,
+  PEM private keys and well-known token formats. Emails, IP addresses and
+  host names are kept. Scripts import it (`redact_text`, `redact_value`, or
+  the streaming `Redactor`); it also runs as a filter
+  (`python3 scripts/lib/redact.py [--secret-env NAME] [--counts] [FILE]`).
+  The session collector, the transcript parser and the team session ledger
+  export and import now redact free text before they write it, and the
+  collector's error log is redacted too. Ported from Emil Dan's fork. ([#20])
+
 ## [0.2.0] — 2026-10-16
 
 ### Added
@@ -234,6 +248,7 @@ seat, grouped by the date a change was merged to `main`.
 [#17]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/issues/17
 [#18]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/issues/18
 [#19]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/issues/19
+[#20]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/issues/20
 [0.2.0]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/releases/tag/v0.2.0
 [0.1.1]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/releases/tag/v0.1.1
 [0.1.0]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/releases/tag/v0.1.0

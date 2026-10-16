@@ -15,7 +15,11 @@ so a fresher local parse is never overwritten by an older committed CSV).
 
 **Privacy.** Rows carry `ticket` and `task`, visible to everyone with repo
 access. For sensitive client work leave `task` empty (the collector defaults
-it to empty) and/or keep ticket keys out of branch names. Data arrives with
+it to empty) and/or keep ticket keys out of branch names. Free-text columns
+pass `scripts/lib/redact.py` when a row is recorded, exported and imported:
+a token or password that lands in `task` or `notes` is written as
+`<redacted:KIND>`. Redaction is best effort, not a licence to paste secrets.
+Data arrives with
 commit latency — this ledger feeds retros and ROI reviews, not real-time
 monitoring. Rows are trusted to the same degree as repo write access — the importer
 takes each file's identity from its filename, but anyone who can push can

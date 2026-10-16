@@ -4,7 +4,8 @@
 Writes docs/metrics/sessions/<user>.csv — the WHOLE file, every run — from
 the local sessions table (team-session-ledger design §5). Rows sorted by ts
 then session_id so diffs touch only what changed; atomic replace so a killed
-run never leaves a torn file. Stdlib only.
+run never leaves a torn file. Free-text columns are redacted
+(scripts/lib/redact.py) before the file is written. Stdlib only.
 
 Usage:
   export_sessions.py --db dashboard/utilization.db \
@@ -22,10 +23,28 @@ import tempfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE.parent / "lib"))
+import redact  # noqa: E402
 
 HEADER = ["session_id", "ts", "user", "seat", "tool", "task", "ticket",
           "model", "tokens_in", "tokens_out", "cache_read_tokens",
           "cost_usd", "outcome", "grounded", "notes"]
+# Columns that hold free text, redacted on export and on import.
+TEXT_COLUMNS = ("seat", "tool", "task", "ticket", "model", "outcome", "notes")
+
+
+def redact_rows(rows):
+    """Redact TEXT_COLUMNS of HEADER-ordered rows; return (rows, counts per kind)."""
+    idx = [HEADER.index(c) for c in TEXT_COLUMNS]
+    out = []
+    r = redact.Redactor()
+    for row in rows:
+        row = list(row)
+        for i in idx:
+            if isinstance(row[i], str):
+                row[i] = r.text(row[i])
+        out.append(row)
+    return out, dict(r.counts)
 
 
 def sanitize_user(raw):
@@ -116,6 +135,9 @@ def main(argv=None):
     if not rows:
         print(f"[export-sessions] nothing to export for {user}")
         return 0
+    rows, counts = redact_rows(rows)
+    if counts:
+        print(f"[export-sessions] redacted {redact.format_counts(counts)}")
     out = Path(args.out_dir) / f"{user}.csv"
     write_ledger(rows, out)
     print(f"[export-sessions] wrote {len(rows)} rows to {out}")

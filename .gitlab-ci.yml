@@ -51,6 +51,8 @@ ai-governance:
   - python3 template/scripts/check-context-budget.py
   - echo "Running context-budget unit tests…"
   - python3 template/scripts/tests/test_check_context_budget.py
+  - echo "Running secret-redaction unit tests…"
+  - python3 template/scripts/tests/test_redact.py
   - echo "Merge-engine unit tests…"
   - bash template/scripts/tests/test_kit_merge.sh
   - echo "Pointer-writer unit tests…"
