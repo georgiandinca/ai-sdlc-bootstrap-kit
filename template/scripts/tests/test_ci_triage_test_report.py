@@ -390,6 +390,61 @@ class TestHardening(unittest.TestCase):
         self.assertEqual(sorted(by_id(doc)), ["p#TestA/sub1", "p#TestB"])
         self.assertEqual(doc["stats"]["total"], 4)       # sub1, sub2, TestB/ok, TestB
 
+    def test_a_long_secret_is_redacted_before_the_message_is_clipped(self):
+        payload = "eyJ" + "a" * 1500
+        jwt = "eyJ" + "hbGciOiJIUzI1NiJ9" + "." + payload + "." + "c2lnbmF0dXJlLXg"
+        p = self.write("cut.json", json.dumps({"testResults": [{"name": "a", "assertionResults": [
+            {"status": "failed", "title": "x", "failureMessages": ["boom jwt " + jwt]}]}]}))
+        for extra in ([], ["--json"]):
+            code, text, _ = run(p, *extra)
+            self.assertEqual(code, 0)
+            self.assertNotIn("a" * 40, text)
+        doc = run_json(p)
+        self.assertEqual(doc["redactions"], {"jwt": 1})
+        self.assertEqual(doc["failures"][0]["message"], "boom jwt <redacted:jwt>")
+
+    def test_deeply_nested_json_is_refused(self):
+        for name, text in (("deep.json", "[" * 100000 + "]" * 100000),
+                           ("deep.jsonl", '{"a":' * 100000 + "1" + "}" * 100000 + "\n")):
+            code, _, err = run(self.write(name, text))
+            self.assertEqual(code, 2, name)
+            self.assertNotIn("Traceback", err, name)
+            self.assertIn("unknown report format", err, name)
+
+    def test_failures_and_groups_are_capped(self):
+        cases = "".join(f'<testcase classname="g{i}" name="t{i}"><failure message="f"/></testcase>'
+                        for i in range(250))
+        cases += "".join(f'<testcase classname="e" name="e{i}"><error message="e"/></testcase>'
+                         for i in range(3))
+        cases += ('<testcase classname="r" name="r1"><flakyFailure message="x"/></testcase>')
+        p = self.write("many.xml", f"<testsuite>{cases}</testsuite>")
+        doc = run_json(p)
+        self.assertEqual(len(doc["failures"]), test_report.FAILURES_MAX)
+        self.assertEqual(doc["failures_omitted"], 254 - test_report.FAILURES_MAX)
+        self.assertEqual({f["status"] for f in doc["failures"]}, {"failed"})
+        self.assertEqual(len(doc["by_group"]), test_report.GROUPS_MAX)
+        self.assertEqual(doc["groups_omitted"], 251 - test_report.GROUPS_MAX)
+        self.assertEqual(doc["stats"]["failed"], 250)
+        code, text, _ = run(p)
+        self.assertIn(f"{254 - test_report.FAILURES_MAX} more failure(s) not shown", text)
+        self.assertLess(len(text.splitlines()), test_report.FAILURES_MAX + 20)
+        small = run_json(FIX / "junit-surefire.xml")
+        self.assertEqual((small["failures_omitted"], small["groups_omitted"]), (0, 0))
+        self.assertEqual([f["status"] for f in small["failures"]],
+                         ["failed", "error", "passed_on_rerun"])      # failures first
+
+    def test_tap_yaml_at_column_zero_ends_at_the_next_test(self):
+        p = self.write("y0.tap", "1..3\nnot ok 1 - first\n---\nmessage: 'boom'\nok: 1\n"
+                       "ok 2 - second\n# Subtest: s\nnot ok 3 - third\n")
+        doc = run_json(p)
+        self.assertEqual((doc["stats"]["total"], doc["stats"]["failed"]), (3, 2))
+        self.assertEqual(by_id(doc)["first"]["message"], "boom")
+        self.assertIn("third", by_id(doc))
+        p = self.write("y1.tap", "1..2\nnot ok 1 - first\n---\nmessage: 'boom'\n"
+                       "Bail out! gone\n")
+        self.assertIn("(bail out)", by_id(run_json(p)))
+
+
     def test_a_look_alike_redactor_is_not_trusted(self):
         fake = self.tmp / "proj"
         (fake / "scripts" / "lib").mkdir(parents=True)

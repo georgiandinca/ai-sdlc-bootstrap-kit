@@ -29,6 +29,10 @@ config, assertion, else other. Add a row to RULES to teach it a new pattern.
 passed in the same run, or a --compare report where the same test passed. One report
 alone never makes a test a flaky candidate.
 
+Output is bounded: at most FAILURES_MAX failures (failed tests first, then errors, then
+passed-on-rerun), GROUPS_MAX suites or packages and SKIPPED_MAX skipped ids are listed;
+the JSON says how many were left out (failures_omitted, groups_omitted).
+
 Every string in the output (messages, test names, groups, paths) is redacted by the
 kit's shared redactor (scripts/lib/redact.py); messages are then clipped to
 MESSAGE_CHARS. Without that redactor the script stops and shows nothing. Bounds: at
@@ -88,6 +92,8 @@ MATCH_CHARS = 4000
 TEXT_KEEP = 8000
 SLOWEST = 10
 SKIPPED_MAX = 100        # skipped test ids listed at most (the count is in stats)
+FAILURES_MAX = 200       # failures listed at most: failed, then errors, then rerun-passed
+GROUPS_MAX = 50          # suites or packages listed at most in by_group
 REPORT_SUFFIXES = (".xml", ".json", ".jsonl", ".ndjson", ".tap")
 CATEGORIES = ("infra", "network", "timeout", "build", "config", "assertion", "other")
 
@@ -255,7 +261,7 @@ def _go_event(line):
         return None
     try:
         ev = json.loads(line)
-    except ValueError:
+    except (ValueError, RecursionError):
         return None
     return ev if isinstance(ev, dict) and "Action" in ev else None
 
@@ -335,6 +341,7 @@ _TAP_SUBTEST = re.compile(r"^(?P<ind>\s*)# Subtest: (?P<name>.*)$")
 _TAP_BAIL = re.compile(r"^\s*Bail out!\s*(?P<why>.*)$")
 _TAP_YAML_START = re.compile(r"^\s*---\s*$")
 _TAP_YAML_END = re.compile(r"^\s*\.\.\.\s*$")
+_TAP_TEST_STRICT = re.compile(r"^\s*(?:not )?ok(?:\s+\d+|\s+-|\s*$)")   # not a YAML `ok:` key
 _TAP_COMMENT = re.compile(r"^\s*#\s?(?P<text>.*)$")
 _YAML_KEY = re.compile(r"^(?P<key>[\w-]+):\s*(?P<value>.*)$")
 TAP_TEXT_KEYS = ("error", "message", "stack", "at", "expected", "actual", "got", "wanted",
@@ -366,8 +373,12 @@ def parse_tap(raw, data, label):
         indent = len(line) - len(line.lstrip())
         if yaml is not None:
             closed = _TAP_YAML_END.match(line)
-            # a block with no `...` ends where the text goes back left of its `---`
-            if closed or (line.strip() and indent < yaml_indent):
+            # a block with no `...` ends where the text goes back left of its `---`,
+            # or at a test, subtest or bail-out line no deeper than the `---`
+            if closed or (line.strip() and indent < yaml_indent) or (
+                    indent <= yaml_indent and (_TAP_TEST_STRICT.match(line)
+                                               or _TAP_SUBTEST.match(line)
+                                               or _TAP_BAIL.match(line))):
                 if last is not None:
                     _apply_yaml(last, _tap_yaml(yaml))
                 yaml = None
@@ -513,7 +524,7 @@ def load(patterns, fmt, stdin):
         if raw.lstrip()[:1] in ("{", "["):
             try:
                 data = json.loads(raw)
-            except ValueError:
+            except (ValueError, RecursionError):         # not JSON, or nested too deep
                 data = None
         if fmt == "auto":
             chosen = next((p for p in PARSERS if p.detect(raw, data)), None)
@@ -543,11 +554,11 @@ def test_id(r):
 
 def report(inputs, records, compare):
     """The report; every string in it is redacted (names and paths can hold secrets
-    too). A message is redacted before it is clipped, so a cut never splits a secret."""
+    too). A message is redacted whole before it is clipped, so a cut never splits a
+    secret; a record's text is already bounded by TEXT_KEEP."""
 
     def first_line(text):
-        line = next((l.strip() for l in (text or "").splitlines() if l.strip()), "")
-        return line[:MESSAGE_CHARS * 4]
+        return next((l.strip() for l in (text or "").splitlines() if l.strip()), "")
 
     key = {"passed": "passed", "failed": "failed", "error": "errors", "skipped": "skipped",
            "passed_on_rerun": "rerun_passed"}
@@ -577,8 +588,14 @@ def report(inputs, records, compare):
                          "flaky_candidate": why is not None, "why": why})
         if r["status"] != "passed_on_rerun":
             groups[r["group"]] = groups.get(r["group"], 0) + 1
+    rank = {"failed": 0, "error": 1, "passed_on_rerun": 2}
+    failures.sort(key=lambda f: rank[f["status"]])      # stable: as read within a status
+    failures_omitted = max(0, len(failures) - FAILURES_MAX)
+    del failures[FAILURES_MAX:]
     by_group = [{"group": g, "failed": n}                # most failures first, then as read
                 for g, n in sorted(groups.items(), key=lambda kv: -kv[1])]
+    groups_omitted = max(0, len(by_group) - GROUPS_MAX)
+    del by_group[GROUPS_MAX:]
     slowest = [{"id": test_id(r), "duration_s": round(r["duration"], 3)}
                for r in sorted(records, key=lambda r: -r["duration"])[:SLOWEST]
                if r["duration"] > 0]
@@ -589,6 +606,7 @@ def report(inputs, records, compare):
     for f in doc["failures"]:
         if len(f["message"]) > MESSAGE_CHARS:
             f["message"] = f["message"][:MESSAGE_CHARS - 1] + "…"
+    doc["failures_omitted"], doc["groups_omitted"] = failures_omitted, groups_omitted
     doc["redactions"] = {k: counts[k] for k in redact.KINDS if counts.get(k)}
     return doc
 
@@ -602,7 +620,8 @@ def render(doc) -> list:
            f"({s['duration_s']} s)"]
     if doc["by_group"]:
         out.append("Failures per suite or package: "
-                   + ", ".join(f"{g['group'] or '?'} {g['failed']}" for g in doc["by_group"]))
+                   + ", ".join(f"{g['group'] or '?'} {g['failed']}" for g in doc["by_group"])
+                   + (f" (and {doc['groups_omitted']} more)" if doc["groups_omitted"] else ""))
     for f in doc["failures"]:
         line = f"- {f['status']} {f['id']} [{f['category']}]"
         if f["location"]:
@@ -612,6 +631,9 @@ def render(doc) -> list:
         out.append(line)
         if f["flaky_candidate"]:
             out.append(f"    flaky candidate: {f['why']}")
+    if doc["failures_omitted"]:
+        out.append(f"({doc['failures_omitted']} more failure(s) not shown; the first "
+                   f"{FAILURES_MAX} are listed, failed tests first. Narrow the input.)")
     if doc["skipped"]:
         more = s["skipped"] - len(doc["skipped"])
         out.append("Skipped: " + ", ".join(doc["skipped"])
