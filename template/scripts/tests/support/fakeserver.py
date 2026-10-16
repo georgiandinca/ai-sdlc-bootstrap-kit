@@ -19,10 +19,14 @@ which wins over the bare path for that method. A route value is one of:
 - `Seq(a, b, ...)`: each request gets the next answer, the last one repeating, e.g.
   `Seq(Reply(429, headers={"Retry-After": "0"}), Reply(200, {...}))`.
 
+Callables and Seqs are followed until a plain answer comes out, so they nest.
+
 `guarded(expected_authorization, answer)` answers only when the request carries that
-Authorization header, else `DENIED` (401). An unknown route answers 404, and a route
-that raises answers 500 and keeps the exception in `errors`; both bodies are JSON
-`{"error": ...}`. A request is recorded before its answer is sent, so a test that has
+Authorization header, else `DENIED` (401); a refused request does not use up a turn
+of a Seq. An unknown route answers 404. A route that raises, that never settles on an
+answer, or whose body cannot be encoded as JSON answers 500 and keeps the exception in
+`errors`; both bodies are JSON `{"error": ...}`. After `stop()`, a request on a
+connection that was kept open is dropped unanswered and not recorded. A request is recorded before its answer is sent, so a test that has
 the answer can read it from `requests` without waiting. Absolute-URI request lines
 (as sent to a proxy) are recorded too: `target` is the raw request target, `path` its
 path part. `routes` may be changed while the server runs.
@@ -46,6 +50,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 HOST = "127.0.0.1"
 HANDLER_TIMEOUT = 10        # seconds a connection may sit idle before it is dropped
+MAX_HOPS = 50               # callables and Seqs followed for one answer at most
 
 
 @dataclass
@@ -100,9 +105,7 @@ def guarded(expected_authorization: str, answer, denied: Reply = DENIED):
     """A route that gives `answer` only to a request whose Authorization header equals
     `expected_authorization`; any other request gets `denied`."""
     def route(req: Request):
-        if req.header("Authorization") != expected_authorization:
-            return denied
-        return answer(req) if callable(answer) and not isinstance(answer, Reply) else answer
+        return answer if req.header("Authorization") == expected_authorization else denied
     return route
 
 
@@ -115,6 +118,7 @@ class FakeServer:
         self._lock = threading.Lock()
         self._server: Optional[ThreadingHTTPServer] = None
         self._thread: Optional[threading.Thread] = None
+        self._stopped = threading.Event()
 
     # -- lifecycle --
     def __enter__(self) -> "FakeServer":
@@ -126,7 +130,8 @@ class FakeServer:
     def start(self) -> "FakeServer":
         if self._server is not None:
             raise RuntimeError("server already started")
-        self._server = _Server((HOST, 0), _handler_for(self))
+        self._stopped = threading.Event()        # per run: an old connection stays dropped
+        self._server = _Server((HOST, 0), _handler_for(self, self._stopped))
         self._thread = threading.Thread(target=self._server.serve_forever,
                                         kwargs={"poll_interval": 0.05},
                                         name="fakeserver", daemon=True)
@@ -139,6 +144,7 @@ class FakeServer:
         server, self._server = self._server, None
         if server is None:
             return
+        self._stopped.set()
         server.shutdown()
         server.server_close()
         if self._thread is not None:
@@ -182,20 +188,26 @@ class FakeServer:
             self._requests.append(req)
 
     def answer(self, req: Request) -> Reply:
-        """The Reply for `req` (also usable without a socket, e.g. to test routes)."""
+        """The Reply for `req`, its body already encoded to bytes (also usable without a
+        socket, e.g. to test routes). Never raises: a broken route answers 500."""
         route = self.routes.get((req.method, req.path), self.routes.get(req.path))
         if route is None:
-            return Reply(404, {"error": f"no route for {req.method} {req.path}"})
+            return _encoded(Reply(404, {"error": f"no route for {req.method} {req.path}"}))
         try:
-            if isinstance(route, Seq):
-                route = route.next()
-            if callable(route) and not isinstance(route, Reply):
-                route = route(req)
+            for _ in range(MAX_HOPS):
+                if isinstance(route, Seq):
+                    route = route.next()
+                elif callable(route) and not isinstance(route, Reply):
+                    route = route(req)
+                else:
+                    break
+            else:
+                raise RecursionError(f"route gave no answer after {MAX_HOPS} steps")
+            return _encoded(route if isinstance(route, Reply) else Reply(200, route))
         except Exception as exc:  # a broken route must not kill the handler thread
             with self._lock:
                 self._errors.append(exc)
-            return Reply(500, {"error": f"route failed: {type(exc).__name__}"})
-        return route if isinstance(route, Reply) else Reply(200, route)
+            return _encoded(Reply(500, {"error": f"route failed: {type(exc).__name__}"}))
 
 
 class _Server(ThreadingHTTPServer):
@@ -211,17 +223,23 @@ class _Server(ThreadingHTTPServer):
         super().handle_error(request, client_address)
 
 
-def _encode(body) -> bytes:
+def _encoded(reply: Reply) -> Reply:
+    """`reply` with its body as bytes; raises TypeError for a body JSON cannot hold."""
+    body = reply.body
     if body is None:
-        return b""
-    if isinstance(body, bytes):
-        return body
-    if isinstance(body, str):
-        return body.encode("utf-8")
-    return json.dumps(body).encode("utf-8")
+        data = b""
+    elif isinstance(body, bytes):
+        data = body
+    elif isinstance(body, str):
+        data = body.encode("utf-8")
+    elif isinstance(body, (dict, list, int, float, bool)):
+        data = json.dumps(body).encode("utf-8")
+    else:
+        raise TypeError(f"cannot send a {type(body).__name__} body")
+    return Reply(reply.status, data, {str(k): str(v) for k, v in reply.headers.items()})
 
 
-def _handler_for(owner: FakeServer):
+def _handler_for(owner: FakeServer, stopped: threading.Event):
     class Handler(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
         timeout = HANDLER_TIMEOUT
@@ -230,6 +248,9 @@ def _handler_for(owner: FakeServer):
             pass
 
         def _serve(self):
+            if stopped.is_set():                # a kept-open connection after stop()
+                self.close_connection = True
+                return
             length = int(self.headers.get("Content-Length") or 0)
             body = self.rfile.read(length) if length else b""
             parts = urllib.parse.urlsplit(self.path)
@@ -238,7 +259,7 @@ def _handler_for(owner: FakeServer):
                           dict(self.headers.items()), body)
             owner._record(req)
             reply = owner.answer(req)
-            data = _encode(reply.body)
+            data = reply.body
             self.send_response(reply.status)
             headers = {"Content-Type": "application/json"}
             headers.update(reply.headers)

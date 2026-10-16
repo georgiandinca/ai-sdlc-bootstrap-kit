@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Tests for support/fakeserver.py: the local fake HTTP server tests use instead of a
 real service. Every request here goes to 127.0.0.1; nothing leaves the machine."""
+import http.client
 import json
 import os
 import socket
@@ -102,6 +103,29 @@ class TestRouting(unittest.TestCase):
         self.assertEqual(len(self.srv.errors), 1)
         self.assertIsInstance(self.srv.errors[0], RuntimeError)
 
+    def test_a_body_that_cannot_be_encoded_answers_500_and_is_recorded(self):
+        self.srv.routes["/call"] = lambda req: {"when": {1, 2}}
+        self.srv.routes["/reply"] = Reply(200, {"when": {1, 2}})
+        self.srv.routes["/seq"] = Seq(object())
+        for path in ("/call", "/reply", "/seq"):
+            with self.subTest(path=path):
+                status, _, body = get(self.srv.url_for(path))
+                self.assertEqual(status, 500)
+                self.assertEqual(json.loads(body), {"error": "route failed: TypeError"})
+        self.assertEqual([type(e) for e in self.srv.errors], [TypeError] * 3)
+
+    def test_answers_resolve_through_nested_seqs_and_callables(self):
+        self.srv.routes["/n"] = lambda req: Seq(lambda r: Reply(202, {"deep": True}))
+        status, _, body = get(self.srv.url_for("/n"))
+        self.assertEqual((status, json.loads(body)), (202, {"deep": True}))
+
+    def test_a_route_that_never_settles_answers_500(self):
+        def loop(req):
+            return loop
+        self.srv.routes["/loop"] = loop
+        self.assertEqual(get(self.srv.url_for("/loop"))[0], 500)
+        self.assertIsInstance(self.srv.errors[0], RecursionError)
+
 
 class TestRecording(unittest.TestCase):
     def setUp(self):
@@ -178,6 +202,15 @@ class TestGuarded(unittest.TestCase):
                              {"p": "/a"})
             self.assertEqual(get(srv.url_for("/b"), headers={"Authorization": "t"})[0], 202)
 
+    def test_answer_may_be_a_seq(self):
+        routes = {"/r": fs.guarded("t", Seq(Reply(429, headers={"Retry-After": "0"}), {"ok": 1}))}
+        auth = {"Authorization": "t"}
+        with FakeServer(routes) as srv:
+            self.assertEqual(get(srv.url_for("/r"))[0], 401)       # a refusal uses no turn
+            self.assertEqual([get(srv.url_for("/r"), headers=auth)[0] for _ in range(3)],
+                             [429, 200, 200])
+            self.assertEqual(srv.errors, [])
+
 
 class TestLifecycle(unittest.TestCase):
     def test_binds_loopback_on_an_ephemeral_port(self):
@@ -203,6 +236,21 @@ class TestLifecycle(unittest.TestCase):
         done = threading.Event()
         threading.Thread(target=lambda: (srv.stop(), done.set()), daemon=True).start()
         self.assertTrue(done.wait(10), "stop() hung on an idle client")
+
+    def test_a_keep_alive_connection_gets_no_answer_after_stop(self):
+        srv = FakeServer({"/x": {}}).start()
+        conn = http.client.HTTPConnection("127.0.0.1", srv.port, timeout=5)
+        self.addCleanup(conn.close)
+        conn.request("GET", "/x")
+        resp = conn.getresponse()
+        resp.read()
+        self.assertEqual(resp.status, 200)
+        self.assertFalse(resp.will_close)            # the connection stays open
+        srv.stop()
+        with self.assertRaises((ConnectionError, http.client.HTTPException)):
+            conn.request("GET", "/x")
+            conn.getresponse()
+        self.assertEqual(len(srv.requests), 1)
 
     def test_context_manager_stops_on_error(self):
         with self.assertRaises(ValueError):

@@ -4,7 +4,8 @@ the team ledger is run end to end with the planted secrets (support/planted_secr
 in its input, and none may reach its stdout, stderr or any file it writes.
 
 One test per output surface; add one when a new script logs, persists or shows text
-it did not write itself. The secrets are synthetic and made fresh on every run.
+it did not write itself. The secrets are synthetic and made fresh on every run. A
+failure names the kind and the place, never the value, and never prints a whole output.
 """
 import csv
 import json
@@ -24,7 +25,9 @@ SPEND = SCRIPTS / "spend"
 TRIAGE = TEMPLATE / ".claude" / "skills" / "ci-failure-triage" / "scripts"
 sys.path.insert(0, str(HERE / "support"))
 sys.path.insert(0, str(SPEND))
+sys.path.insert(0, str(SCRIPTS / "lib"))
 import planted_secrets as ps  # noqa: E402
+import redact  # noqa: E402
 from export_sessions import HEADER  # noqa: E402
 
 CARRIER = ps.carrier()
@@ -71,13 +74,23 @@ class Sweep(ps.PlantedSecretsMixin, unittest.TestCase):
     def assertClean(self, proc, *files, what):
         self.assertNoPlantedSecrets(proc.stdout, proc.stderr, files=files, what=what)
 
+    def assertRan(self, proc, code=0):
+        """The exit code; on a mismatch, a summary that cannot carry a planted value."""
+        if (proc.returncode == code) if code is not None else proc.returncode != 0:
+            return
+        found = ps.leaks(proc.stdout, proc.stderr)
+        tail = ("(withheld: planted secrets in the streams)" if found
+                else redact.redact_text(proc.stderr[-800:])[0])
+        self.fail(f"exit {proc.returncode}, want {'non-zero' if code is None else code}; "
+                  f"leaks in streams: {found or 'none'}; stderr tail: {tail}")
+
 
 class TestRedactorFilter(Sweep):
     def test_filter_with_own_secret(self):
         proc = run([sys.executable, str(SCRIPTS / "lib" / "redact.py"),
                     "--secret-env", "PLANTED_OWN", "--counts"],
                    stdin=ps.carrier(own=True), env_extra={"PLANTED_OWN": ps.OWN_SECRET})
-        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertRan(proc)
         self.assertClean(proc, what="redact.py")
         self.assertEqual(set(json.loads(proc.stderr)), set(ps.PLANTED) | {"own_secret"})
 
@@ -89,12 +102,12 @@ class TestTranscriptParser(Sweep):
         proc = run([sys.executable, str(SPEND / "parse_transcript.py"),
                     "--transcript", str(write_transcript(self.tmp / "t.jsonl")),
                     "--session-id", "planted-1", "--task", CARRIER, "--db", str(db)])
-        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertRan(proc)
         self.assertClean(proc, db.parent, what="parse_transcript.py")
         with sqlite3.connect(db) as conn:
             dump = "\n".join(conn.iterdump())
         self.assertNoPlantedSecrets(dump, what="the usage DB")
-        self.assertIn("planted-1", dump)
+        self.assertTrue("planted-1" in dump, "the session row is missing")
 
 
 class TestLedgerExport(Sweep):
@@ -113,7 +126,7 @@ class TestLedgerExport(Sweep):
         out = self.tmp / "ledger"
         proc = run([sys.executable, str(SPEND / "export_sessions.py"), "--db", str(db),
                     "--out-dir", str(out), "--user", "dev1"])
-        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertRan(proc)
         self.assertClean(proc, out, what="export_sessions.py")
         self.assertTrue((out / "dev1.csv").is_file())
 
@@ -132,7 +145,7 @@ class TestLedgerImport(Sweep):
         out.mkdir()
         proc = run([sys.executable, str(SPEND / "import_sessions.py"), "--dir", str(ledger),
                     "--db", str(out / "u.db")])
-        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertRan(proc)
         self.assertClean(proc, out, what="import_sessions.py")
         with sqlite3.connect(out / "u.db") as conn:
             self.assertEqual(conn.execute("SELECT count(*) FROM sessions WHERE user='dev2'")
@@ -148,13 +161,16 @@ class TestLedgerImport(Sweep):
             f"x,{ps.PLANTED['key_value']},y\n", encoding="utf-8")
         proc = run([sys.executable, str(SPEND / "import_sessions.py"), "--dir", str(ledger),
                     "--db", str(self.tmp / "u.db")])
-        self.assertNotEqual(proc.returncode, 0)
+        self.assertRan(proc, code=None)
         self.assertClean(proc, what="import_sessions.py on a bad file")
 
 
 class TestSessionCollectorHook(Sweep):
     """collect-usage.sh in a throwaway copy of the kit's scripts: DB, ledger CSV, error
-    log and the hook's own streams."""
+    log and the hook's own streams. Secrets come in through the transcript (turns and
+    model name) and the seat (SESSION_SEAT reaches --seat). The ticket is cut from the
+    branch name by a pattern no secret matches, and the user is folded to lower case
+    and `[a-z0-9._-]`, so neither can carry a planted value as planted."""
 
     def setUp(self):
         super().setUp()
@@ -164,6 +180,8 @@ class TestSessionCollectorHook(Sweep):
             shutil.copytree(TEMPLATE / rel, self.root / rel, ignore=skip)
         run(["git", "init", "-q", str(self.root)])
         self.env = {"HOME": str(self.tmp), "GIT_CONFIG_NOSYSTEM": "1", "USER": "dev1",
+                    "SESSION_SEAT": f"QA {ps.PLANTED['token_shape']} "
+                                    f"password={ps.PLANTED['key_value']}",
                     "SDLC_USAGE_DB": str(self.tmp / "out" / "u.db"),
                     "SDLC_SESSIONS_DIR": str(self.tmp / "out" / "ledger")}
         (self.tmp / "out").mkdir()
@@ -171,7 +189,7 @@ class TestSessionCollectorHook(Sweep):
     def hook(self, payload):
         proc = run(["bash", "scripts/session/collect-usage.sh"], cwd=self.root,
                    env_extra=self.env, stdin=json.dumps(payload))
-        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertRan(proc)
         return proc
 
     def test_recorded_session(self):
@@ -179,7 +197,10 @@ class TestSessionCollectorHook(Sweep):
         proc = self.hook({"session_id": "planted-hook", "transcript_path": str(transcript)})
         self.assertClean(proc, self.tmp / "out", self.root / "scripts" / "session",
                          what="collect-usage.sh")
-        self.assertTrue((self.tmp / "out" / "ledger" / "dev1.csv").is_file())
+        csv_text = (self.tmp / "out" / "ledger" / "dev1.csv").read_text(encoding="utf-8")
+        # The seat went through, redacted: proof the planted field reached the output.
+        self.assertTrue("QA <redacted:token_shape> password=<redacted:key_value>" in csv_text,
+                        "the planted seat did not reach the ledger")
 
     def test_error_log(self):
         proc = self.hook({"session_id": "x",
@@ -199,25 +220,73 @@ class TestCiFailureTriage(Sweep):
                       ["--traces"], ["--json"], ["--first-error", "--json"]):
             with self.subTest(flags=flags):
                 proc = run([sys.executable, str(TRIAGE / "log_slice.py"), str(log), *flags])
-                self.assertEqual(proc.returncode, 0, proc.stderr)
+                self.assertRan(proc)
                 self.assertClean(proc, what=f"log_slice.py {' '.join(flags)}")
 
     def test_test_report_junit(self):
-        from xml.sax.saxutils import quoteattr, escape
-        report = self.tmp / "TEST-planted.xml"
-        report.write_text(
-            '<testsuite name="suite" tests="2" failures="1">'
-            f'<testcase classname="app.Login" name={quoteattr("login " + ps.PLANTED["token_shape"])}>'
-            f'<failure message={quoteattr(CARRIER)}>{escape(CARRIER)}</failure>'
-            f'<system-out>{escape(CARRIER)}</system-out></testcase>'
-            '<testcase classname="app.Login" name="ok"/></testsuite>', encoding="utf-8")
-        for flags in ([], ["--json"]):
-            with self.subTest(flags=flags):
-                proc = run([sys.executable, str(TRIAGE / "test_report.py"), str(report), *flags])
-                self.assertEqual(proc.returncode, 0, proc.stderr)
-                self.assertClean(proc, what=f"test_report.py {' '.join(flags)}")
-                self.assertIn("app.Login", proc.stdout)
+        proc = run([sys.executable, str(TRIAGE / "test_report.py"),
+                    str(junit_report(self.tmp)), "--json"])
+        self.assertRan(proc)
+        self.assertClean(proc, what="test_report.py --json")
+        self.assertEqual(json.loads(proc.stdout)["stats"]["failed"], len(JUNIT_KINDS))
+        proc = run([sys.executable, str(TRIAGE / "test_report.py"), str(junit_report(self.tmp))])
+        self.assertRan(proc)
+        self.assertClean(proc, what="test_report.py")
 
+    def test_test_report_junit_catches_each_kind_the_redactor_misses(self):
+        # The test above is only worth something if every planted value reaches the
+        # output when its rule is off: run against a redactor with one kind disabled.
+        report = junit_report(self.tmp)
+        for kind in JUNIT_KINDS:
+            with self.subTest(kind=kind):
+                skill = project_without(self.tmp / kind, kind)
+                proc = run([sys.executable, str(skill / "test_report.py"), str(report),
+                            "--json"])
+                self.assertRan(proc)
+                self.assertEqual(ps.leaks(proc.stdout), [kind])
+
+
+# test_report shows a failure's message by its first line only, and the id (group and
+# name). So each kind gets its own failing test with its carrier line first. env_dump
+# and private_key are multi-line, their value never on a first line: no field of this
+# report can carry them, and they are left out here.
+JUNIT_KINDS = [k for k in ps.PLANTED if k not in ("env_dump", "private_key")]
+
+
+def junit_report(folder):
+    from xml.sax.saxutils import escape, quoteattr
+    cases = [f'<testcase classname="app.Login" name="case_{kind}">'
+             f'<failure message={quoteattr(ps.carrier_lines(kind)[0])}>{escape(CARRIER)}'
+             '</failure></testcase>' for kind in JUNIT_KINDS]
+    path = Path(folder) / "TEST-planted.xml"
+    path.write_text(f'<testsuite name="suite" tests="{len(cases)}" failures="{len(cases)}">'
+                    + "".join(cases) + "</testsuite>", encoding="utf-8")
+    return path
+
+
+def project_without(root, kind):
+    """A throwaway project holding the ci-failure-triage helpers and a copy of the
+    shared redactor whose `kind` rule is switched off; the helpers' folder."""
+    skill = root / ".claude" / "skills" / "ci-failure-triage" / "scripts"
+    shutil.copytree(TRIAGE, skill, ignore=shutil.ignore_patterns("__pycache__"))
+    lib = root / "scripts" / "lib"
+    lib.mkdir(parents=True)
+    (lib / "redact.py").write_text(
+        (SCRIPTS / "lib" / "redact.py").read_text(encoding="utf-8") + f"""
+
+_DISABLED = {kind!r}
+_orig_sub = Redactor._sub
+
+
+def _sub(self, kind, pattern, repl, text):
+    return text if kind == _DISABLED else _orig_sub(self, kind, pattern, repl, text)
+
+
+Redactor._sub = _sub
+if _DISABLED == "auth_header":
+    Redactor._lone_scheme = lambda self, text: text
+""", encoding="utf-8")
+    return skill
 
 if __name__ == "__main__":
     unittest.main()

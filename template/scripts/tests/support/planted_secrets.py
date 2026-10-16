@@ -13,7 +13,8 @@ with `PlantedSecretsMixin.assertNoPlantedSecrets`:
 - `OWN_SECRET`  a value with no known shape: only redacted when the caller passes it as
                 its own secret (`redact_text(..., secrets=[...])`, `--secret-env`).
 - `SECRETS`     all of the above.
-- `carrier()`   text that holds each planted value where its redaction rule finds it.
+- `carrier()`   text that holds each planted value where its redaction rule finds it;
+                `carrier_lines(kind)` the lines for one kind.
 
 Every value is made at import time from a fresh random part, so none is written in any
 file beforehand (a file scan cannot match the test's own source) and no secret scanner
@@ -66,7 +67,9 @@ def named_secrets(extra: Optional[Dict[str, str]] = None) -> List[Tuple[str, str
     return pairs
 
 
-def _carrier_lines(kind: str) -> List[str]:
+def carrier_lines(kind: str) -> List[str]:
+    """The lines that carry PLANTED[kind]. One line, except env_dump (a run of `NAME=value`
+    lines) and private_key (a PEM block), whose value is never on the first line."""
     v = PLANTED[kind]
     return {
         "auth_header": [f"curl -H 'Authorization: Bearer {v}' https://ci.example.test/api"],
@@ -90,7 +93,7 @@ def carrier(kinds: Optional[Iterable[str]] = None, own: bool = False) -> str:
     for kind in (PLANTED if kinds is None else kinds):
         if kind not in PLANTED:
             raise KeyError(kind)
-        lines += _carrier_lines(kind)
+        lines += carrier_lines(kind)
         lines.append("step done")
     if own:
         lines.append(f"release note mentions {OWN_SECRET}")

@@ -3,6 +3,7 @@
 and the leak checks. The values are synthetic and made at runtime; none is in a file."""
 import base64
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -20,18 +21,33 @@ class TestValues(unittest.TestCase):
         self.assertEqual(set(ps.PLANTED), set(redact.KINDS) - {"own_secret"})
 
     def test_secrets_holds_every_planted_value_and_the_own_secret(self):
-        self.assertEqual(set(ps.SECRETS), set(ps.PLANTED.values()) | {ps.OWN_SECRET})
+        self.assertTrue(set(ps.SECRETS) == set(ps.PLANTED.values()) | {ps.OWN_SECRET})
         self.assertEqual(len(set(ps.SECRETS)), len(ps.SECRETS))
 
-    def test_values_are_fresh_per_run_and_not_in_any_source_file(self):
+    # Assertions below never pass a value or a whole text as a message or an operand
+    # that unittest prints: a failure must not put a token-shaped string in a CI log.
+
+    def test_values_are_not_in_any_source_file(self):
         for path in HERE.rglob("*.py"):
             text = path.read_text(encoding="utf-8")
             for name, value in ps.named_secrets():
-                self.assertNotIn(value, text, f"{name} is written in {path.name}")
+                self.assertFalse(value in text, f"{name} is written in {path.name}")
+
+    def test_values_are_fresh_per_run(self):
+        code = ("import sys; sys.path.insert(0, sys.argv[1]); import planted_secrets as ps; "
+                "print(ps.NONCE, *(len(v) for v in ps.SECRETS))")
+        runs = [subprocess.run([sys.executable, "-c", code, str(HERE / "support")],
+                               capture_output=True, text=True, timeout=60) for _ in range(2)]
+        for run in runs:
+            self.assertEqual(run.returncode, 0, run.stderr[-500:])
+        (n1, *lens1), (n2, *lens2) = (r.stdout.split() for r in runs)
+        self.assertRegex(n1, r"\A[0-9a-f]{8}\Z")
+        self.assertNotEqual(n1, n2)
+        self.assertEqual(lens1, lens2)            # fresh values, same shapes
 
     def test_own_secret_has_no_shape_the_rules_know(self):
         out, counts = redact.redact_text(f"note {ps.OWN_SECRET} end")
-        self.assertIn(ps.OWN_SECRET, out)
+        self.assertEqual(ps.leaks(out), ["own_secret"])
         self.assertEqual(counts, {})
 
     def test_values_survive_url_and_json_quoting_unchanged(self):
@@ -39,15 +55,14 @@ class TestValues(unittest.TestCase):
         import json
         import urllib.parse
         for name, value in ps.named_secrets():
-            self.assertEqual(urllib.parse.quote(value, safe=""), value, name)
-            self.assertEqual(json.dumps(value)[1:-1], value, name)
+            self.assertTrue(urllib.parse.quote(value, safe="") == value, name)
+            self.assertTrue(json.dumps(value)[1:-1] == value, name)
 
 
 class TestCarrier(unittest.TestCase):
     def test_redactor_catches_every_planted_value_in_the_carrier(self):
         text = ps.carrier()
-        for value in ps.PLANTED.values():
-            self.assertIn(value, text)
+        self.assertEqual(ps.leaks(text), list(ps.PLANTED))
         out, counts = redact.redact_text(text)
         self.assertEqual(ps.leaks(out), [])
         self.assertEqual(set(counts), set(ps.PLANTED))
@@ -132,7 +147,7 @@ class TestMixin(ps.PlantedSecretsMixin, unittest.TestCase):
         self.assertIn("jwt", msg)
         self.assertIn("out.csv: key_value", msg)
         for value in ps.SECRETS:
-            self.assertNotIn(value, msg)
+            self.assertFalse(value in msg, "a planted value is in the failure message")
 
     def test_a_missing_file_is_an_error_not_a_pass(self):
         with self.assertRaises(FileNotFoundError):
