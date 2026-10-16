@@ -1,0 +1,6 @@
+[2026-10-12T10:00:00.000Z] Build started
+[2026-10-12T10:00:05.000Z] Unhandled exception. System.InvalidOperationException: Sequence contains no elements
+[2026-10-12T10:00:05.000Z]    at System.Linq.ThrowHelper.ThrowNoElementsException()
+[2026-10-12T10:00:05.000Z]    at Shop.Billing.Invoice.First() in /src/Billing/Invoice.cs:line 27
+[2026-10-12T10:00:05.000Z]    at Shop.Billing.Program.Main(String[] args) in /src/Billing/Program.cs:line 9
+[2026-10-12T10:00:06.000Z] Build finished

@@ -60,6 +60,7 @@ This is the role-seat contract for the **Developer** — the seat that turns agr
 Maps to the board's Roles × Skills × MCP matrix; the Developer seat operates at `ai-trust: working`.
 
 - **Invokable skills:** this playbook (`playbook-dev`); the `test-driven-development`, `code-review`, and `systematic-debugging` skills where present; `skill-creator` to capture reusable workflows.
+- **Build or test failed:** use `ci-failure-triage`. It reads the log or the test reports through redacted, capped helpers and answers with evidence and a fix plan; change code only after that, as its own step.
 - **MCP — `context7` (HEAVY):** pull up-to-date library/framework/API docs and **prefer it over memory**. Ground every non-trivial library call on `context7` rather than guessing APIs.
 - **MCP — `knowledge`:** ground work on project conventions, prior decisions, and the agreed architecture before writing code.
 - **MCP — `issue-tracker`:** read the story and acceptance criteria, and update status — do not invent requirements not in the issue.

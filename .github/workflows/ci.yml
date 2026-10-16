@@ -44,6 +44,10 @@ jobs:
         run: python3 template/scripts/tests/test_check_context_budget.py
       - name: Secret-redaction unit tests
         run: python3 template/scripts/tests/test_redact.py
+      - name: ci-failure-triage helper tests
+        run: |
+          python3 template/scripts/tests/test_ci_triage_log_slice.py
+          python3 template/scripts/tests/test_ci_triage_test_report.py
 
       - name: Merge-engine unit tests
         run: bash template/scripts/tests/test_kit_merge.sh

@@ -1,0 +1,21 @@
+2026-10-12T10:00:00Z INFO app starting
+2026-10-12T10:00:01Z ERROR worker crashed
+Traceback (most recent call last):
+  File "/srv/app/worker.py", line 41, in run
+    result = handle(job)
+  File "/srv/app/jobs.py", line 17, in handle
+    return parse(job["payload"])
+  File "/srv/app/parse.py", line 9, in parse
+    raise ValueError("bad payload")
+ValueError: bad payload
+2026-10-12T10:00:02Z INFO retrying
+2026-10-12T10:00:03Z ERROR worker crashed
+Traceback (most recent call last):
+  File "/srv/app/worker.py", line 43, in run
+    result = handle(job)
+  File "/srv/app/jobs.py", line 17, in handle
+    return parse(job["payload"])
+  File "/srv/app/parse.py", line 9, in parse
+    raise ValueError("bad payload")
+ValueError: bad payload
+2026-10-12T10:00:04Z INFO giving up

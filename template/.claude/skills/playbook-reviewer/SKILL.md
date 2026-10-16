@@ -64,6 +64,7 @@ The Reviewer is normally an AI agent, and its findings are `working`-trust: evid
 - **The seat comes from the brief.** An agent told to hold this seat takes it for that task only. It does not run onboarding and does not read or change `USER.md` (`AGENTS.md` §0).
 - **Read first** — this playbook, then the sections of the review guide (§6) for what the change touches.
 - **MCP — knowledge** — ground the review on the project's knowledge graph, not on memory. Call `kg_freshness` first, then `kg_trace` with `depth: 1` on each ADR or story the change cites to find the code and tests that name it. A stale or empty graph goes under "not checked". The steps are in the review guide (§6).
+- **Failing checks on the change** — use `ci-failure-triage` to read the CI log or test reports (read-only, redacted, capped) and cite its evidence lines in the review. Do not paste raw logs.
 - **MCP — issue-tracker** — read the story and its acceptance criteria. The Reviewer does not write to the tracker; the author posts the review.
 - **Hard line** — read-only on the change. Experiments run on a copy in the scratch directory the brief names, never in the checkout or a shared temporary directory.
 
