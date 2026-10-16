@@ -48,6 +48,11 @@ jobs:
         run: |
           python3 template/scripts/tests/test_ci_triage_log_slice.py
           python3 template/scripts/tests/test_ci_triage_test_report.py
+      - name: Planted-secret sweep and test helpers
+        run: |
+          python3 template/scripts/tests/test_planted_secrets.py
+          python3 template/scripts/tests/test_fakeserver.py
+          python3 template/scripts/tests/test_no_secret_leaks.py
 
       - name: Merge-engine unit tests
         run: bash template/scripts/tests/test_kit_merge.sh

@@ -56,6 +56,10 @@ ai-governance:
   - echo "Running ci-failure-triage helper tests…"
   - python3 template/scripts/tests/test_ci_triage_log_slice.py
   - python3 template/scripts/tests/test_ci_triage_test_report.py
+  - echo "Running the planted-secret sweep and test helpers…"
+  - python3 template/scripts/tests/test_planted_secrets.py
+  - python3 template/scripts/tests/test_fakeserver.py
+  - python3 template/scripts/tests/test_no_secret_leaks.py
   - echo "Merge-engine unit tests…"
   - bash template/scripts/tests/test_kit_merge.sh
   - echo "Pointer-writer unit tests…"

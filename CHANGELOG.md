@@ -41,6 +41,19 @@ An entry says what a project that installs or updates the kit will notice.
   playbooks route failed builds and tests to it. Helpers adapted from Emil
   Dan's fork; flow and categories credit `warpdotdev/common-skills` and
   `patricio0312rev/skills` (both MIT). ([#21])
+- **Planted-secret tests and a fake HTTP server for tests** — a sweep
+  (`scripts/tests/test_no_secret_leaks.py`) runs the redactor filter, the
+  transcript parser, the team ledger export and import, the session
+  collector hook and the `ci-failure-triage` helpers end to end with fake
+  secrets of every redaction kind in their input, and fails if any reaches
+  stdout, stderr or a written file (DB, CSV, error log). Two stdlib-only test
+  helpers in `scripts/tests/support/`: `planted_secrets.py` (fresh fake values
+  on every run, text that carries them, leak checks that also catch base64
+  forms and name the kind, never the value) and `fakeserver.py` (canned JSON
+  routes on 127.0.0.1 with an ephemeral port, recorded requests, answer
+  sequences, an Authorization guard, clean shutdown) for the connector and
+  end-to-end tests to come. Fake server adapted from Emil Dan's fork; its
+  vendor fixtures were not taken. ([#24])
 
 ### Updating
 
@@ -272,6 +285,7 @@ seat, grouped by the date a change was merged to `main`.
 [#19]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/issues/19
 [#20]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/issues/20
 [#21]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/issues/21
+[#24]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/issues/24
 [0.2.0]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/releases/tag/v0.2.0
 [0.1.1]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/releases/tag/v0.1.1
 [0.1.0]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/releases/tag/v0.1.0
