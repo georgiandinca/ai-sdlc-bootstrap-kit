@@ -1,0 +1,21 @@
+template/scripts/lib/redact.py
+  s_311e49fedc7547::t_5307a983044e1c 15,131-134,137-138,143,145-147,290
+template/scripts/tests/test_redact.py
+  s_311e49fedc7547::t_2bfb980f20b3d3 125,186-187,257,449-450
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bd456b0a80433ce575aab3794b58de5931de3d95",
+  "prompts": {},
+  "sessions": {
+    "s_311e49fedc7547": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6ea43dd3-6a42-4313-891f-125da1467c5f",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Georgian Dinca <geo@magnify.ro>"
+    }
+  }
+}
