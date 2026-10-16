@@ -1,0 +1,25 @@
+{"Action":"start","Package":"example.com/shop/cart"}
+{"Action":"run","Package":"example.com/shop/cart","Test":"TestTotal"}
+{"Action":"output","Package":"example.com/shop/cart","Test":"TestTotal","Output":"=== RUN   TestTotal\n"}
+{"Action":"output","Package":"example.com/shop/cart","Test":"TestTotal","Output":"--- PASS: TestTotal (0.00s)\n"}
+{"Action":"pass","Package":"example.com/shop/cart","Test":"TestTotal","Elapsed":0}
+{"Action":"run","Package":"example.com/shop/cart","Test":"TestDiscount"}
+{"Action":"output","Package":"example.com/shop/cart","Test":"TestDiscount","Output":"=== RUN   TestDiscount\n"}
+{"Action":"output","Package":"example.com/shop/cart","Test":"TestDiscount","Output":"    cart_test.go:21: \n"}
+{"Action":"output","Package":"example.com/shop/cart","Test":"TestDiscount","Output":"        \tError Trace:\tcart_test.go:21\n"}
+{"Action":"output","Package":"example.com/shop/cart","Test":"TestDiscount","Output":"        \tError:      \tNot equal: 100 (expected) != 90 (actual)\n"}
+{"Action":"output","Package":"example.com/shop/cart","Test":"TestDiscount","Output":"--- FAIL: TestDiscount (0.01s)\n"}
+{"Action":"fail","Package":"example.com/shop/cart","Test":"TestDiscount","Elapsed":0.01}
+{"Action":"run","Package":"example.com/shop/cart","Test":"TestFetch"}
+{"Action":"output","Package":"example.com/shop/cart","Test":"TestFetch","Output":"    fetch_test.go:12: Get \"http://inventory.example.com/items\": dial tcp 10.0.0.5:80: connect: connection refused\n"}
+{"Action":"output","Package":"example.com/shop/cart","Test":"TestFetch","Output":"--- FAIL: TestFetch (0.20s)\n"}
+{"Action":"fail","Package":"example.com/shop/cart","Test":"TestFetch","Elapsed":0.2}
+{"Action":"run","Package":"example.com/shop/cart","Test":"TestSlow"}
+{"Action":"skip","Package":"example.com/shop/cart","Test":"TestSlow","Elapsed":0}
+{"Action":"output","Package":"example.com/shop/cart","Output":"FAIL\n"}
+{"Action":"fail","Package":"example.com/shop/cart","Elapsed":0.3}
+{"Action":"start","Package":"example.com/shop/api"}
+{"Action":"output","Package":"example.com/shop/api","Output":"# example.com/shop/api\n"}
+{"Action":"output","Package":"example.com/shop/api","Output":"api/handler.go:9:2: undefined: render\n"}
+{"Action":"output","Package":"example.com/shop/api","Output":"FAIL\texample.com/shop/api [build failed]\n"}
+{"Action":"fail","Package":"example.com/shop/api","Elapsed":0}

@@ -1,0 +1,8 @@
+{"numTotalTests":4,"success":false,"testResults":[
+ {"name":"/src/app/src/price.test.js","status":"failed","message":"","assertionResults":[
+  {"ancestorTitles":["price"],"title":"adds tax","fullName":"price adds tax","status":"passed","duration":4,"failureMessages":[]},
+  {"ancestorTitles":["price"],"title":"rounds","fullName":"price rounds","status":"failed","duration":7,"failureMessages":["Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: 10\nReceived: 9.99\n    at Object.<anonymous> (/src/app/src/price.test.js:14:23)"]},
+  {"ancestorTitles":["price"],"title":"slow path","fullName":"price slow path","status":"failed","duration":5001,"failureMessages":["thrown: \"Exceeded timeout of 5000 ms for a test.\""]},
+  {"ancestorTitles":["price"],"title":"later","fullName":"price later","status":"todo","duration":null,"failureMessages":[]}]},
+ {"name":"/src/app/src/cart.test.ts","status":"failed","message":"  ● Test suite failed to run\n\n    src/cart.test.ts:3:8 - error TS2307: Cannot find module './cart' or its corresponding type declarations.","assertionResults":[]}
+]}

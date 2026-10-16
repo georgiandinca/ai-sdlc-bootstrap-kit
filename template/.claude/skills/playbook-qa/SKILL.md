@@ -64,6 +64,7 @@ This is the role-seat contract for the **QA** seat on `<PROJECT_NAME>` — the s
 Ties to the board's Roles × Skills × MCP matrix. AI is a `working`-trust collaborator for this seat: it accelerates, it does not sign off.
 
 - **Invokable skills** — this playbook (role grounding); any test-generation / QA skills present in the repo; `skill-creator` to capture reusable QA patterns.
+- **Red build or failing test run** — `ci-failure-triage` reads the test reports and logs (read-only, redacted) and sorts failures into categories. It calls a test a flaky candidate only with a reason (a rerun in the same run, or `--compare` with another run).
 - **MCP — issue-tracker** — AI may create and manage bug/defect items and link them to tests **under the QA seat**; this is a *scoped-write* surface, not open-ended automation.
 - **MCP — knowledge** — ground generated test cases on the actual requirements/AC held in the knowledge layer so tests verify the spec, not the model's guess.
 - **MCP — docs-wiki** — draft test plans and traceability matrices for human review.

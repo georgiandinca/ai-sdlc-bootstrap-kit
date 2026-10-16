@@ -53,6 +53,9 @@ ai-governance:
   - python3 template/scripts/tests/test_check_context_budget.py
   - echo "Running secret-redaction unit tests…"
   - python3 template/scripts/tests/test_redact.py
+  - echo "Running ci-failure-triage helper tests…"
+  - python3 template/scripts/tests/test_ci_triage_log_slice.py
+  - python3 template/scripts/tests/test_ci_triage_test_report.py
   - echo "Merge-engine unit tests…"
   - bash template/scripts/tests/test_kit_merge.sh
   - echo "Pointer-writer unit tests…"

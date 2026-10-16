@@ -24,6 +24,7 @@ These are **Architect-owned baselines**; each seat holder may amend their own vi
 | Skill | Use it for |
 |---|---|
 | **skill-creator** | Create new skills, and improve / evaluate existing ones. Use it to add a team skill or sharpen one's triggering. |
+| **ci-failure-triage** | Find why a build or test run failed, from a pasted log, a log file or test reports (JUnit XML, `go test -json`, Jest/Vitest JSON, TAP). Read-only; its helpers redact and cap what they print. |
 
 > **Generic baseline (optional).** Teams commonly also bundle `brainstorming`, `writing-plans`, `test-driven-development`, `systematic-debugging`, and `code-review` here (e.g. from the Superpowers plugin) so the whole team shares one process baseline. Add the ones your team uses via PR; the playbooks reference them where relevant.
 

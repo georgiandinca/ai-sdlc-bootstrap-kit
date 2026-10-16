@@ -1,0 +1,6 @@
+2026-10-12T10:00:00.1234567Z Starting the test step
+2026-10-12T10:00:01.1234567Z java.lang.IllegalStateException: stock is negative
+2026-10-12T10:00:01.1234567Z 	at com.example.stock.Ledger.take(Ledger.java:10)
+2026-10-12T10:00:01.1234567Z 	at com.example.stock.Picker.pick(Picker.java:3)
+2026-10-12T10:00:02.1234567Z --- FAIL: TestPick (0.00s)
+2026-10-12T10:00:03.1234567Z Done

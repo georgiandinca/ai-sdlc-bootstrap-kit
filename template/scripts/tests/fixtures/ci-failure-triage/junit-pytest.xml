@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="2" skipped="1" tests="4" time="0.915" timestamp="2026-10-12T10:00:00" hostname="build-1"><testcase classname="tests.test_cart" name="test_total" time="0.002" /><testcase classname="tests.test_cart" name="test_discount" time="0.003"><failure message="assert 90 == 100">def test_discount():
+&gt;       assert discount(100) == 100
+E       assert 90 == 100
+E        +  where 90 = discount(100)
+
+tests/test_cart.py:14: AssertionError</failure></testcase><testcase classname="tests.test_plugins" name="test_loads_plugin" time="0.010"><failure message="ModuleNotFoundError: No module named 'shop_plugins'">tests/test_plugins.py:3: in &lt;module&gt;
+    import shop_plugins
+E   ModuleNotFoundError: No module named 'shop_plugins'</failure></testcase><testcase classname="tests.test_cart" name="test_tax" time="0.000"><skipped type="pytest.skip" message="needs tax tables">tests/test_cart.py:30: needs tax tables</skipped></testcase></testsuite></testsuites>
