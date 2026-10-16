@@ -28,6 +28,8 @@ jobs:
         run: bash tests/installer/test-detect-situation.sh
       - name: Validate doc frontmatter contract (AGENTS.md §4.2)
         run: python3 template/scripts/validate-frontmatter.py
+      - name: Frontmatter validator unit tests (debt baseline)
+        run: python3 template/scripts/tests/test_validate_frontmatter.py
       - name: Validate session lifecycle-moments manifest
         run: python3 template/scripts/validate-moments.py
       - name: Validator unit tests

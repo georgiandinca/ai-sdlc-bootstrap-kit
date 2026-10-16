@@ -28,6 +28,8 @@
 #                        existing files (marker-merge / copy-if-absent). The
 #                        outcome per path is written to .ai-sdlc/install-report.md
 #                        at the END of the run, so it reflects the final state.
+#                        On first install, docs that already lack frontmatter
+#                        are recorded as debt in .ai-sdlc/frontmatter-baseline.txt.
 #   --repos             "path=role[:nopointer],path=role,…" — other repos this
 #                        kit governs. A ":nopointer" suffix on the role lists
 #                        the repo in AGENTS.md §2 and the manifest but writes
@@ -525,6 +527,34 @@ elif [ "$hooks" = "none" ]; then
   echo "[bootstrap] hooks skipped (--hooks none)."
 fi
 
+# --- frontmatter baseline: inherited docs are debt, not a red gate ------------------
+# A --merge install inherits docs written before the frontmatter contract
+# existed. Recording them once, on first install, keeps the gate green on day
+# one while every new doc must still comply. A baseline already on disk is the
+# project's — never regenerated here, so a repeat run cannot adopt new debt.
+# Runs after `git init` so git-ignored files are left out. Only the kit's own
+# validator is trusted to write it: a project file at that path is left alone.
+baseline_note=""
+if [ "$merge" -eq 1 ]; then
+  baseline_rel=".ai-sdlc/frontmatter-baseline.txt"
+  validator="$dir/scripts/validate-frontmatter.py"
+  if [ -e "$dir/$baseline_rel" ] || [ -L "$dir/$baseline_rel" ]; then
+    :
+  elif ! cmp -s "$validator" "$TEMPLATE_ROOT/scripts/validate-frontmatter.py"; then
+    baseline_note="Frontmatter baseline: not written — \`scripts/validate-frontmatter.py\` is not the kit's. Pre-existing docs without frontmatter will fail the gate."
+  elif baseline_out=$(cd "$dir" && python3 "$validator" --write-baseline 2>&1); then
+    baselined=$(printf '%s\n' "$baseline_out" \
+      | sed -n 's/^baseline written: .* (\([0-9]*\) file(s) recorded as debt)$/\1/p')
+    baselined=${baselined:-0}
+    record_outcome "$baseline_rel" created
+    baseline_note="Frontmatter baseline: $baselined pre-existing doc(s) lack the frontmatter contract and are recorded as debt in \`$baseline_rel\`. The gate reports them without failing; new docs must comply. Pay the debt down as described in \`docs/governance/README.md\`."
+    echo "[bootstrap] frontmatter baseline: $baselined pre-existing doc(s) recorded as debt in $baseline_rel."
+  else
+    baseline_note="Frontmatter baseline: not written ($(printf '%s' "$baseline_out" | tail -1)). Run \`python3 scripts/validate-frontmatter.py --write-baseline\` once before the first commit."
+    echo "[bootstrap] frontmatter baseline NOT written: $(printf '%s' "$baseline_out" | tail -1)"
+  fi
+fi
+
 # --- the install report: the FINAL state of every path this run touched -------------
 # A copy-step line is printed only when nothing later in the run changed that
 # path's verdict, so a file that collided on copy and was then successfully
@@ -547,6 +577,10 @@ if [ "$merge" -eq 1 ]; then
       ' "$final_notes" "$copy_results"
       cat "$final_notes"
     } | sort | sed 's/^/- /'
+    if [ -n "$baseline_note" ]; then
+      echo
+      echo "$baseline_note"
+    fi
   } > "$dir/.ai-sdlc/install-report.md"
 fi
 

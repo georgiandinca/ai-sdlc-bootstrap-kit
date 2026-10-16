@@ -44,6 +44,7 @@ python3 template/scripts/validate-moments.py
 python3 template/scripts/validate-seat-profiles.py
 
 # Unit tests (knowledge graph, dashboard, spend/ROI, validators)
+python3 template/scripts/tests/test_validate_frontmatter.py
 python3 template/scripts/tests/test_validate_moments.py
 python3 template/scripts/tests/test_validate_seat_profiles.py
 python3 template/dashboard/tests/test_schema.py

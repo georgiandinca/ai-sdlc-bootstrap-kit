@@ -15,6 +15,24 @@ An entry says what a project that installs or updates the kit will notice.
 
 ## Unreleased
 
+### Added
+
+- **Frontmatter debt baseline** — `bootstrap.sh --merge` records docs that
+  already lack frontmatter in `.ai-sdlc/frontmatter-baseline.txt`, and the
+  install report says how many. `validate-frontmatter.py` reports them as
+  debt instead of failing, still fails on any new violation, and lists
+  baselined files that are fixed or deleted. `--write-baseline` writes the
+  baseline once and after that only shrinks it; `--no-baseline` shows the
+  full debt. Files that git ignores are no longer checked.
+  `docs/governance/README.md` says how to pay the baseline down. Adapted from
+  Emil Dan's fork. ([#17])
+
+### Updating
+
+- An installed project that already fails the frontmatter gate on inherited
+  docs can adopt them once with
+  `python3 scripts/validate-frontmatter.py --write-baseline`.
+
 ## [0.1.1] — 2026-10-14
 
 The plugin is listed in the Claude plugin directory, and the installer skill
@@ -191,5 +209,6 @@ seat, grouped by the date a change was merged to `main`.
 [#8]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/pull/8
 [#10]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/issues/10
 [#13]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/issues/13
+[#17]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/issues/17
 [0.1.1]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/releases/tag/v0.1.1
 [0.1.0]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/releases/tag/v0.1.0
