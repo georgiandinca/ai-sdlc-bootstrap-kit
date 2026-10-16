@@ -1,0 +1,21 @@
+template/.claude/skills/ci-failure-triage/scripts/test_report.py
+  s_311e49fedc7547::t_a4d720ba1fe947 32-35,95-96,264,344,376-381,527,557-558,561,591-594,597-598,609,623-624,634-636
+template/scripts/tests/test_ci_triage_test_report.py
+  s_311e49fedc7547::t_b26de91e148415 393-447
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4d271da63ff031cdcae691dd6136e6f52d6d7756",
+  "prompts": {},
+  "sessions": {
+    "s_311e49fedc7547": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6ea43dd3-6a42-4313-891f-125da1467c5f",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Georgian Dinca <geo@magnify.ro>"
+    }
+  }
+}
