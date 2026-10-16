@@ -9,12 +9,17 @@ auto-detected from the content unless --format names it. Adding a format is one
 parser function, one row and one fixture.
 - junit      JUnit XML: JVM runners (Surefire, Gradle), pytest --junitxml, .NET and
              JS loggers and many more. Surefire's rerun elements (flakyFailure,
-             flakyError) are read. A file with a DOCTYPE or ENTITY is refused.
-- go-json    `go test -json` output.
+             flakyError) are read. A document type or entity declaration is refused
+             (text that only looks like one, inside CDATA, is fine).
+- go-json    `go test -json` output; other lines in it (build errors from `2>&1`) are
+             kept as the text of a package that failed without a test. A parent test
+             whose subtests are listed is not counted, unless only it failed.
 - jest-json  Jest `--json` and Vitest `--reporter=json` output.
 - tap        TAP 12/13/14, with YAML diagnostics and indented subtests (node --test,
              prove, bats, ...). A parent whose subtests are listed is not counted.
-A folder means the REPORT_SUFFIXES files directly in it; `-` reads stdin.
+A folder means the REPORT_SUFFIXES files directly in it; `-` reads stdin. UTF-8 (with or
+without a byte order mark) and UTF-16 with a byte order mark are read. A report that
+does not fit its format's shape is refused with a one-line reason.
 
 Each failure gets one category from RULES, in order, first match wins, on its type
 and the first MATCH_CHARS characters of its text: infra, network, timeout, build,
@@ -24,8 +29,9 @@ config, assertion, else other. Add a row to RULES to teach it a new pattern.
 passed in the same run, or a --compare report where the same test passed. One report
 alone never makes a test a flaky candidate.
 
-Messages are redacted by the kit's shared redactor (scripts/lib/redact.py) and clipped
-to MESSAGE_CHARS; without the redactor the script stops and shows nothing. Bounds: at
+Every string in the output (messages, test names, groups, paths) is redacted by the
+kit's shared redactor (scripts/lib/redact.py); messages are then clipped to
+MESSAGE_CHARS. Without that redactor the script stops and shows nothing. Bounds: at
 most MAX_FILES files of MAX_FILE_BYTES each; TEXT_KEEP characters kept per failure.
 Stdlib only, Python 3.9+. It reads and prints; it never writes a file, never uses the
 network and never runs a program.
@@ -36,26 +42,40 @@ from __future__ import annotations
 
 import argparse
 import glob
+import importlib.util
+import io
+import itertools
 import json
 import re
 import sys
 import xml.etree.ElementTree as ET
+from xml.parsers import expat
 from pathlib import Path
 from typing import Callable, NamedTuple
 
 sys.dont_write_bytecode = True        # no __pycache__ next to the installed skill
 
 
+REDACTOR_API = ("KINDS", "Redactor", "redact_text", "redact_value")
+
+
 def _load_redactor():
-    """The kit's one redactor: the nearest scripts/lib/redact.py above this file."""
+    """The kit's one redactor: the nearest scripts/lib/redact.py above this file, used
+    only if it has the kit redactor's API. Anything else stops the script."""
     for base in Path(__file__).resolve().parents:
-        lib = base / "scripts" / "lib"
-        if (lib / "redact.py").is_file():
-            sys.path.insert(0, str(lib))
-            import redact
-            return redact
-    sys.stderr.write("test_report.py: cannot find scripts/lib/redact.py above this skill; "
-                     "nothing is shown unredacted.\n")
+        path = base / "scripts" / "lib" / "redact.py"
+        if path.is_file():
+            try:
+                spec = importlib.util.spec_from_file_location("redact", path)
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+            except Exception:         # noqa: BLE001  any failure means: not trusted
+                break
+            if all(hasattr(module, name) for name in REDACTOR_API):
+                return module
+            break
+    sys.stderr.write("test_report.py: cannot load the kit's scripts/lib/redact.py above "
+                     "this skill; nothing is shown unredacted.\n")
     sys.exit(2)
 
 
@@ -101,6 +121,7 @@ RULES = [
     _rule("rust", "build", r"\berror\[E\d+\]"),
     _rule("compile", "build", r"COMPILATION ERROR|compilation failed|cannot find symbol|"
                               r"\bSyntaxError\b"),
+    _rule("compiler-message", "build", r"^\S+\.go:\d+:\d+: |^\S+:\d+(?::\d+)?: error:"),
     _rule("module-missing", "config", r"ModuleNotFoundError|ImportError|Cannot find module|"
                                       r"ClassNotFoundException|NoClassDefFoundError|"
                                       r"cannot find package|no required module provides"),
@@ -156,22 +177,43 @@ def location(text):
 # A record: {group, name, status (passed|failed|error|skipped|passed_on_rerun),
 #            duration (s), kind, text, flaky_why}
 
-def _rec(group, name, status, duration=0.0, kind="", text="", why=None):
+def _num(value) -> float:
     try:
-        duration = float(duration or 0)
+        return float(value or 0)
     except (TypeError, ValueError):
-        duration = 0.0
+        return 0.0
+
+
+def _rec(group, name, status, duration=0.0, kind="", text="", why=None):
+    duration = _num(duration)
     return {"group": group or "", "name": name or "", "status": status, "duration": duration,
             "kind": kind or "", "text": (text or "")[:TEXT_KEEP], "flaky_why": why}
 
 
-def parse_junit(raw, data, label):
-    if "<!DOCTYPE" in raw or "<!ENTITY" in raw:
-        raise Refused(f"{label}: refused: a DOCTYPE or ENTITY declaration (not read, for safety)")
+def parse_xml(raw, label):
+    """An element tree; a document type or entity declaration stops the parse (no
+    external entities, no entity expansion)."""
+    def refuse(*_):
+        raise Refused(f"{label}: refused: a DOCTYPE or ENTITY declaration "
+                      "(not read, for safety)")
+
+    builder = ET.TreeBuilder()
+    p = expat.ParserCreate()
+    p.buffer_text = True
+    p.StartDoctypeDeclHandler = refuse
+    p.EntityDeclHandler = refuse
+    p.StartElementHandler = builder.start
+    p.EndElementHandler = builder.end
+    p.CharacterDataHandler = builder.data
     try:
-        root = ET.fromstring(raw)
-    except ET.ParseError as exc:
+        p.Parse(raw, True)
+        return builder.close()
+    except (expat.ExpatError, ValueError) as exc:
         raise Refused(f"{label}: not valid XML ({exc})") from None
+
+
+def parse_junit(raw, data, label):
+    root = parse_xml(raw, label)
     out = []
     for case in root.iter("testcase"):
         group = case.get("classname") or case.get("class") or ""
@@ -205,18 +247,28 @@ def parse_junit(raw, data, label):
 _GO_NOISE = re.compile(r"^\s*(=== (RUN|PAUSE|CONT|NAME)|--- (PASS|FAIL|SKIP))")
 
 
+def _go_event(line):
+    """The event on a `go test -json` line, or None for other output (build errors
+    and anything else written to the same stream)."""
+    line = line.strip()
+    if not line.startswith("{"):
+        return None
+    try:
+        ev = json.loads(line)
+    except ValueError:
+        return None
+    return ev if isinstance(ev, dict) and "Action" in ev else None
+
+
 def parse_go(raw, data, label):
-    tests, packages, order = {}, {}, []
-    for i, line in enumerate(raw.splitlines(), 1):
-        line = line.strip()
-        if not line:
+    tests, packages, order, stray, events = {}, {}, [], "", 0
+    for line in raw.splitlines():
+        ev = _go_event(line)
+        if ev is None:
+            if line.strip() and len(stray) < TEXT_KEEP:
+                stray += line.strip() + "\n"
             continue
-        try:
-            ev = json.loads(line)
-        except ValueError:
-            raise Refused(f"{label}: line {i} is not go test -json output") from None
-        if not isinstance(ev, dict):
-            raise Refused(f"{label}: line {i} is not go test -json output")
+        events += 1
         pkg, test, action = ev.get("Package") or "", ev.get("Test"), ev.get("Action")
         key = (pkg, test)
         store = tests if test else packages
@@ -230,19 +282,29 @@ def parse_go(raw, data, label):
         elif action in ("pass", "fail", "skip"):
             st["status"] = action
             st["elapsed"] = ev.get("Elapsed") or 0.0
+    if not events:
+        raise Refused(f"{label}: no go test -json events")
     out = []
     failed_pkgs = {k[0] for k, v in tests.items() if v["status"] == "fail"}
     mapping = {"pass": "passed", "skip": "skipped", "fail": "failed"}
+    children = {}                                # (pkg, parent test) -> a subtest failed
+    for pkg, test in order:
+        if "/" in test:
+            key = (pkg, test.rsplit("/", 1)[0])
+            children[key] = children.get(key, False) or tests[(pkg, test)]["status"] == "fail"
     for pkg, test in order:
         st = tests[(pkg, test)]
         status = st["status"]
         if status is None and packages.get((pkg, None), {}).get("status") == "fail":
             status = "fail"                      # still running when the package failed
+        if (pkg, test) in children and (status != "fail" or children[(pkg, test)]):
+            continue                             # a parent: its subtests are the tests
         if status in mapping:
             out.append(_rec(pkg, test, mapping[status], st["elapsed"], "", st["out"]))
     for (pkg, _), st in packages.items():
         if st["status"] == "fail" and pkg not in failed_pkgs:   # a build or setup failure,
-            out.append(_rec(pkg, "(package)", "error", st["elapsed"], "", st["out"]))  # or a crash
+            out.append(_rec(pkg, "(package)", "error", st["elapsed"], "",  # or a crash
+                            st["out"] or stray))
     return out
 
 
@@ -261,8 +323,8 @@ def parse_jest(raw, data, label):
             status = {"passed": "passed", "failed": "failed", "pending": "skipped",
                       "skipped": "skipped", "todo": "skipped",
                       "disabled": "skipped"}.get(a.get("status"), "passed")
-            text = "\n".join(a.get("failureMessages") or [])
-            dur = (a.get("duration") or 0) / 1000.0
+            text = "\n".join(str(m) for m in (a.get("failureMessages") or []) if m)
+            dur = _num(a.get("duration")) / 1000.0
             out.append(_rec(group, name, status, dur, "", text))
     return out
 
@@ -299,18 +361,24 @@ def _tap_yaml(lines):
 
 def parse_tap(raw, data, label):
     out, names = [], {}
-    last, prev_depth, diag_open, yaml = None, None, False, None
+    last, prev_depth, diag_open, yaml, yaml_indent = None, None, False, None, 0
     for line in raw.splitlines():
+        indent = len(line) - len(line.lstrip())
         if yaml is not None:
-            if _TAP_YAML_END.match(line):
+            closed = _TAP_YAML_END.match(line)
+            # a block with no `...` ends where the text goes back left of its `---`
+            if closed or (line.strip() and indent < yaml_indent):
                 if last is not None:
                     _apply_yaml(last, _tap_yaml(yaml))
                 yaml = None
-            elif len(yaml) < 400:
-                yaml.append(line)
-            continue
+                if closed:
+                    continue
+            else:
+                if len(yaml) < 400:
+                    yaml.append(line)
+                continue
         if _TAP_YAML_START.match(line) and last is not None:
-            yaml, diag_open = [], False
+            yaml, yaml_indent, diag_open = [], indent, False
             continue
         m = _TAP_SUBTEST.match(line)
         if m:
@@ -361,15 +429,11 @@ def _apply_yaml(rec, fields):
 
 
 def _first_line(raw):
-    return next((l.strip() for l in raw.splitlines()[:50] if l.strip()), "")
+    return next((l.strip() for l in itertools.islice(io.StringIO(raw), 50) if l.strip()), "")
 
 
 def _detect_go(raw, data):
-    try:
-        ev = json.loads(_first_line(raw))
-    except ValueError:
-        return False
-    return isinstance(ev, dict) and "Action" in ev
+    return any(_go_event(line) for line in itertools.islice(io.StringIO(raw), 50))
 
 
 _TAP_HEAD = re.compile(r"^(?:TAP version \d+|\d+\.\.\d+|(?:not )?ok\b)")
@@ -427,10 +491,13 @@ def read_input(label, path, stdin):
     too_big = Refused(f"{label}: larger than {MAX_FILE_BYTES} bytes; not read.")
     if path is None:
         raw = stdin.read(MAX_FILE_BYTES + 1)
+        raw = raw[1:] if raw.startswith("\ufeff") else raw
     else:
         if path.stat().st_size > MAX_FILE_BYTES:
             raise too_big
-        raw = path.read_bytes().decode("utf-8", "replace")
+        data = path.read_bytes()
+        utf16 = data[:2] in (b"\xff\xfe", b"\xfe\xff")
+        raw = data.decode("utf-16" if utf16 else "utf-8-sig", "replace")
     if len(raw) > MAX_FILE_BYTES:
         raise too_big
     return raw
@@ -457,7 +524,10 @@ def load(patterns, fmt, stdin):
             chosen = by_name[fmt]
         if chosen.wants_object and not isinstance(data, dict):
             raise Refused(f"{label}: not {chosen.name} (expected one JSON object).")
-        recs = chosen.parse(raw, data, label)
+        try:
+            recs = chosen.parse(raw, data, label)
+        except (TypeError, AttributeError, ValueError, KeyError) as exc:
+            raise Refused(f"{label}: not valid {chosen.name} ({type(exc).__name__})") from None
         for r in recs:
             r["report"] = label
         records += recs
@@ -472,14 +542,12 @@ def test_id(r):
 
 
 def report(inputs, records, compare):
-    redactions = {}
+    """The report; every string in it is redacted (names and paths can hold secrets
+    too). A message is redacted before it is clipped, so a cut never splits a secret."""
 
-    def clean(text):
-        first_line = next((l.strip() for l in (text or "").splitlines() if l.strip()), "")
-        red, counts = redact.redact_text(first_line)
-        for k, v in counts.items():
-            redactions[k] = redactions.get(k, 0) + v
-        return red if len(red) <= MESSAGE_CHARS else red[:MESSAGE_CHARS - 1] + "…"
+    def first_line(text):
+        line = next((l.strip() for l in (text or "").splitlines() if l.strip()), "")
+        return line[:MESSAGE_CHARS * 4]
 
     key = {"passed": "passed", "failed": "failed", "error": "errors", "skipped": "skipped",
            "passed_on_rerun": "rerun_passed"}
@@ -504,7 +572,7 @@ def report(inputs, records, compare):
         if why is None and tid in passed_elsewhere:
             why = f"passed in {passed_elsewhere[tid]}"
         failures.append({"id": tid, "status": r["status"], "category": category,
-                         "matched": matched, "message": clean(r["text"] or r["kind"]),
+                         "matched": matched, "message": first_line(r["text"] or r["kind"]),
                          "location": location(r["text"]), "report": r["report"],
                          "flaky_candidate": why is not None, "why": why})
         if r["status"] != "passed_on_rerun":
@@ -515,9 +583,14 @@ def report(inputs, records, compare):
                for r in sorted(records, key=lambda r: -r["duration"])[:SLOWEST]
                if r["duration"] > 0]
     skipped = [test_id(r) for r in records if r["status"] == "skipped"][:SKIPPED_MAX]
-    return {"inputs": inputs, "stats": stats, "by_group": by_group, "slowest": slowest,
-            "failures": failures, "skipped": skipped,
-            "redactions": {k: redactions[k] for k in redact.KINDS if redactions.get(k)}}
+    doc, counts = redact.redact_value({"inputs": inputs, "stats": stats,
+                                       "by_group": by_group, "slowest": slowest,
+                                       "failures": failures, "skipped": skipped})
+    for f in doc["failures"]:
+        if len(f["message"]) > MESSAGE_CHARS:
+            f["message"] = f["message"][:MESSAGE_CHARS - 1] + "…"
+    doc["redactions"] = {k: counts[k] for k in redact.KINDS if counts.get(k)}
+    return doc
 
 
 def render(doc) -> list:

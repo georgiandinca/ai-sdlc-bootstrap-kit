@@ -27,6 +27,9 @@ test_report = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(test_report)
 
 DB_SECRET = "s3cr" + "et-Value-" + "0123"
+GIT_TOKEN = "ghp_" + "a1B2c3D4e5F6g7H8i9J0" + "k1L2m3N4o5P6q7R8"
+CLOUD_KEY = "AKIA" + "ABCDEFGHIJKLMNOP"
+LAB_TOKEN = "glpat-" + "AbCdEfGhIj" + "KlMnOpQrSt"
 
 
 def run(*argv, stdin=None):
@@ -252,6 +255,153 @@ class TestReport(unittest.TestCase):
                               capture_output=True, text=True)
         self.assertEqual(proc.returncode, 0, proc.stderr)
         self.assertIn("[build]", proc.stdout)
+
+
+class TestHardening(unittest.TestCase):
+    """Malformed, hostile or unusual input: no traceback, no secret, no lost failure."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp)
+
+    def write(self, name, text, encoding="utf-8"):
+        p = self.tmp / name
+        p.write_bytes(text.encode(encoding))
+        return p
+
+    def test_secrets_in_test_names_groups_and_skips(self):
+        tap = self.write("n.tap", "TAP version 13\n1..2\n"
+                         f"not ok 1 - login with token {GIT_TOKEN} works\n"
+                         f"ok 2 - skip {CLOUD_KEY} # SKIP no creds\n")
+        xml = self.write("n.xml", '<testsuite><testcase classname="a.B" '
+                         f'name="test_login[password={DB_SECRET}]" time="1">'
+                         '<failure message="x">boom</failure></testcase>'
+                         f'<testcase classname="{LAB_TOKEN}" name="t2"><skipped/></testcase>'
+                         '</testsuite>')
+        for path in (tap, xml):
+            for extra in ([], ["--json"]):
+                code, text, err = run(path, *extra)
+                self.assertEqual(code, 0, err)
+                for secret in (GIT_TOKEN, CLOUD_KEY, LAB_TOKEN, DB_SECRET):
+                    self.assertNotIn(secret, text)
+        self.assertEqual(run_json(tap)["redactions"], {"token_shape": 2})
+        doc = run_json(xml)
+        self.assertEqual(doc["redactions"], {"key_value": 2, "token_shape": 1})  # id, slowest
+        self.assertIn("a.B#test_login[password=<redacted:key_value>", by_id(doc))
+        self.assertEqual(doc["skipped"], ["<redacted:token_shape>#t2"])
+
+    def test_malformed_json_is_refused_without_a_traceback(self):
+        cases = {
+            "go1.json": '{"Action":"run","Package":"p","Test":"T"}\n'
+                        '{"Action":"output","Package":"p","Test":"T","Output":5}\n',
+            "go2.json": '{"Action":"run","Package":["p"],"Test":"T"}\n',
+            "j1.json": '{"testResults":[1]}',
+            "j2.json": '{"testResults":"x"}',
+        }
+        for name, text in cases.items():
+            code, _, err = run(self.write(name, text))
+            self.assertEqual(code, 2, name)
+            self.assertIn("not valid", err, name)
+            self.assertNotIn("Traceback", err, name)
+
+    def test_odd_jest_values_are_tolerated(self):
+        p = self.write("j.json", '{"testResults":[{"name":"a","assertionResults":['
+                       '{"status":"failed","duration":"12","title":"x",'
+                       '"failureMessages":[{"m":1}]}]}]}')
+        doc = run_json(p)
+        self.assertEqual(doc["stats"]["failed"], 1)
+        self.assertEqual(doc["stats"]["duration_s"], 0.012)
+
+    def test_unterminated_tap_yaml_does_not_swallow_tests(self):
+        p = self.write("y.tap", "TAP version 13\n1..3\nnot ok 1 - first\n  ---\n"
+                       "  message: 'boom'\nok 2 - second\nnot ok 3 - third\n")
+        doc = run_json(p)
+        self.assertEqual((doc["stats"]["total"], doc["stats"]["failed"]), (3, 2))
+        self.assertEqual(by_id(doc)["first"]["message"], "boom")
+        self.assertIn("third", by_id(doc))
+
+    def test_byte_order_marks(self):
+        xml = '<?xml version="1.0" encoding="utf-8"?><testsuite><testcase classname="A" ' \
+              'name="x"><failure message="m"/></testcase></testsuite>'
+        self.assertEqual(run_json(self.write("bom.xml", "﻿" + xml))["stats"]["failed"], 1)
+        js = '{"testResults":[]}'
+        self.assertEqual(run_json(self.write("bom.json", "﻿" + js))["inputs"][0]["format"],
+                         "jest-json")
+        u16 = xml.replace("utf-8", "utf-16")
+        self.assertEqual(run_json(self.write("u16.xml", u16, "utf-16"))["stats"]["failed"], 1)
+        code, text, err = run("-", stdin=io.StringIO("﻿1..1\nnot ok 1 - a\n"))
+        self.assertEqual(code, 0, err)
+        self.assertIn("1 failed", text)
+
+    def test_doctype_inside_cdata_is_text(self):
+        p = self.write("html.xml", '<testsuite><testcase classname="ui.Page" name="renders">'
+                       '<failure message="snapshot mismatch"><![CDATA[expected <!DOCTYPE '
+                       'html><html>...]]></failure></testcase></testsuite>')
+        self.assertEqual(run_json(p)["stats"]["failed"], 1)
+
+    def test_entities_and_dtds_still_refused(self):
+        laughs = ('<?xml version="1.0"?><!DOCTYPE l [<!ENTITY a "aaaaaaaaaa">'
+                  '<!ENTITY b "&a;&a;&a;&a;&a;&a;&a;&a;&a;&a;">]>'
+                  '<testsuite><testcase name="&b;"/></testsuite>')
+        xxe = ('<?xml version="1.0"?><!DOCTYPE t [<!ENTITY x SYSTEM "file:///etc/hosts">]>'
+               '<testsuite><testcase name="&x;"/></testsuite>')
+        for name, text in (("laughs.xml", laughs), ("xxe.xml", xxe)):
+            code, out, err = run(self.write(name, text))
+            self.assertEqual(code, 2, name)
+            self.assertIn("DOCTYPE", err)
+            self.assertNotIn("localhost", out)
+        code, _, err = run(self.write("u7.xml", '<?xml version="1.0" encoding="UTF-7"?>'
+                                      '+ADw-!DOCTYPE x+AD4-<testsuite/>'))
+        self.assertEqual(code, 2)
+        self.assertNotIn("Traceback", err)
+
+    def test_go_json_after_build_output(self):
+        p = self.write("gobuild.json", "# example.com/foo\n"
+                       "foo_test.go:3:2: undefined: bar\n"
+                       '{"Action":"start","Package":"example.com/foo"}\n'
+                       '{"Action":"fail","Package":"example.com/foo","Elapsed":0}\n')
+        doc = run_json(p)
+        self.assertEqual(doc["inputs"][0]["format"], "go-json")
+        f = by_id(doc)["example.com/foo#(package)"]
+        self.assertEqual((f["status"], f["category"]), ("error", "build"))
+
+    def test_go_parent_with_failed_subtests_is_not_counted(self):
+        lines = [
+            {"Action": "run", "Package": "p", "Test": "TestA"},
+            {"Action": "run", "Package": "p", "Test": "TestA/sub1"},
+            {"Action": "output", "Package": "p", "Test": "TestA/sub1",
+             "Output": "    a_test.go:9: got 1 want 2\n"},
+            {"Action": "fail", "Package": "p", "Test": "TestA/sub1", "Elapsed": 0},
+            {"Action": "run", "Package": "p", "Test": "TestA/sub2"},
+            {"Action": "pass", "Package": "p", "Test": "TestA/sub2", "Elapsed": 0},
+            {"Action": "fail", "Package": "p", "Test": "TestA", "Elapsed": 0},
+            {"Action": "run", "Package": "p", "Test": "TestB"},
+            {"Action": "run", "Package": "p", "Test": "TestB/ok"},
+            {"Action": "pass", "Package": "p", "Test": "TestB/ok", "Elapsed": 0},
+            {"Action": "output", "Package": "p", "Test": "TestB",
+             "Output": "    b_test.go:20: cleanup failed\n"},
+            {"Action": "fail", "Package": "p", "Test": "TestB", "Elapsed": 0},
+            {"Action": "fail", "Package": "p", "Elapsed": 0},
+        ]
+        p = self.write("g.json", "".join(json.dumps(l) + "\n" for l in lines))
+        doc = run_json(p)
+        self.assertEqual(sorted(by_id(doc)), ["p#TestA/sub1", "p#TestB"])
+        self.assertEqual(doc["stats"]["total"], 4)       # sub1, sub2, TestB/ok, TestB
+
+    def test_a_look_alike_redactor_is_not_trusted(self):
+        fake = self.tmp / "proj"
+        (fake / "scripts" / "lib").mkdir(parents=True)
+        (fake / "scripts" / "lib" / "redact.py").write_text("def redact_text(t):\n    return t, {}\n")
+        skill = fake / ".claude" / "skills" / "ci-failure-triage" / "scripts"
+        skill.mkdir(parents=True)
+        shutil.copy(SCRIPT, skill / "test_report.py")
+        proc = subprocess.run([sys.executable, str(skill / "test_report.py"),
+                               str(FIX / "classic.tap")], capture_output=True, text=True)
+        self.assertEqual(proc.returncode, 2)
+        self.assertIn("redact.py", proc.stderr)
+        self.assertEqual(proc.stdout, "")
 
 
 class TestCategories(unittest.TestCase):

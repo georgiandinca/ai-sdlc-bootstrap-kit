@@ -8,12 +8,13 @@
 Every line is redacted first by the kit's shared redactor (scripts/lib/redact.py):
 secrets become <redacted:KIND> and are only counted. Without the redactor the script
 stops and shows nothing. Lines keep their number in the whole file, so they can be
-cited and used with --from-line.
+cited and used with --from-line. Terminal colour codes are removed as lines are read.
 
 - --since / --until: a time window. ISO-8601 (2026-10-12T10:00:00; a Z or +02:00
   offset is turned into UTC), "2026-10-12 10:00:00", or a bare "10:00" (the date of
   the first time stamp in the file). A stamp is read at the start of a line, bare or
-  in square brackets, with - or / between the date parts. In a log with stamps, a
+  in square brackets, with - or / between the date parts; level words, markers and
+  stack traces are read after it. In a log with stamps, a
   line without one (a stack-trace line) belongs to the line before it.
 - --level WARN: WARN and above (LEVEL_WORDS ranks the words; LEVEL_PREFIXES ranks
   lines such as "npm ERR!", "panic:" or a Python "Traceback").
@@ -36,9 +37,11 @@ from __future__ import annotations
 
 import argparse
 import gzip
+import importlib.util
 import json
 import re
 import sys
+import zlib
 from collections import deque
 from datetime import datetime, time, timedelta, timezone
 from pathlib import Path
@@ -46,16 +49,26 @@ from pathlib import Path
 sys.dont_write_bytecode = True        # no __pycache__ next to the installed skill
 
 
+REDACTOR_API = ("KINDS", "Redactor", "redact_text", "redact_value")
+
+
 def _load_redactor():
-    """The kit's one redactor: the nearest scripts/lib/redact.py above this file."""
+    """The kit's one redactor: the nearest scripts/lib/redact.py above this file, used
+    only if it has the kit redactor's API. Anything else stops the script."""
     for base in Path(__file__).resolve().parents:
-        lib = base / "scripts" / "lib"
-        if (lib / "redact.py").is_file():
-            sys.path.insert(0, str(lib))
-            import redact
-            return redact
-    sys.stderr.write("log_slice.py: cannot find scripts/lib/redact.py above this skill; "
-                     "nothing is shown unredacted.\n")
+        path = base / "scripts" / "lib" / "redact.py"
+        if path.is_file():
+            try:
+                spec = importlib.util.spec_from_file_location("redact", path)
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+            except Exception:         # noqa: BLE001  any failure means: not trusted
+                break
+            if all(hasattr(module, name) for name in REDACTOR_API):
+                return module
+            break
+    sys.stderr.write("log_slice.py: cannot load the kit's scripts/lib/redact.py above this "
+                     "skill; nothing is shown unredacted.\n")
     sys.exit(2)
 
 
@@ -135,7 +148,10 @@ TRACE_SHAPES = [
 _LINE_NO = re.compile(r":line \d+|:\d+(?::\d+)?|\s\+0x[0-9a-f]+")
 _STAMP = re.compile(r"^\s*\[?(\d{4})[-/](\d{2})[-/](\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?"
                     r"(?:[.,](\d+))?\s*(Z|[+-]\d{2}:?\d{2})?")
-_STAMP_PREFIX = re.compile(r"^\[[^\]]{0,64}\]\s?")       # a bracketed time stamp prefix
+# A leading time stamp, bare or in square brackets, and one space after it.
+_STAMP_PREFIX = re.compile(r"^\[?\d{4}[-/]\d{2}[-/]\d{2}[T ]\d{2}:\d{2}(?::\d{2})?(?:[.,]\d+)?"
+                           r"(?:\s?(?:Z|[+-]\d{2}:?\d{2}))?\]?[ \t]?")
+_CSI = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]")              # terminal colour codes
 _BARE_TIME = re.compile(r"^(\d{1,2}):(\d{2})(?::(\d{2}))?$")
 _LEVEL_WORD = re.compile(r"\b(" + "|".join(sorted(LEVEL_WORDS, key=len, reverse=True))
                          + r")\b")
@@ -248,7 +264,7 @@ def read_lines(path):
                 rest = line
                 while rest and not rest.endswith(("\n", "\r")):    # skip the overlong rest
                     rest = fh.readline(LINE_READ_MAX)
-            yield line.rstrip("\r\n")
+            yield _CSI.sub("", line.rstrip("\r\n"))
 
 
 def clip(text_, limit=LINE_CHARS) -> str:
@@ -256,10 +272,8 @@ def clip(text_, limit=LINE_CHARS) -> str:
 
 
 def body_of(text_) -> str:
-    """The line without a bracketed time stamp prefix."""
-    if text_.startswith("[") and _STAMP.match(text_):
-        return _STAMP_PREFIX.sub("", text_, count=1)
-    return text_
+    """The line without a leading time stamp (bare or bracketed)."""
+    return _STAMP_PREFIX.sub("", text_, count=1)
 
 
 def level_of(text_):
@@ -474,7 +488,7 @@ def slice_log(args):
                 if state["day"] is None:
                     state["day"] = stamp.date()
                 level = own
-            elif own is None and (state["stamped"] or t[:1] in (" ", "\t")):
+            elif own is None and (state["stamped"] or body_of(t)[:1] in (" ", "\t")):
                 level = state["level"]                 # a continuation line
             else:
                 level = own
@@ -580,7 +594,7 @@ def main(argv=None) -> int:
         ap.error(f"cannot read {args.file}: no such file")
     try:
         doc = slice_log(args)
-    except OSError as exc:
+    except (OSError, EOFError, zlib.error) as exc:      # also a corrupt or cut-off .gz
         print(f"log_slice.py: cannot read {args.file} ({type(exc).__name__})", file=sys.stderr)
         return 2
     if args.json:

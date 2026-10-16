@@ -282,5 +282,54 @@ class TestRedactionAndBounds(unittest.TestCase):
         self.assertIn("panic", proc.stdout)
 
 
+class TestHardening(unittest.TestCase):
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp)
+
+    def test_bare_iso_stamp_prefix(self):
+        doc = run_json(FIX / "runner-iso.log", "--traces", "--first-error")
+        g = groups_by_class(doc)["java.lang.IllegalStateException"]
+        self.assertEqual((g["shape"], g["first_n"]), ("jvm", 2))
+        self.assertIn("com.example.stock.Ledger.take(Ledger.java)", g["signature"])
+        self.assertEqual(doc["first_error"]["n"], 5)            # the --- FAIL marker
+
+    def test_ansi_colour_codes(self):
+        path = self.tmp / "ansi.log"
+        path.write_text("ok\n\x1b[31mERROR\x1b[0m something broke\n"
+                        "\x1b[1mBUILD FAILURE\x1b[0m\n")
+        doc = run_json(path, "--level", "ERROR")
+        self.assertEqual([l["text"] for l in doc["lines"]], ["ERROR something broke"])
+        path.write_text("ok\n\x1b[1mBUILD FAILURE\x1b[0m\n")
+        self.assertEqual(run_json(path, "--first-error")["first_error"]["n"], 2)
+
+    def test_corrupt_and_truncated_gzip(self):
+        whole = gzip.compress((FIX / "jvm.log").read_bytes())
+        for name, data in (("bad.gz", b"\x1f\x8b" + b"junkjunk"), ("cut.log.gz", whole[:40])):
+            path = self.tmp / name
+            path.write_bytes(data)
+            proc = subprocess.run([sys.executable, str(SCRIPT), str(path), "--first-error"],
+                                  capture_output=True, text=True)
+            self.assertEqual(proc.returncode, 2, name)
+            self.assertNotIn("Traceback", proc.stderr, name)
+            self.assertIn("cannot read", proc.stderr, name)
+            self.assertEqual(proc.stdout, "", name)
+
+    def test_a_look_alike_redactor_is_not_trusted(self):
+        proj = self.tmp / "proj"
+        (proj / "scripts" / "lib").mkdir(parents=True)
+        (proj / "scripts" / "lib" / "redact.py").write_text("KINDS = ()\n")
+        skill = proj / ".claude" / "skills" / "ci-failure-triage" / "scripts"
+        skill.mkdir(parents=True)
+        shutil.copy(SCRIPT, skill / "log_slice.py")
+        proc = subprocess.run([sys.executable, str(skill / "log_slice.py"),
+                               str(FIX / "jvm.log")], capture_output=True, text=True)
+        self.assertEqual(proc.returncode, 2)
+        self.assertIn("redact.py", proc.stderr)
+        self.assertEqual(proc.stdout, "")
+
+
 if __name__ == "__main__":
     unittest.main()
