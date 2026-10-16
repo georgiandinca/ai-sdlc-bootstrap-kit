@@ -495,6 +495,39 @@ tmp=$(mktemp -d)
 check baseline_fresh_none "$([ -f "$tmp/f/.ai-sdlc/frontmatter-baseline.txt" ] && echo yes || echo no)" "no"
 rm -rf "$tmp"
 
+# The generated CI workflow runs both manifest validators, each skipped when its
+# manifest is not installed, and the validators pass on a fresh install.
+tmp=$(mktemp -d)
+"$BOOT" --name "Gate" --slug gate --dir "$tmp/g" --desc "d" --ticket G \
+        --layout embedded --hooks none --non-interactive >/dev/null 2>&1
+wf="$tmp/g/.github/workflows/ai-governance.yml"
+check ci_moments_step   "$(grep -c 'python3 scripts/validate-moments.py' "$wf")" "1"
+check ci_seats_step     "$(grep -c 'python3 scripts/validate-seat-profiles.py' "$wf")" "1"
+check ci_moments_skip   "$(grep -c 'skipped: scripts/session/moments.json not installed' "$wf")" "1"
+check ci_seats_skip     "$(grep -c 'skipped: scripts/session/seat-profiles.json not installed' "$wf")" "1"
+( cd "$tmp/g" && python3 scripts/validate-moments.py >/dev/null 2>&1 )
+check ci_moments_green  "$?" "0"
+( cd "$tmp/g" && python3 scripts/validate-seat-profiles.py >/dev/null 2>&1 )
+check ci_seats_green    "$?" "0"
+# Run each step's own `run:` block: skips (exit 0) when the manifest is gone,
+# and fails when the manifest is invalid.
+step_run() { python3 -c "import sys,yaml
+for st in yaml.safe_load(open(sys.argv[1]))['jobs']['governance']['steps']:
+    if st.get('name')==sys.argv[2]: print(st['run'])" "$wf" "$1"; }
+for pair in "Validate session lifecycle-moments manifest|moments.json" \
+            "Validate per-seat profiles manifest|seat-profiles.json"; do
+  step=${pair%%|*}; man="$tmp/g/scripts/session/${pair##*|}"; cp "$man" "$man.bak"
+  rm "$man"
+  out=$(cd "$tmp/g" && bash -c "$(step_run "$step")" 2>&1); rc=$?
+  check "ci_skip_exit_${pair##*|}" "$rc" "0"
+  check "ci_skip_msg_${pair##*|}"  "$(echo "$out" | grep -c '^skipped:')" "1"
+  printf '{ not json' > "$man"
+  ( cd "$tmp/g" && bash -c "$(step_run "$step")" >/dev/null 2>&1 )
+  check "ci_invalid_fails_${pair##*|}" "$([ $? -ne 0 ] && echo yes)" "yes"
+  mv "$man.bak" "$man"
+done
+rm -rf "$tmp"
+
 echo "---"
 [ "$fails" -eq 0 ] && echo "all bootstrap tests passed" || echo "$fails test(s) failed"
 exit "$fails"

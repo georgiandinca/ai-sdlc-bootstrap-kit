@@ -26,6 +26,11 @@ An entry says what a project that installs or updates the kit will notice.
   full debt. Files that git ignores are no longer checked.
   `docs/governance/README.md` says how to pay the baseline down. Adapted from
   Emil Dan's fork. ([#17])
+- **Generated CI validates the session manifests** — the project's
+  `ai-governance.yml` now runs `validate-moments.py` and
+  `validate-seat-profiles.py`, so a bypassed pre-commit hook can no longer
+  merge a broken manifest. Each step skips when its manifest is not installed.
+  Adapted from Emil Dan's fork. ([#18])
 
 ### Updating
 
@@ -210,5 +215,6 @@ seat, grouped by the date a change was merged to `main`.
 [#10]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/issues/10
 [#13]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/issues/13
 [#17]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/issues/17
+[#18]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/issues/18
 [0.1.1]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/releases/tag/v0.1.1
 [0.1.0]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/releases/tag/v0.1.0
