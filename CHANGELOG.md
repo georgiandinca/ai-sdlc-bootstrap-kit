@@ -15,6 +15,8 @@ An entry says what a project that installs or updates the kit will notice.
 
 ## Unreleased
 
+## [0.3.0] — 2026-10-16
+
 ### Added
 
 - **Secret redaction** — `scripts/lib/redact.py` replaces secrets with
@@ -286,6 +288,7 @@ seat, grouped by the date a change was merged to `main`.
 [#20]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/issues/20
 [#21]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/issues/21
 [#24]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/issues/24
+[0.3.0]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/releases/tag/v0.3.0
 [0.2.0]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/releases/tag/v0.2.0
 [0.1.1]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/releases/tag/v0.1.1
 [0.1.0]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/releases/tag/v0.1.0
