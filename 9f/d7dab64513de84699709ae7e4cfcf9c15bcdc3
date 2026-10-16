@@ -1,0 +1,39 @@
+template/scripts/tests/test_fakeserver.py
+  s_311e49fedc7547::t_176ebf9dd0196a 1-250
+template/scripts/tests/support/planted_secrets.py
+  s_311e49fedc7547::t_8424f56c593fde 1-154
+template/scripts/tests/test_planted_secrets.py
+  s_311e49fedc7547::t_acb1d113b8d0e6 1-69,77-143
+  s_311e49fedc7547::t_091c780e2bb304 70-76
+template/scripts/tests/test_no_secret_leaks.py
+  s_311e49fedc7547::t_e0f3712d22c274 1-141,144-146,149-223
+  s_311e49fedc7547::t_a3bdee4e79d14f 142-143,147-148
+template/scripts/tests/support/fakeserver.py
+  s_311e49fedc7547::t_d524b5877b6662 1-276
+.github/workflows/ci.yml
+  s_311e49fedc7547::t_9811e8b5a16b69 51-55
+.gitlab-ci.yml
+  s_311e49fedc7547::t_fafa276a2e149b 59-62
+CHANGELOG.md
+  s_311e49fedc7547::t_6167e6d5e5e3c7 44-56,288
+CONTRIBUTING.md
+  s_311e49fedc7547::t_9aba5d8220c43c 55-57
+template/.github/workflows/ai-governance.yml
+  s_311e49fedc7547::t_afd7d38cff28af 84-86
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9fd7dab64513de84699709ae7e4cfcf9c15bcdc3",
+  "prompts": {},
+  "sessions": {
+    "s_311e49fedc7547": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6ea43dd3-6a42-4313-891f-125da1467c5f",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Georgian Dinca <geo@magnify.ro>"
+    }
+  }
+}
