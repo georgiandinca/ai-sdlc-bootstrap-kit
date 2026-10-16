@@ -134,6 +134,22 @@ class TestPlantedSecrets(unittest.TestCase):
             self.assertIn("used <redacted:token_shape>", text)
             self.assertIn("secret: <redacted:key_value>", text)
 
+    def test_counts_note_is_not_redacted_again(self):
+        # parse_transcript writes this note; exporting it must keep the real counts.
+        note = "redacted: " + ex.redact.format_counts({"own_secret": 1, "private_key": 1})
+        with tempfile.TemporaryDirectory() as tmp:
+            db = Path(tmp) / "u.db"
+            _seed_db(db, [("2026-07-01T10:00:00", "QA", "s1", "dev1", 1, 1)])
+            conn = dbmod.connect(db)
+            conn.execute("UPDATE sessions SET notes=? WHERE session_id='s1'", (note,))
+            conn.commit(); conn.close()
+            out = Path(tmp) / "ledger"
+            self.assertEqual(ex.main(["--db", str(db), "--out-dir", str(out),
+                                      "--user", "dev1"]), 0)
+            with open(out / "dev1.csv", encoding="utf-8", newline="") as f:
+                rows = list(csv.DictReader(f))
+            self.assertEqual(rows[0]["notes"], note)
+
 
 if __name__ == "__main__":
     unittest.main()

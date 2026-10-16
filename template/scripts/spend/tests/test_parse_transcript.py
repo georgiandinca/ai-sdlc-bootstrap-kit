@@ -155,7 +155,7 @@ class TestPlantedSecrets(unittest.TestCase):
             self.assertNotIn(PLANTED_PASSWORD, dump)
             self.assertEqual(row[0], "rotate password=<redacted:key_value>")
             self.assertEqual(row[1], "model-<redacted:token_shape>")
-            self.assertIn("redacted: key_value=1, token_shape=2", row[2])
+            self.assertIn("redacted: 1 key_value, 2 token_shape", row[2])
 
 
 if __name__ == "__main__":

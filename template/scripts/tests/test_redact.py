@@ -33,9 +33,15 @@ NPM_TOKEN = "npm_" + "abcdefghijklmnopqr" + "stuvwxyz0123456789"
 PYPI_TOKEN = "pypi-" + "AgEIcHlwaS5vcmc" + "x" * 50
 LLM_KEY = "sk-" + "ant-" + "api03-" + "fakeFAKEfake" + "0123456789abcdef"
 PAY_KEY = "sk_" + "live_" + "FAKEfake0123" + "456789abcdef"
+LLM_KEY_GENERIC = "sk-" + "proj-" + "Fake0fake1FAKE2" + "fake3fake4fake5fake6"
+CHAT_HOOK = ("https://hooks." + "chat.example.com/services/" + "T0FAKE01/"
+             + "B0FAKE02/" + "fakeWebhookSecret0123")
+# PEM armour lines, split so no scanner reads this file as holding a key.
+BEGIN, END, PRIV = "-----" + "BEGIN ", "-----" + "END ", "PRIVATE " + "KEY-----"
 
 ALL_TOKENS = (CLOUD_KEY, GIT_TOKEN, GIT_PAT, LAB_TOKEN, CHAT_TOKEN, TRACKER_TOKEN,
-              GOOGLE_KEY, NPM_TOKEN, PYPI_TOKEN, LLM_KEY, PAY_KEY)
+              GOOGLE_KEY, NPM_TOKEN, PYPI_TOKEN, LLM_KEY, PAY_KEY, LLM_KEY_GENERIC,
+              CHAT_HOOK)
 
 
 def run(lines, secrets=()):
@@ -107,9 +113,15 @@ class TestAuthHeader(Case):
         self.assert_redacted("sent Bearer Zm9vYmFyYmF6MTIz to the API", "auth_header",
                              "Zm9vYmFyYmF6MTIz")
 
+    def test_lower_case_scheme_alone(self):
+        self.assert_redacted("curl -H 'x: bearer Zm9vYmFyYmF6MTIz'", "auth_header",
+                             "Zm9vYmFyYmF6MTIz")
+        self.assert_redacted("BASIC dXNlcjpwYXNz1", "auth_header", "dXNlcjpwYXNz1")
+
     def test_words_kept(self):
         self.assert_kept("Basic authentication is enabled for the Bearer of the badge")
         self.assert_kept("Authorization failed for user u1")
+        self.assert_kept("basic authentication, bearer tokens and more")
 
 
 class TestJwt(Case):
@@ -158,6 +170,14 @@ class TestUrlCredentials(Case):
         self.assert_redacted("db postgres://app:pa55@db.example.com:5432/x",
                              "url_credentials", "pa55")
 
+    def test_scheme_with_plus(self):
+        self.assert_redacted("git+ssh://u1:pw77@git.example.com/x", "url_credentials", "pw77")
+
+    def test_password_holding_an_at_sign(self):
+        text = self.assert_redacted("https://u1:p@ss77@git.example.com/x", "url_credentials",
+                                    "ss77")
+        self.assertIn("https://<redacted:url_credentials>@git.example.com/x", text)
+
     def test_no_credentials_kept(self):
         self.assert_kept("see https://git.example.com")
         self.assert_kept("git@host.example.com:repo")
@@ -201,6 +221,37 @@ class TestKeyValue(Case):
     def test_empty_value_kept(self):
         self.assert_kept("password=")
         self.assert_kept("Enter password:")
+        self.assert_kept('password=""')
+
+    def test_quoted_value_is_taken_whole(self):
+        for line, value in (('{"password": "my secret pass Zq8"}', "secret pass Zq8"),
+                            ('password="ab,cd"', ",cd"),
+                            ("password='a&b'", "&b"),
+                            ('{"token": "a\\"b c"}', "b c")):
+            with self.subTest(line=line):
+                text = self.assert_redacted(line, "key_value", value)
+                self.assertTrue(text.endswith(('<redacted:key_value>"}', "<redacted:key_value>'",
+                                               '<redacted:key_value>"')), text)
+
+    def test_unclosed_quote_still_redacts_the_first_word(self):
+        self.assert_redacted('password="abc def', "key_value", "abc")
+
+    def test_more_name_shapes(self):
+        for line, value in (("-Dfoo.password=v1v1", "v1v1"), ("app.db-password=v2v2", "v2v2"),
+                            ('"x.token": "v3v3"', "v3v3"), ("--api-key=v4v4", "v4v4"),
+                            ("form password%3Dv5v5", "v5v5")):
+            with self.subTest(line=line):
+                self.assert_redacted(line, "key_value", value)
+
+    def test_space_separated_cli_flag(self):
+        text = self.assert_redacted("tool login --password v6v6 --user u1", "key_value", "v6v6")
+        self.assertEqual(text, "tool login --password <redacted:key_value> --user u1")
+        self.assert_redacted("tool --api-token v7v7", "key_value", "v7v7")
+
+    def test_cli_flag_lookalikes_kept(self):
+        self.assert_kept("tool --password-file pw.txt")
+        self.assert_kept("tool --no-password --verbose")
+        self.assert_kept("bypass=true compass: north primary_key=id")
 
 
 class TestEnvDump(Case):
@@ -233,8 +284,8 @@ class TestEnvDump(Case):
 
 
 class TestPrivateKey(Case):
-    PEM = ["-----BEGIN RSA PRIVATE KEY-----", "MIIEowIBAAKCAQEAsynthetic1",
-           "c3ludGhldGljMg", "c3ludGhldGljMw", "-----END RSA PRIVATE KEY-----"]
+    PEM = [BEGIN + "RSA " + PRIV, "MIIEowIBAAKCAQEAsynthetic1",
+           "c3ludGhldGljMg", "c3ludGhldGljMw", END + "RSA " + PRIV]
 
     def test_block_is_one_line(self):
         out, counts = run(["before"] + self.PEM + ["after"])
@@ -242,8 +293,8 @@ class TestPrivateKey(Case):
         self.assertEqual(counts, {"private_key": 1})
 
     def test_openssh_key(self):
-        pem = ["-----BEGIN OPENSSH PRIVATE KEY-----", "b3BlbnNzaC1rZXktdjEAsynthetic",
-               "-----END OPENSSH PRIVATE KEY-----"]
+        pem = [BEGIN + "OPENSSH " + PRIV, "b3BlbnNzaC1rZXktdjEAsynthetic",
+               END + "OPENSSH " + PRIV]
         out, counts = run(pem)
         self.assertEqual(out, ["<redacted:private_key>"])
 
@@ -256,19 +307,19 @@ class TestPrivateKey(Case):
         self.assertEqual(got, [(1, "before"), (2, "<redacted:private_key>"), (7, "after")])
 
     def test_public_certificate_kept(self):
-        cert = ["-----BEGIN CERTIFICATE-----", "MIIBszCCAVmgAwIBAgIU", "-----END CERTIFICATE-----"]
+        cert = [BEGIN + "CERTIFICATE-----", "MIIBszCCAVmgAwIBAgIU", END + "CERTIFICATE-----"]
         out, counts = run(cert)
         self.assertEqual(out, cert)
         self.assertEqual(counts, {})
 
     def test_unterminated_block_ends_at_the_first_line_that_is_not_key_text(self):
-        lines = ["-----BEGIN PRIVATE KEY-----"] + ["c3ludGhldGlj"] * 30 + ["later"]
+        lines = [BEGIN + PRIV] + ["c3ludGhldGlj"] * 30 + ["later"]
         out, counts = run(lines)
         self.assertEqual(out, ["<redacted:private_key>", "later"])
         self.assertEqual(counts, {"private_key": 1})
 
     def test_unterminated_block_stops_hiding_at_the_cap(self):
-        lines = ["-----BEGIN PRIVATE KEY-----"] + ["c3ludGhldGlj"] * redact.PEM_MAX_LINES + ["x y"]
+        lines = [BEGIN + PRIV] + ["c3ludGhldGlj"] * redact.PEM_MAX_LINES + ["x y"]
         out, _ = run(lines)
         self.assertEqual(out, ["<redacted:private_key>", "x y"])
         out, _ = run(lines[:-1] + ["c3ludGhldGlj", "x y"])
@@ -276,8 +327,8 @@ class TestPrivateKey(Case):
         self.assertEqual(len(out), 3)
 
     def test_one_line_key_in_json(self):
-        line = ('"key": "-----BEGIN PRIVATE KEY-----\\nMIIEsynthetic\\n'
-                '-----END PRIVATE KEY-----\\n", "x": 1')
+        line = ('"key": "' + BEGIN + PRIV + '\\nMIIEsynthetic\\n'
+                + END + PRIV + '\\n", "x": 1')
         out, counts = run([line])
         self.assertEqual(out, ['"key": "<redacted:private_key>\\n", "x": 1'])
         self.assertEqual(counts, {"private_key": 1})
@@ -306,7 +357,9 @@ class TestTokenShape(Case):
     def test_prefixes_and_short_lookalikes_kept(self):
         for line in ("AKIA is a prefix only", "ghp_short", "glpat-short",
                      "xoxb-1", "npm_install", "pypi-package", "sk-ant-x",
-                     "sk_live_x", "AIza too short"):
+                     "sk_live_x", "AIza too short",
+                     "sk-learn-is-a-short-name", "sk-" + "a-very-long-kebab-case-name-without-any-digit",
+                     "https://hooks.example.com/services/health"):
             with self.subTest(line=line):
                 self.assert_kept(line)
 
@@ -348,8 +401,12 @@ class TestRedactValue(unittest.TestCase):
 class TestFormatCounts(unittest.TestCase):
     def test_kind_order_and_empty(self):
         self.assertEqual(redact.format_counts({"token_shape": 2, "jwt": 1}),
-                         "jwt=1, token_shape=2")
+                         "1 jwt, 2 token_shape")
         self.assertEqual(redact.format_counts({}), "")
+
+    def test_formatted_counts_survive_redaction(self):
+        note = "redacted: " + redact.format_counts({k: 1 for k in redact.KINDS})
+        self.assertEqual(redact.redact_text(note), (note, {}))
 
 
 class TestStream(unittest.TestCase):
@@ -375,6 +432,21 @@ class TestStream(unittest.TestCase):
         _, counts = run(["password=hunter2", JWT])
         self.assertEqual(set(counts.values()), {1})
         self.assertTrue(set(counts) <= set(redact.KINDS))
+
+
+class TestLongLines(unittest.TestCase):
+    """No rule may take quadratic time on a long line without separators."""
+
+    def test_100_kb_lines_finish_fast(self):
+        import time
+        n = 100_000
+        for line in ("-" * n, "a." * (n // 2), "ab-cd." * (n // 6), "a+" * (n // 2),
+                     "x" * n, "a:" * (n // 2), "--password" * (n // 10),
+                     'password="' * (n // 10), "Bearer " * (n // 7)):
+            with self.subTest(line=line[:12]):
+                start = time.perf_counter()
+                redact.redact_text(line)
+                self.assertLess(time.perf_counter() - start, 1.0)
 
 
 class TestCli(unittest.TestCase):
@@ -411,6 +483,14 @@ class TestCli(unittest.TestCase):
             path.write_text(f"x {JWT}", encoding="utf-8")
             proc = self.cli(str(path))
         self.assertEqual(proc.stdout, "x <redacted:jwt>")
+
+    def test_invalid_utf8_on_stdin_is_replaced_not_fatal(self):
+        proc = subprocess.run([sys.executable, str(self.SCRIPT)],
+                              input=b"\xff\xfe x\npassword=hunter2\n",
+                              capture_output=True, timeout=60)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(proc.stdout.decode("utf-8"),
+                         "\ufffd\ufffd x\npassword=<redacted:key_value>\n")
 
     def test_missing_file_fails(self):
         proc = self.cli("/does/not/exist.log")

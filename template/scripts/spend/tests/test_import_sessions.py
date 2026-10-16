@@ -128,6 +128,16 @@ class TestPlantedSecrets(ImportHelpers, unittest.TestCase):
             self.assertEqual(got, [("posted with <redacted:token_shape>",
                                     "token: <redacted:key_value>")])
 
+    def test_errors_never_echo_a_cell_or_header_value(self):
+        with self.assertRaises(ValueError) as cm:
+            im.rows_from_csv(_csv(_row(tokens_in=PLANTED_TOKEN)), "dev1", "dev1.csv")
+        self.assertNotIn(PLANTED_TOKEN, str(cm.exception))
+        self.assertIn("tokens_in", str(cm.exception))
+        with self.assertRaises(ValueError) as cm:
+            im.rows_from_csv(io.StringIO(f"session_id,{PLANTED_TOKEN}\nx,y\n"), "dev1", "dev1.csv")
+        self.assertNotIn(PLANTED_TOKEN, str(cm.exception))
+        self.assertIn("dev1.csv", str(cm.exception))
+
     def test_stem_mismatch_note_is_redacted(self):
         rows = im.rows_from_csv(_csv(_row(user=f"x-{PLANTED_TOKEN}")), "dev1", "dev1.csv")
         self.assertNotIn(PLANTED_TOKEN, rows[0]["notes"])

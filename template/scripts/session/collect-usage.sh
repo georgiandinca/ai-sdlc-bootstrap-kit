@@ -22,12 +22,15 @@ redact_to_log() {
 }
 log_err() { printf '%s %s\n' "$(date -u +%FT%TZ)" "$1" | redact_to_log; }
 # Run "$@"; its stderr reaches the log redacted. Returns the command's status.
+# The raw stderr file is removed on any exit, even a killed run.
+raw_err=""
+trap 'rm -f "$raw_err"' EXIT
 run_logged() {
-  local tmp rc
-  tmp=$(mktemp "${TMPDIR:-/tmp}/collect-usage.XXXXXX" 2>/dev/null) || { "$@" 2>/dev/null; return; }
-  "$@" 2>"$tmp"; rc=$?
-  [ -s "$tmp" ] && redact_to_log < "$tmp"
-  rm -f "$tmp"
+  local rc
+  raw_err=$(mktemp "${TMPDIR:-/tmp}/collect-usage.XXXXXX" 2>/dev/null) || { "$@" 2>/dev/null; return; }
+  "$@" 2>"$raw_err"; rc=$?
+  [ -s "$raw_err" ] && redact_to_log < "$raw_err"
+  rm -f "$raw_err"; raw_err=""
   return "$rc"
 }
 

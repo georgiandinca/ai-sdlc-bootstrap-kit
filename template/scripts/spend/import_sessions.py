@@ -32,7 +32,8 @@ def rows_from_csv(fileobj, stem, filename):
     reader = csv.reader(fileobj)
     header = next(reader, None)
     if header != HEADER:
-        raise ValueError(f"{filename}: unexpected header {header!r} "
+        shown = redact.redact_text(repr(header))[0]   # a header cell may hold anything
+        raise ValueError(f"{filename}: unexpected header {shown} "
                          f"(want {HEADER!r}) — schema drift, refusing to guess")
     rows = []
     r = redact.Redactor()
@@ -46,9 +47,11 @@ def rows_from_csv(fileobj, stem, filename):
         try:
             for key in _INT_FIELDS:
                 row[key] = int(row[key] or 0)
+            key = "cost_usd"
             row["cost_usd"] = float(row["cost_usd"] or 0)
-        except ValueError as exc:
-            raise ValueError(f"{filename} line {i}: {exc}") from exc
+        except ValueError:
+            # The cell's value is not echoed: a misplaced column may hold a secret.
+            raise ValueError(f"{filename} line {i}: {key} is not a number") from None
         for key in ("task", "ticket", "model", "notes"):
             row[key] = row[key] or None
         row["seat"] = row["seat"] or "unknown"

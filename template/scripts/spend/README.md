@@ -35,7 +35,7 @@ sessions + invoices.
   `parse_transcript.py` (DB row), `export_sessions.py` (ledger CSV),
   `import_sessions.py` (DB row) and `collect-usage.sh` (error log) all use
   the shared `scripts/lib/redact.py`. Notes and logs record counts per kind
-  (`redacted: key_value=1`), never a value.
+  (`redacted: 1 key_value`), never a value.
 - **Batch discount (token-economy rule 7):** non-interactive jobs through the
   Batch API cost 50% of standard — spend rows for batch work land at that
   rate automatically since they come from the cost report. The dashboard

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """End-to-end test of the SessionEnd collector shell hook."""
 import json
+import shutil
 import sqlite3
 import subprocess
 import tempfile
@@ -76,6 +77,30 @@ class TestCollectUsage(unittest.TestCase):
         new = after[len(before):]
         self.assertIn("password=<redacted:key_value>", new)
         self.assertNotIn(planted, new)
+
+    def test_error_text_is_dropped_when_the_redactor_cannot_run(self):
+        planted = "pa" + "ss-pl4nted"
+        for broken in (None, "raise SystemExit(3)\n"):     # missing, then failing
+            with self.subTest(redactor="missing" if broken is None else "failing"), \
+                    tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                (root / "scripts" / "session").mkdir(parents=True)
+                shutil.copy(HOOK, root / "scripts" / "session" / HOOK.name)
+                if broken is not None:
+                    (root / "scripts" / "lib").mkdir()
+                    (root / "scripts" / "lib" / "redact.py").write_text(broken)
+                subprocess.run(["git", "init", "-q", str(root)], check=True)
+                payload = {"session_id": "x",
+                           "transcript_path": f"/does/not/exist?password={planted}"}
+                proc = subprocess.run(
+                    ["bash", str(root / "scripts" / "session" / HOOK.name)],
+                    input=json.dumps(payload), text=True, cwd=root,
+                    env={"PATH": "/usr/bin:/bin:/usr/local/bin"},
+                    capture_output=True, timeout=60)
+                self.assertEqual(proc.returncode, 0, proc.stderr)
+                log = (root / "scripts" / "session" / ".usage-errors.log").read_text()
+                self.assertNotIn(planted, log)
+                self.assertRegex(log, r"\A\S+ redaction failed; error text dropped\n\Z")
 
 
 if __name__ == "__main__":
