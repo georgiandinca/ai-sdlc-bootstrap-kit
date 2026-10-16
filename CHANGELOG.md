@@ -15,6 +15,8 @@ An entry says what a project that installs or updates the kit will notice.
 
 ## Unreleased
 
+## [0.2.0] — 2026-10-16
+
 ### Added
 
 - **Frontmatter debt baseline** — `bootstrap.sh --merge` records docs that
@@ -232,5 +234,6 @@ seat, grouped by the date a change was merged to `main`.
 [#17]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/issues/17
 [#18]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/issues/18
 [#19]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/issues/19
+[0.2.0]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/releases/tag/v0.2.0
 [0.1.1]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/releases/tag/v0.1.1
 [0.1.0]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/releases/tag/v0.1.0
