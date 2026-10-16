@@ -41,6 +41,14 @@ repos:
         files: ^scripts/session/seat-profiles\.json$
         pass_filenames: false
 
+      - id: check-context-budget
+        name: Context budget for always-loaded instructions
+        entry: python scripts/check-context-budget.py
+        language: python
+        additional_dependencies: ["pyyaml>=6"]
+        files: ^(AGENTS\.md|CLAUDE\.md|\.claude/rules/.*\.md|\.claude/skills/.*SKILL\.md|scripts/context-budget\.json)$
+        pass_filenames: false
+
       - id: commit-msg-ticket
         name: Commit message references an issue key (advisory)
         entry: python scripts/git/commit_msg_ticket.py --mode warn

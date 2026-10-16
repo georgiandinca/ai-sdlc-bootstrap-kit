@@ -26,12 +26,32 @@ An entry says what a project that installs or updates the kit will notice.
   full debt. Files that git ignores are no longer checked.
   `docs/governance/README.md` says how to pay the baseline down. Adapted from
   Emil Dan's fork. ([#17])
+- **Generated CI validates the session manifests** — the project's
+  `ai-governance.yml` now runs `validate-moments.py` and
+  `validate-seat-profiles.py`, so a bypassed pre-commit hook can no longer
+  merge a broken manifest. Each step skips when its manifest is not installed.
+  Adapted from Emil Dan's fork. ([#18])
+- **Context budget** — `scripts/check-context-budget.py` measures what every
+  session loads (`AGENTS.md`, `CLAUDE.md`, `.claude/rules/`, every skill
+  description) in characters, with an approximate token count, and checks it
+  against the limits in `scripts/context-budget.json`. It fails over a limit
+  and says how much to cut, and warns when a limit is more than 15% above the
+  real size. Skill descriptions are capped at 500 characters, also in
+  `validate-skills.py`. Runs in pre-commit and the generated CI.
+  The limits ship sized for the kit; after filling the placeholders, run
+  `python3 scripts/check-context-budget.py --write-limits` once to size them
+  to the project (bootstrap's next steps say so). `bootstrap.sh --merge` does
+  this on first install. The installer skill's description is shortened to
+  fit. Concept from Emil Dan's fork. ([#19])
 
 ### Updating
 
 - An installed project that already fails the frontmatter gate on inherited
   docs can adopt them once with
   `python3 scripts/validate-frontmatter.py --write-baseline`.
+- To adopt the context budget, copy `scripts/check-context-budget.py`, run
+  `python3 scripts/check-context-budget.py --write-limits` once to size the
+  limits to the project, and trim any skill description over 500 characters.
 
 ## [0.1.1] — 2026-10-14
 
@@ -210,5 +230,7 @@ seat, grouped by the date a change was merged to `main`.
 [#10]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/issues/10
 [#13]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/issues/13
 [#17]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/issues/17
+[#18]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/issues/18
+[#19]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/issues/19
 [0.1.1]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/releases/tag/v0.1.1
 [0.1.0]: https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/releases/tag/v0.1.0

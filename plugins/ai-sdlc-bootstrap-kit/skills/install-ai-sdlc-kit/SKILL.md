@@ -1,6 +1,6 @@
 ---
 name: install-ai-sdlc-kit
-description: Use when someone wants to install, set up, bootstrap or adopt the AI-SDLC Bootstrap Kit in a project, or when a project already has the kit and a person needs onboarding. Triggers on "install the kit", "set up AI-SDLC", "bootstrap this repo", "add AI governance to this project", "onboard me", and on finding AGENTS.md with no USER.md. Works out which of three situations applies — no kit, kit present but this person not onboarded, or fully set up — and does only what that situation needs. Not for authoring new skills (use skill-creator) and not for updating an installed kit to a newer version.
+description: Use when someone wants to install, set up, bootstrap or adopt the AI-SDLC Bootstrap Kit in a project, or a person in a project that has the kit needs onboarding. Triggers on "install the kit", "set up AI-SDLC", "bootstrap this repo", "onboard me", and on finding AGENTS.md with no USER.md. Works out which situation applies (no kit, kit but this person not onboarded, fully set up) and does only that. Not for authoring skills (use skill-creator) or updating an installed kit.
 metadata:
   status: "approved"
   classification: "internal"
