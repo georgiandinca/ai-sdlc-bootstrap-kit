@@ -1,0 +1,29 @@
+template/.claude/skills/ci-failure-triage/SKILL.md
+  s_311e49fedc7547::t_c62eda0910dd17 28-30,57-61
+template/.claude/skills/ci-failure-triage/scripts/log_slice.py
+  s_311e49fedc7547::t_3fe4191a3eb8c0 11,16-17,40,44,52-54,56-57,59-71,151-154,267,275-276,491,597
+template/.claude/skills/ci-failure-triage/scripts/test_report.py
+  s_311e49fedc7547::t_41d5ec856421d1 12-16,20-22,32-34,45-47,52,59-61,63-64,66-78,124,180,182,184-188,193-207,209-211,213-216,250-262,264-269,271,285-286,290-294,300-301,306-307,326-327,364,366,368-370,374-379,381,432,436,494,498-500,527-530,545-546,548-550,575,586-593
+template/scripts/tests/fixtures/ci-failure-triage/runner-iso.log
+  s_311e49fedc7547::t_bd978d928252d0 1-6
+template/scripts/tests/test_ci_triage_log_slice.py
+  s_311e49fedc7547::t_c9cab30583055a 285-333
+template/scripts/tests/test_ci_triage_test_report.py
+  s_311e49fedc7547::t_7f24087000a964 30-32,260-406
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0db7e8eec0f69a7d652a7f25e2ca9742b94adae1",
+  "prompts": {},
+  "sessions": {
+    "s_311e49fedc7547": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6ea43dd3-6a42-4313-891f-125da1467c5f",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Georgian Dinca <geo@magnify.ro>"
+    }
+  }
+}
