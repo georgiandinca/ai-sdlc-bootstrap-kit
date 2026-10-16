@@ -1,0 +1,19 @@
+2026-10-12 10:00:00,001 INFO  [main] com.example.orders.App - starting
+2026-10-12 10:00:01,120 WARN  [main] com.example.orders.Cache - cache warm-up is slow
+2026-10-12 10:00:02,500 ERROR [worker-1] com.example.orders.OrderService - order failed
+java.lang.IllegalStateException: order 42 has no lines
+	at com.example.orders.OrderService.place(OrderService.java:88)
+	at com.example.orders.OrderController.post(OrderController.java:41)
+	at com.example.web.Dispatcher.handle(Dispatcher.java:120)
+	at java.base/java.lang.Thread.run(Thread.java:833)
+Caused by: java.lang.NullPointerException: lines is null
+	at com.example.orders.Order.lines(Order.java:12)
+	... 4 more
+2026-10-12 10:00:03,000 INFO  [main] com.example.orders.App - still running
+2026-10-12 10:00:04,700 ERROR [worker-2] com.example.orders.OrderService - order failed
+java.lang.IllegalStateException: order 43 has no lines
+	at com.example.orders.OrderService.place(OrderService.java:90)
+	at com.example.orders.OrderController.post(OrderController.java:41)
+	at com.example.web.Dispatcher.handle(Dispatcher.java:120)
+	at java.base/java.lang.Thread.run(Thread.java:833)
+2026-10-12 10:00:05,000 INFO  [main] com.example.orders.App - shutting down

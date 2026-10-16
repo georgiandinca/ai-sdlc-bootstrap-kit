@@ -50,6 +50,11 @@ python3 template/scripts/tests/test_validate_moments.py
 python3 template/scripts/tests/test_validate_seat_profiles.py
 python3 template/scripts/tests/test_check_context_budget.py
 python3 template/scripts/tests/test_redact.py
+python3 template/scripts/tests/test_ci_triage_log_slice.py
+python3 template/scripts/tests/test_ci_triage_test_report.py
+python3 template/scripts/tests/test_planted_secrets.py
+python3 template/scripts/tests/test_fakeserver.py
+python3 template/scripts/tests/test_no_secret_leaks.py
 python3 template/dashboard/tests/test_schema.py
 python3 template/dashboard/tests/test_roi.py
 bash tests/installer/test-detect-situation.sh   # the plugin's situation check

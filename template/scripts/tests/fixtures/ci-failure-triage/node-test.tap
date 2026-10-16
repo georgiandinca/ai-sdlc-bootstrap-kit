@@ -1,0 +1,38 @@
+TAP version 13
+# Subtest: parser
+    # Subtest: reads headers
+    ok 1 - reads headers
+      ---
+      duration_ms: 1.2
+      ...
+    # Subtest: rejects bad input
+    not ok 2 - rejects bad input
+      ---
+      duration_ms: 3.4
+      failureType: 'testCodeFailure'
+      error: |-
+        Expected values to be strictly equal:
+
+        1 !== 2
+
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      stack: |-
+        TestContext.<anonymous> (/src/app/test/parser.test.js:22:12)
+      ...
+    1..2
+not ok 1 - parser
+  ---
+  duration_ms: 5.1
+  failureType: 'subtestsFailed'
+  error: '1 subtest failed'
+  ...
+# Subtest: config loads
+ok 2 - config loads # SKIP no config dir
+  ---
+  duration_ms: 0.1
+  ...
+1..2
+# tests 3
+# pass 1
+# fail 1

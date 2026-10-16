@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.example.orders.OrderServiceTest" tests="5" failures="1" errors="1" skipped="1" time="2.37">
+  <testcase name="placesOrder" classname="com.example.orders.OrderServiceTest" time="0.120"/>
+  <testcase name="rejectsEmptyOrder" classname="com.example.orders.OrderServiceTest" time="0.050">
+    <failure message="expected: &lt;400&gt; but was: &lt;500&gt;" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: expected: &lt;400&gt; but was: &lt;500&gt;
+	at com.example.orders.OrderServiceTest.rejectsEmptyOrder(OrderServiceTest.java:57)
+</failure>
+  </testcase>
+  <testcase name="callsInventory" classname="com.example.orders.OrderServiceTest" time="1.900">
+    <error message="Connection refused" type="java.net.ConnectException">java.net.ConnectException: Connection refused
+	at com.example.orders.InventoryClient.get(InventoryClient.java:30)
+	at com.example.orders.OrderServiceTest.callsInventory(OrderServiceTest.java:80)
+</error>
+  </testcase>
+  <testcase name="exportsCsv" classname="com.example.orders.OrderServiceTest" time="0">
+    <skipped message="not ready"/>
+  </testcase>
+  <testcase name="cachesPrices" classname="com.example.orders.OrderServiceTest" time="0.300">
+    <flakyFailure message="Timed out after 100 ms" type="java.util.concurrent.TimeoutException">java.util.concurrent.TimeoutException: Timed out after 100 ms</flakyFailure>
+  </testcase>
+</testsuite>
