@@ -45,6 +45,11 @@ jobs:
           if [ ! -f scripts/session/seat-profiles.json ]; then echo "skipped: scripts/session/seat-profiles.json not installed"; exit 0; fi
           python3 scripts/validate-seat-profiles.py
 
+      - name: Context budget for always-loaded instructions
+        run: |
+          if [ ! -f scripts/context-budget.json ]; then echo "skipped: scripts/context-budget.json not installed"; exit 0; fi
+          python3 scripts/check-context-budget.py
+
       - name: Run knowledge-graph unit tests
         run: |
           python3 scripts/knowledge/tests/test_graph_store.py

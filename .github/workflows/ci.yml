@@ -38,6 +38,10 @@ jobs:
         run: python3 template/scripts/validate-seat-profiles.py
       - name: Seat-profiles validator unit tests
         run: python3 template/scripts/tests/test_validate_seat_profiles.py
+      - name: Context budget for always-loaded instructions
+        run: python3 template/scripts/check-context-budget.py
+      - name: Context-budget unit tests
+        run: python3 template/scripts/tests/test_check_context_budget.py
 
       - name: Merge-engine unit tests
         run: bash template/scripts/tests/test_kit_merge.sh

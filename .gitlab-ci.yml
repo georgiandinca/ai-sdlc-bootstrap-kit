@@ -47,6 +47,10 @@ ai-governance:
   - python3 template/scripts/validate-seat-profiles.py
   - echo "Running seat-profiles validator unit tests…"
   - python3 template/scripts/tests/test_validate_seat_profiles.py
+  - echo "Context budget for always-loaded instructions…"
+  - python3 template/scripts/check-context-budget.py
+  - echo "Running context-budget unit tests…"
+  - python3 template/scripts/tests/test_check_context_budget.py
   - echo "Merge-engine unit tests…"
   - bash template/scripts/tests/test_kit_merge.sh
   - echo "Pointer-writer unit tests…"

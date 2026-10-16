@@ -555,6 +555,32 @@ if [ "$merge" -eq 1 ]; then
   fi
 fi
 
+# --- context budget: size the limits to this project ---------------------------------
+# The kit's limits fit a fresh install's AGENTS.md and CLAUDE.md. A --merge install
+# keeps the project's files and adds the kit's blocks, so those limits would be
+# wrong from day one (over, or far too slack). While the limits file is still
+# the kit's copy, set it to today's sizes plus headroom. A file the project has
+# changed is its own and is never rewritten here.
+budget_note=""
+if [ "$merge" -eq 1 ]; then
+  budget_rel="scripts/context-budget.json"
+  if [ -f "$dir/$budget_rel" ] && cmp -s "$dir/$budget_rel" "$TEMPLATE_ROOT/$budget_rel" \
+     && cmp -s "$dir/scripts/check-context-budget.py" "$TEMPLATE_ROOT/scripts/check-context-budget.py"; then
+    budget_rc=0
+    budget_out=$(cd "$dir" && python3 scripts/check-context-budget.py --write-limits 2>&1) || budget_rc=$?
+    budget_total=$(printf '%s\n' "$budget_out" | sed -n 's/^always loaded: \([0-9]*\) characters.*/\1/p')
+    if [ -n "$budget_total" ]; then
+      record_outcome "$budget_rel" merged "sized to this project"
+      budget_note="Context budget: \`$budget_rel\` was set to this project's sizes plus headroom ($budget_total characters always loaded). Lower the limits as you trim; raise one only with a reason in the CHANGELOG."
+      [ "$budget_rc" -ne 0 ] && budget_note="$budget_note Some skill descriptions are over the description limit; run \`python3 scripts/check-context-budget.py\` to see which."
+      echo "[bootstrap] context budget: limits set to this project's sizes ($budget_total characters always loaded)."
+    else
+      budget_note="Context budget: limits not set ($(printf '%s' "$budget_out" | tail -1)). Run \`python3 scripts/check-context-budget.py --write-limits\` once before the first commit."
+      echo "[bootstrap] context budget NOT set: $(printf '%s' "$budget_out" | tail -1)"
+    fi
+  fi
+fi
+
 # --- the install report: the FINAL state of every path this run touched -------------
 # A copy-step line is printed only when nothing later in the run changed that
 # path's verdict, so a file that collided on copy and was then successfully
@@ -581,6 +607,10 @@ if [ "$merge" -eq 1 ]; then
       echo
       echo "$baseline_note"
     fi
+    if [ -n "$budget_note" ]; then
+      echo
+      echo "$budget_note"
+    fi
   } > "$dir/.ai-sdlc/install-report.md"
 fi
 
@@ -599,7 +629,9 @@ cat <<EOF
 [bootstrap] Done. Next:
   1. cd $dir
   2. Open in Claude Code — it will run ONBOARDING.md (creates your USER.md).
-  3. Fill the remaining <PLACEHOLDERS> listed above (start with AGENTS.md §1, §3, §4).
+  3. Fill the remaining <PLACEHOLDERS> listed above (start with AGENTS.md §1, §3, §4),
+     then size the context budget to the result once and commit it:
+     python3 scripts/check-context-budget.py --write-limits
   4. (optional) add knowledge sources under docs/knowledge/sources/ and run
      python3 scripts/knowledge/ingest.py --build
 EOF

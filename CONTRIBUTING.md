@@ -42,11 +42,13 @@ python3 template/scripts/validate-skills.py
 python3 template/scripts/validate-frontmatter.py
 python3 template/scripts/validate-moments.py
 python3 template/scripts/validate-seat-profiles.py
+python3 template/scripts/check-context-budget.py
 
 # Unit tests (knowledge graph, dashboard, spend/ROI, validators)
 python3 template/scripts/tests/test_validate_frontmatter.py
 python3 template/scripts/tests/test_validate_moments.py
 python3 template/scripts/tests/test_validate_seat_profiles.py
+python3 template/scripts/tests/test_check_context_budget.py
 python3 template/dashboard/tests/test_schema.py
 python3 template/dashboard/tests/test_roi.py
 bash tests/installer/test-detect-situation.sh   # the plugin's situation check
