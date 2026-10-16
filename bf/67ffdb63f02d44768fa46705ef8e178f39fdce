@@ -1,0 +1,43 @@
+template/scripts/lib/redact.py
+  s_3c46551369fc59::t_374890edddb5a7 14-15,21-22,24-28,41-48,105,107-108,120,130-136,138-144,276-278,293-299,327-329,343-344
+template/scripts/session/collect-usage.sh
+  s_311e49fedc7547::t_70b54e960d7133 25-27,29-33
+template/scripts/spend/README.md
+  s_311e49fedc7547::t_b5ef852e27a125 38
+template/scripts/spend/import_sessions.py
+  s_3c46551369fc59::t_800f87f07ad0a8 35-36,50,52-54
+template/scripts/spend/tests/test_collect_usage.py
+  s_311e49fedc7547::t_44a6db98024f0e 4,81-104
+template/scripts/spend/tests/test_export_sessions.py
+  s_311e49fedc7547::t_111ba6f424e400 137-152
+template/scripts/spend/tests/test_import_sessions.py
+  s_311e49fedc7547::t_b82795fba16401 131-140
+template/scripts/spend/tests/test_parse_transcript.py
+  s_311e49fedc7547::t_e725ed453beea1 158
+template/scripts/tests/test_redact.py
+  s_311e49fedc7547::t_376c30ecd781e6 36-40,43-44,116-120,124,173-180,224-254,287-288,296-297,310,316,322,330-331,360-362,404,407-410,437-451,487-494
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bf67ffdb63f02d44768fa46705ef8e178f39fdce",
+  "prompts": {},
+  "sessions": {
+    "s_311e49fedc7547": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6ea43dd3-6a42-4313-891f-125da1467c5f",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Georgian Dinca <geo@magnify.ro>"
+    },
+    "s_3c46551369fc59": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f1ba8e32-c44f-43f0-982a-26184a1b3d12",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Georgian Dinca <geo@magnify.ro>"
+    }
+  }
+}
