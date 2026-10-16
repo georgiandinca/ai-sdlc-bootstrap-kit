@@ -12,7 +12,7 @@ Kinds, in the order they are applied:
 - auth_header      the value of `Authorization:` / `Proxy-Authorization:` (after an optional
                    scheme word such as Bearer, Basic or token, which is kept); a lone
                    `Bearer <x>` or `Basic <x>` (any case) when <x> looks like a token (8 or
-                   more token characters, not only lower-case letters).
+                   more token characters, not only lower-case or only upper-case letters).
 - jwt              three base64url parts, the first starting `eyJ`.
 - cookie           the value of `Cookie:` and `Set-Cookie:`; a bare session cookie
                    (SESSION_COOKIES, e.g. `JSESSIONID=<x>`); an anti-forgery header
@@ -128,19 +128,23 @@ _CSRF_FIELD = re.compile(r"(?i)((?<![A-Za-z0-9_])[\"'](?:" + _alt(CSRF_FIELDS)
                          + r")[\"']\s*:\s*[\"']|(?<![A-Za-z0-9_])(?:" + _alt(CSRF_FIELDS)
                          + r")=)" + _NOT_MARKER + r"([^\s\"'&,;]+)")
 # A match may start only where a scheme can (not inside a longer word), so a long line
-# is scanned once; the password runs to the last `@` before the path.
-_URL_CRED = re.compile(r"(?<![A-Za-z0-9+.-])([A-Za-z][A-Za-z0-9+.-]*://)([^/\s:@]+):([^/\s]+)@")
+# is scanned once; the password runs to the last `@` before the path. `?` and `#` cannot
+# appear unencoded in user info, so an `@` in a query or fragment is not a credential.
+_URL_CRED = re.compile(r"(?<![A-Za-z0-9+.-])([A-Za-z][A-Za-z0-9+.-]*://)([^/\s:@?#]+):"
+                       r"([^/\s?#]+)@")
 _QUOTED_MAX = 1024        # a quoted value longer than this is cut at its first separator
 # The name starts only after a character that cannot be part of it, so a long line is
-# scanned once. A quoted value is taken up to its closing quote (escapes included);
+# scanned once. A quoted value is taken up to its closing quote (escapes included; a
+# backslash matches only as the start of an escape, so backtracking stays linear);
 # a bare value up to the first space, quote, `&`, `,` or `;`.
 _KEY_VALUE = re.compile(
     r"(?i)(?<![A-Za-z0-9_.-])([\"']?)([A-Za-z0-9_.-]*?(?:" + _alt(SECRET_WORDS)
     + r"))\1(\s*=\s*|\s*:\s+|(?<=[\"'])\s*:\s*|%3D)"
-    + r"(?:([\"'])" + _NOT_MARKER + r"((?:\\.|(?!\4).){1," + str(_QUOTED_MAX) + r"})\4"
+    + r"(?:([\"'])" + _NOT_MARKER + r"((?:\\.|(?!\4)[^\\]){1," + str(_QUOTED_MAX) + r"})\4"
     + r"|([\"']?)" + _NOT_MARKER + r"([^\s\"'&,;]+))")
-# A command-line flag whose name ends with a secret word, then a space and its value.
-_FLAG_VALUE = re.compile(r"(?i)(?<![A-Za-z0-9_.-])(--[A-Za-z0-9_.-]*?(?:" + _alt(SECRET_WORDS)
+# A command-line flag whose name ends with a secret word, then a space and its value;
+# a negated flag (`--no-password`) takes no value.
+_FLAG_VALUE = re.compile(r"(?i)(?<![A-Za-z0-9_.-])(--(?!no-)[A-Za-z0-9_.-]*?(?:" + _alt(SECRET_WORDS)
                          + r"))(\s+)(?!-)" + _NOT_MARKER + r"([^\s\"'&,;]+)")
 _ENV = re.compile(r"^(\[[^\]]*\]\s*)?([A-Z_][A-Z0-9_]*)=(.*)$")
 _PEM_BEGIN = re.compile(r"-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----")
@@ -283,7 +287,7 @@ class Redactor:
     def _lone_scheme(self, text) -> str:
         def repl(m):
             value = m.group(3)
-            if value.isalpha() and value.islower():
+            if value.isalpha() and (value.islower() or value.isupper()):
                 return m.group(0)                 # a word ("Basic authentication"), not a token
             self._count("auth_header")
             return m.group(1) + m.group(2) + marker("auth_header")

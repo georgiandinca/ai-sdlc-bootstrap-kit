@@ -122,6 +122,7 @@ class TestAuthHeader(Case):
         self.assert_kept("Basic authentication is enabled for the Bearer of the badge")
         self.assert_kept("Authorization failed for user u1")
         self.assert_kept("basic authentication, bearer tokens and more")
+        self.assert_kept("BASIC CONFIGURATION and BEARER ACCOUNTING")
 
 
 class TestJwt(Case):
@@ -182,6 +183,8 @@ class TestUrlCredentials(Case):
         self.assert_kept("see https://git.example.com")
         self.assert_kept("git@host.example.com:repo")
         self.assert_kept("mail user@example.com")
+        self.assert_kept("open http://localhost:3000?email=a@b.com")
+        self.assert_kept("see https://host.example.com:8443#user:x@y")
 
 
 class TestKeyValue(Case):
@@ -251,6 +254,7 @@ class TestKeyValue(Case):
     def test_cli_flag_lookalikes_kept(self):
         self.assert_kept("tool --password-file pw.txt")
         self.assert_kept("tool --no-password --verbose")
+        self.assert_kept("tool --no-password prompt")
         self.assert_kept("bypass=true compass: north primary_key=id")
 
 
@@ -442,7 +446,8 @@ class TestLongLines(unittest.TestCase):
         n = 100_000
         for line in ("-" * n, "a." * (n // 2), "ab-cd." * (n // 6), "a+" * (n // 2),
                      "x" * n, "a:" * (n // 2), "--password" * (n // 10),
-                     'password="' * (n // 10), "Bearer " * (n // 7)):
+                     'password="' * (n // 10), "Bearer " * (n // 7),
+                     '"password": "' + "\\" * 5000, "'password': '" + "\\" * 5000):
             with self.subTest(line=line[:12]):
                 start = time.perf_counter()
                 redact.redact_text(line)
