@@ -61,6 +61,22 @@ class TestCollectUsage(unittest.TestCase):
             self.assertEqual(len(csvs), 1, "hook must write exactly one ledger CSV")
             self.assertIn("hook-sess-2", csvs[0].read_text(encoding="utf-8"))
 
+    def test_error_log_is_redacted(self):
+        # Planted secret: synthetic, built from parts so no scanner mistakes it for real.
+        planted = "pa" + "ss-pl4nted"
+        errlog = TEMPLATE / "scripts" / "session" / ".usage-errors.log"
+        before = errlog.read_text(encoding="utf-8") if errlog.exists() else ""
+        with tempfile.TemporaryDirectory() as tmp:
+            db = Path(tmp) / "u.db"
+            payload = {"session_id": "x",
+                       "transcript_path": f"/does/not/exist?password={planted}"}
+            proc = self._run(payload, db)
+            self.assertEqual(proc.returncode, 0, proc.stderr)
+        after = errlog.read_text(encoding="utf-8")
+        new = after[len(before):]
+        self.assertIn("password=<redacted:key_value>", new)
+        self.assertNotIn(planted, new)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -4,7 +4,9 @@ it, and upsert one row into the dashboard's sessions table.
 
 The transcript format is OBSERVED, not a contract: malformed lines are
 skipped and counted; unknown models cost 0 and are flagged in notes — never
-a guessed price. Stdlib only.
+a guessed price. Free-text fields are redacted (scripts/lib/redact.py)
+before the row is written; notes record the counts per kind, never a value.
+Stdlib only.
 
 Usage:
   parse_transcript.py --transcript <path.jsonl> --session-id <uuid> \
@@ -21,6 +23,11 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 PRICES_PATH = HERE / "prices.json"
+sys.path.insert(0, str(HERE.parent / "lib"))
+import redact  # noqa: E402
+
+# Row fields that can carry text from the transcript or the caller.
+REDACTED_FIELDS = ("seat", "task", "ticket", "model", "notes", "user")
 
 _USAGE_KEYS = ("input_tokens", "output_tokens",
                "cache_read_input_tokens", "cache_creation_input_tokens")
@@ -97,6 +104,16 @@ def totals(per_model):
             "cache_read_tokens": cache_read, "model": model}
 
 
+def redact_row(row):
+    """Redact REDACTED_FIELDS in place; note the counts per kind (never a value)."""
+    clean, counts = redact.redact_value({k: row[k] for k in REDACTED_FIELDS})
+    row.update(clean)
+    if counts:
+        note = "redacted: " + redact.format_counts(counts)
+        row["notes"] = f"{row['notes']}; {note}" if row["notes"] else note
+    return counts
+
+
 def upsert_session(conn, row):
     conn.execute(
         """INSERT INTO sessions (ts, seat, tool, task, ticket, tokens_in,
@@ -149,18 +166,20 @@ def main(argv=None):
     sys.path.insert(0, str(HERE.parents[1] / "dashboard"))
     import db as dbmod  # noqa: E402
 
+    row = {
+        "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S"),
+        "seat": args.seat, "task": args.task, "ticket": args.ticket,
+        "tokens_in": t["tokens_in"], "tokens_out": t["tokens_out"],
+        "cost_usd": round(cost_usd, 4),
+        "notes": "; ".join(notes) or None,
+        "session_id": args.session_id, "model": t["model"],
+        "cache_read_tokens": t["cache_read_tokens"],
+        "user": args.user,
+    }
+    redact_row(row)
     conn = dbmod.connect(args.db)
     try:
-        upsert_session(conn, {
-            "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S"),
-            "seat": args.seat, "task": args.task, "ticket": args.ticket,
-            "tokens_in": t["tokens_in"], "tokens_out": t["tokens_out"],
-            "cost_usd": round(cost_usd, 4),
-            "notes": "; ".join(notes) or None,
-            "session_id": args.session_id, "model": t["model"],
-            "cache_read_tokens": t["cache_read_tokens"],
-            "user": args.user,
-        })
+        upsert_session(conn, row)
     finally:
         conn.close()
     print(f"[parse-transcript] {args.session_id}: {t['tokens_in']}in/"

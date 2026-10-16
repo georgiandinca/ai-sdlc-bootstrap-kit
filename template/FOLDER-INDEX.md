@@ -39,6 +39,7 @@ A map of every directory in this workspace and what belongs there. When in doubt
 │   ├── session/                    # start.sh, sync.sh, wrapup.sh, config
 │   ├── spend/                      # AI consumption collectors + ROI inputs (prices, importers)
 │   ├── git/                        # commit_msg_ticket.py (issue-key hook)
+│   ├── lib/                        # shared helpers (redact.py: secret redaction; kit merge)
 │   └── knowledge/                  # ingest.py (RAG/KG ingestion stub)
 │
 ├── docs/                           # THE KNOWLEDGE TREE (additive, demand-driven)

@@ -55,7 +55,7 @@ class TestRowsFromCsv(unittest.TestCase):
         self.assertIsNone(rows[0]["task"])
 
 
-class TestImportMerge(unittest.TestCase):
+class ImportHelpers:
     def _import(self, tmp, files, db=None):
         db = db or Path(tmp) / "u.db"
         d = Path(tmp) / "sessions"
@@ -73,6 +73,8 @@ class TestImportMerge(unittest.TestCase):
         finally:
             conn.close()
 
+
+class TestImportMerge(ImportHelpers, unittest.TestCase):
     def test_merges_two_users(self):
         with tempfile.TemporaryDirectory() as tmp:
             db = self._import(tmp, {
@@ -109,6 +111,27 @@ class TestImportMerge(unittest.TestCase):
             d.mkdir()
             self.assertEqual(im.main(["--dir", str(d),
                                       "--db", str(Path(tmp) / "u.db")]), 0)
+
+
+# Planted secrets: synthetic, built from parts so no scanner mistakes them for real ones.
+PLANTED_TOKEN = "xoxb-" + "1234567890-" + "abcdefghij"
+
+
+class TestPlantedSecrets(ImportHelpers, unittest.TestCase):
+    """A teammate's ledger written by an older kit must not carry a secret into the DB."""
+
+    def test_free_text_columns_redacted_before_upsert(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = self._import(tmp, {"dev1.csv": [
+                _row("s1", "dev1", task=f"posted with {PLANTED_TOKEN}", notes="token: t0k3nv4lue")]})
+            got = self._q(db, "SELECT task, notes FROM sessions WHERE session_id='s1'")
+            self.assertEqual(got, [("posted with <redacted:token_shape>",
+                                    "token: <redacted:key_value>")])
+
+    def test_stem_mismatch_note_is_redacted(self):
+        rows = im.rows_from_csv(_csv(_row(user=f"x-{PLANTED_TOKEN}")), "dev1", "dev1.csv")
+        self.assertNotIn(PLANTED_TOKEN, rows[0]["notes"])
+        self.assertIn("<redacted:token_shape>", rows[0]["notes"])
 
 
 if __name__ == "__main__":

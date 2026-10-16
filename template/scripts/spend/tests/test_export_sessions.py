@@ -110,5 +110,30 @@ class TestExport(unittest.TestCase):
             self.assertEqual(rc, 2)
 
 
+# Planted secrets: synthetic, built from parts so no scanner mistakes them for real ones.
+PLANTED_TOKEN = "glpat-" + "AbCdEfGhIj" + "KlMnOpQrSt"
+
+
+class TestPlantedSecrets(unittest.TestCase):
+    """A row written before redaction existed must not reach the committed CSV."""
+
+    def test_free_text_columns_redacted_before_write(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = Path(tmp) / "u.db"
+            _seed_db(db, [("2026-07-01T10:00:00", "QA", "s1", "dev1", 1, 1)])
+            conn = dbmod.connect(db)
+            conn.execute("UPDATE sessions SET task=?, notes=? WHERE session_id='s1'",
+                         (f"used {PLANTED_TOKEN}", "secret: s3cr3tv4lue"))
+            conn.commit(); conn.close()
+            out = Path(tmp) / "ledger"
+            self.assertEqual(ex.main(["--db", str(db), "--out-dir", str(out),
+                                      "--user", "dev1"]), 0)
+            text = (out / "dev1.csv").read_text(encoding="utf-8")
+            self.assertNotIn(PLANTED_TOKEN, text)
+            self.assertNotIn("s3cr3tv4lue", text)
+            self.assertIn("used <redacted:token_shape>", text)
+            self.assertIn("secret: <redacted:key_value>", text)
+
+
 if __name__ == "__main__":
     unittest.main()
